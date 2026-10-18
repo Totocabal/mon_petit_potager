@@ -115,7 +115,7 @@ export function useDeleteZone() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (z: Zone) => { check(await supabase.from('zones').delete().eq('id', z.id)); return z; },
-    onSuccess: (z) => { qc.invalidateQueries({ queryKey: ['zones', z.garden_id] }); qc.invalidateQueries({ queryKey: ['plantings', z.garden_id] }); }
+    onSuccess: (z) => { for (const k of ['zones', 'plantings', 'tasks']) qc.invalidateQueries({ queryKey: [k, z.garden_id] }); }
   });
 }
 

@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../lib/app';
-import { BackHeader, Loading, Page, Tile } from '../components/ui';
+import { useDeleteZone } from '../lib/data';
+import { BackHeader, Btn, Loading, Page, Tile, useToast } from '../components/ui';
 import { CellGrid, RangSheet } from '../components/garden';
 import { BLOC, blocInfo, blocName, CELL_CM, isBig, meters, nf, occupancy, SPCOLOR } from '../lib/garden';
+import type { Zone } from '../lib/types';
 
 export default function ZonePage() {
   const { zoneId } = useParams();
@@ -43,6 +45,7 @@ export default function ZonePage() {
         </div>
         <Link to={`/zones/${zone.id}/generer`} className="flex min-h-12 items-center justify-center rounded-[20px] bg-vert-doux px-4 font-titre text-[17px] font-semibold text-vert">Générer un plan automatique</Link>
         {rang !== null && <RangSheet zone={zone} y={rang} x0={-1} onClose={() => setRang(null)} />}
+        <DeleteZone zone={zone} plants={ps.length} />
       </Page>
     );
   }
@@ -76,6 +79,30 @@ export default function ZonePage() {
         <span className="inline-flex items-center gap-1.5 rounded-full bg-white py-1 pl-2 pr-3 text-sm font-bold"><span className="h-4 w-4 rounded bg-terre-libre" />Libre · {nf(total - used)}</span>
       </div>
       <p className="text-[13px] text-gris">Touchez un bloc pour voir ses cases. Contour jaune : à récolter. Coin brun : cases libres dans le bloc.</p>
+      <DeleteZone zone={zone} plants={ps.length} />
     </Page>
+  );
+}
+
+function DeleteZone({ zone, plants }: { zone: Zone; plants: number }) {
+  const del = useDeleteZone();
+  const nav = useNavigate();
+  const toast = useToast();
+  const [confirm, setConfirm] = useState(false);
+
+  async function onDelete() {
+    await del.mutateAsync(zone);
+    toast(`Zone supprimée : ${zone.name}`);
+    nav('/potager', { replace: true });
+  }
+
+  return confirm ? (
+    <div className="flex flex-col gap-2.5 rounded-[20px] bg-alerte-doux p-4 text-[#6B2418]">
+      <p className="font-extrabold">Supprimer la zone « {zone.name} » ?</p>
+      <p className="text-sm">{plants ? `Ses ${plants} plantation${plants > 1 ? 's' : ''} et ses tâches seront aussi supprimées.` : 'Ses tâches seront aussi supprimées.'} Impossible de revenir en arrière.</p>
+      <div className="flex gap-2"><Btn variant="danger" onClick={onDelete} disabled={del.isPending}>Supprimer</Btn><Btn variant="contour" onClick={() => setConfirm(false)}>Annuler</Btn></div>
+    </div>
+  ) : (
+    <button onClick={() => setConfirm(true)} className="min-h-11 self-center font-extrabold text-alerte">Supprimer la zone</button>
   );
 }
