@@ -17,7 +17,7 @@ function Switch({ on, onChange, label, disabled }: { on: boolean; onChange: () =
 }
 
 export default function Alerts() {
-  const { session, garden, plantings, byId, rainFor } = useApp();
+  const { session, garden, crops, byId, rainFor } = useApp();
   const settings = useAlertSettings(session.user.id);
   const save = useSaveAlertSettings(session.user.id);
   const setSpecies = useSetSpeciesAlerts(garden.id);
@@ -33,7 +33,7 @@ export default function Alerts() {
 
   const rows = useMemo(() => {
     const m = new Map<string, { id: string; on: boolean; every: number; next: Date }>();
-    for (const p of plantings) {
+    for (const p of crops) {
       const s = byId.get(p.species_id); if (!s) continue;
       const next = nextWater(p, s, rainFor(p.zone_id));
       const cur = m.get(s.id);
@@ -41,7 +41,7 @@ export default function Alerts() {
       else { cur.on = cur.on && p.alerts_enabled; if (next < cur.next) cur.next = next; }
     }
     return [...m.values()].sort((a, b) => byId.get(a.id)!.name.localeCompare(byId.get(b.id)!.name, 'fr'));
-  }, [plantings, byId, rainFor]);
+  }, [crops, byId, rainFor]);
 
   const active = !!st?.enabled && device === true;
   const hour = st?.reminder_hour ?? 19;

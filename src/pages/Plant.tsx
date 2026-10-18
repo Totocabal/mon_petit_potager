@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { useUpdatePlanting, useWater } from '../lib/data';
 import { BackHeader, Btn, Page, Tile, useToast } from '../components/ui';
-import { ageDays, everyDays, isReady, lc, needsWater, neighbors, nextWater, nf, occupancy, placeText, plantCount, stage, stageNames } from '../lib/garden';
+import { ageDays, everyDays, isReady, isSol, lc, needsWater, neighbors, nextWater, nf, occupancy, placeText, plantCount, stage, stageNames } from '../lib/garden';
 import { cap, fmt, iso, monthsText, parse, today, whenText } from '../lib/dates';
 
 export default function PlantPage() {
@@ -20,6 +20,23 @@ export default function PlantPage() {
   const grid = useMemo(() => (zone ? occupancy(zone, plantings.filter(x => x.zone_id === zone.id)) : []), [zone, plantings]);
 
   if (!p || !s || !zone) return <Page><BackHeader title="Plante introuvable" /><p>Elle a peut-être été retirée.</p></Page>;
+
+  if (isSol(s)) {
+    return (
+      <Page>
+        <BackHeader kicker={zone.name} title={s.name} />
+        <div className="flex items-center gap-4">
+          <Tile slug={s.slug} w={104} h={104} size={84} round={28} />
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <p className="text-sm font-bold text-gris">Posé le {fmt(parse(p.sown_at))} · jour {ageDays(p)}</p>
+            <p className="text-sm font-bold text-gris">{cap(placeText(p))} · {nf(p.w * p.h)} case{p.w * p.h > 1 ? 's' : ''}</p>
+          </div>
+        </div>
+        {s.notes && <p className="rounded-2xl bg-soleil-doux px-3 py-2.5 text-sm font-bold text-soleil-encre">{s.notes}</p>}
+        <Btn variant="danger" onClick={() => remove(false)} disabled={update.isPending}>Retirer {lc(s.name)} · remettre en culture</Btn>
+      </Page>
+    );
+  }
 
   const ready = isReady(p, s), st = stage(p, s), names = stageNames(s);
   const wateredToday = p.last_watered_at === iso(today());

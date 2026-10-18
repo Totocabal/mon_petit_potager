@@ -1,9 +1,9 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../lib/app';
-import { useAddPlantings, useClearRow, useWater } from '../lib/data';
-import { BLOC, de, footprintText, isMulti, isReady, lc, meters, nf, occupancy, rangPlan, toSegments, type Grid } from '../lib/garden';
-import { iso, today } from '../lib/dates';
+import { useAddPlantings, useClearRow, useRemovePlantings, useWater } from '../lib/data';
+import { BLOC, de, footprintText, freeRects, isMulti, isReady, isSol, lc, meters, nf, occupancy, plantingsIn, rangPlan, SPTINT, toSegments, type Grid } from '../lib/garden';
+import { cap, iso, today } from '../lib/dates';
 import type { Planting, Species, Zone } from '../lib/types';
 import { Btn, Note, Picto, Sheet, Tile, useToast } from './ui';
 
@@ -68,8 +68,8 @@ export function CellGrid({ zone, grid, x0 = 0, y0 = 0, x1, y1, rowHeaders = fals
         }
       } else if (p && s) {
         items.push(
-          <Link key={`p${x}-${y}`} to={`/plantes/${p.id}`} aria-label={`${s.name}, rang ${y + 1}, case ${x + 1}${isReady(p, s) ? ', prête à récolter' : ''}`} style={pos}
-            className={`flex aspect-square min-w-0 items-center justify-center rounded-2xl bg-terre-case ${isReady(p, s) ? 'shadow-[inset_0_0_0_3px_#F6C445]' : ''}`}>
+          <Link key={`p${x}-${y}`} to={`/plantes/${p.id}`} aria-label={`${s.name}, rang ${y + 1}, case ${x + 1}${isReady(p, s) ? ', prête à récolter' : ''}`}
+            className={`flex aspect-square min-w-0 items-center justify-center rounded-2xl ${isSol(s) ? '' : 'bg-terre-case'} ${isReady(p, s) ? 'shadow-[inset_0_0_0_3px_#F6C445]' : ''}`} style={isSol(s) ? { ...pos, background: SPTINT[s.slug] } : pos}>
             <Picto slug={s.slug} size={44} className="h-[72%] w-[72%]" />
           </Link>
         );
@@ -94,6 +94,8 @@ export function CellGrid({ zone, grid, x0 = 0, y0 = 0, x1, y1, rowHeaders = fals
 export function WaterButton({ plantings, label, onDone }: { plantings: Planting[]; label: string; onDone?: () => void }) {
   const water = useWater();
   const toast = useToast();
+  const { byId } = useApp();
+  plantings = plantings.filter(p => !isSol(byId.get(p.species_id)));
   const n = plantings.length;
   if (!n) return null;
   async function go() {
@@ -105,6 +107,49 @@ export function WaterButton({ plantings, label, onDone }: { plantings: Planting[
     <div className="flex flex-col gap-1.5">
       <Btn variant="eau" onClick={go} disabled={water.isPending}>{water.isPending ? 'Enregistrement…' : `J’ai arrosé ${label} · ${n} plantation${n > 1 ? 's' : ''}`}</Btn>
       {water.isError && <p className="text-sm font-bold text-alerte">{(water.error as Error).message}</p>}
+    </div>
+  );
+}
+
+/** Jachère, paillage ou remise en culture d'une zone ou d'un bloc : agit sur ses cases libres. */
+export function GroundActions({ zone, grid, area, label }: { zone: Zone; grid: Grid; area?: { x0: number; x1: number; y0: number; y1: number }; label: string }) {
+  const { species, garden } = useApp();
+  const toast = useToast();
+  const add = useAddPlantings();
+  const remove = useRemovePlantings();
+  const a = area ?? { x0: 0, x1: zone.cols, y0: 0, y1: zone.rows };
+  const rects = freeRects(grid, a.x0, a.x1, a.y0, a.y1);
+  const free = rects.reduce((t, r) => t + r.w * r.h, 0);
+  const covers = plantingsIn(grid, a.x0, a.x1, a.y0, a.y1).filter(p => isSol(species.find(s => s.id === p.species_id)));
+  const busy = add.isPending || remove.isPending;
+
+  async function cover(slug: 'jachere' | 'paillage') {
+    const s = species.find(x => x.slug === slug);
+    if (!s || !free) return;
+    await add.mutateAsync(rects.map(r => ({ garden_id: garden.id, zone_id: zone.id, species_id: s.id, ...r, sown_at: iso(today()) })));
+    toast(`${cap(label)} : ${free} case${free > 1 ? 's' : ''} en ${lc(s.name)}`);
+  }
+  async function uncover() {
+    await remove.mutateAsync(covers);
+    toast(`${cap(label)} : remis en culture`);
+  }
+
+  if (!free && !covers.length) return null;
+  return (
+    <div className="flex flex-col gap-2.5 rounded-carte bg-white p-4">
+      <b>Sol de {label}</b>
+      {free > 0 && (
+        <div className="grid grid-cols-2 gap-2">
+          {(['jachere', 'paillage'] as const).map(slug => (
+            <button key={slug} onClick={() => cover(slug)} disabled={busy} className="flex min-h-14 items-center gap-2 rounded-2xl bg-fond px-3 text-left font-extrabold">
+              <Tile slug={slug} w={40} h={40} size={32} round={12} />{slug === 'jachere' ? 'Jachère' : 'Paillage'}
+            </button>
+          ))}
+        </div>
+      )}
+      {free > 0 && <p className="text-[13px] text-gris">S'applique aux {free} case{free > 1 ? 's' : ''} libre{free > 1 ? 's' : ''} ; les plantes restent en place.</p>}
+      {covers.length > 0 && <Btn variant="doux" onClick={uncover} disabled={busy}>Remettre en culture (retirer jachère et paillage)</Btn>}
+      {(add.isError || remove.isError) && <p className="text-sm font-bold text-alerte">{((add.error ?? remove.error) as Error).message}</p>}
     </div>
   );
 }
@@ -142,7 +187,7 @@ export function RangSheet({ zone, y, x0, onClose }: { zone: Zone; y: number; x0:
   async function plant() {
     if (!s || !plan || !n) return;
     await add.mutateAsync(toSegments(plan.ok).map(seg => ({ garden_id: garden.id, zone_id: zone.id, species_id: s.id, x: seg.x, y, w: seg.w, h: 1, sown_at: iso(today()) })));
-    toast(`Rang ${y + 1} : ${n} cases ${de(lc(s.name))} · ${nf(n * s.plants_per_cell)} plants`);
+    toast(isSol(s) ? `Rang ${y + 1} : ${n} case${n > 1 ? 's' : ''} en ${lc(s.name)}` : `Rang ${y + 1} : ${n} cases ${de(lc(s.name))} · ${nf(n * s.plants_per_cell)} plants`);
     onClose();
   }
 
@@ -162,20 +207,20 @@ export function RangSheet({ zone, y, x0, onClose }: { zone: Zone; y: number; x0:
       <Note tone={msg[0]}>{msg[1]}</Note>
       {s && (
         <div className="flex items-baseline justify-between">
-          <b className="font-titre text-[19px] font-semibold">{nf(n * s.plants_per_cell)} plants {de(lc(s.name))}</b>
+          <b className="font-titre text-[19px] font-semibold">{isSol(s) ? `${n} case${n > 1 ? 's' : ''} en ${lc(s.name)}` : `${nf(n * s.plants_per_cell)} plants ${de(lc(s.name))}`}</b>
           <span className="text-[13px] font-bold text-gris">{n} case{n > 1 ? 's' : ''} · {meters(n * 30)}</span>
         </div>
       )}
-      <Btn onClick={plant} disabled={!n || add.isPending}>{add.isPending ? 'Plantation…' : `Planter ${n} case${n > 1 ? 's' : ''}`}</Btn>
+      <Btn onClick={plant} disabled={!n || add.isPending}>{add.isPending ? 'Enregistrement…' : `${s && isSol(s) ? 'Couvrir' : 'Planter'} ${n} case${n > 1 ? 's' : ''}`}</Btn>
       {add.isError && <p className="text-sm font-bold text-alerte">{(add.error as Error).message}</p>}
       {busy > 0 && (confirmClear ? (
         <div className="flex flex-col gap-2.5 rounded-[20px] bg-alerte-doux p-4 text-[#6B2418]">
-          <p className="font-extrabold">Retirer les plantes de {busy} case{busy > 1 ? 's' : ''} du rang {y + 1} ?</p>
+          <p className="font-extrabold">Retirer ce qui couvre {busy} case{busy > 1 ? 's' : ''} du rang {y + 1} ?</p>
           <div className="flex gap-2"><Btn variant="danger" onClick={clearRow} disabled={clear.isPending}>Vider le rang</Btn><Btn variant="contour" onClick={() => setConfirmClear(false)}>Annuler</Btn></div>
           {clear.isError && <p className="text-sm font-bold text-alerte">{(clear.error as Error).message}</p>}
         </div>
       ) : (
-        <button onClick={() => setConfirmClear(true)} className="min-h-11 self-center font-extrabold text-alerte">Vider le rang · {busy} case{busy > 1 ? 's' : ''} plantée{busy > 1 ? 's' : ''}</button>
+        <button onClick={() => setConfirmClear(true)} className="min-h-11 self-center font-extrabold text-alerte">Vider le rang · {busy} case{busy > 1 ? 's' : ''} occupée{busy > 1 ? 's' : ''}</button>
       ))}
     </Sheet>
   );

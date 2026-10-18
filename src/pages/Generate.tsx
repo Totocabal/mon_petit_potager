@@ -3,7 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { useAddPlantings } from '../lib/data';
 import { BackHeader, Btn, Loading, Note, Page, Tile, useToast } from '../components/ui';
-import { footprintText, inSeason, isMulti, lc, nf, occupancy, plantCount, SPCOLOR } from '../lib/garden';
+import { footprintText, inSeason, isMulti, isSol, lc, nf, occupancy, plantCount, SPCOLOR } from '../lib/garden';
 import { generatePlan, type Area } from '../lib/generator';
 import { MOIS, today } from '../lib/dates';
 
@@ -34,7 +34,7 @@ export default function Generate() {
   if (loading) return <Loading />;
   if (!zone || !area) return <Page><BackHeader title="Zone introuvable" /></Page>;
 
-  const list = species.filter(s => filter === 'toutes' || inSeason(s, m));
+  const list = species.filter(s => !isSol(s) && (filter === 'toutes' || inSeason(s, m)));
   const set = (id: string, w: number) => setWeights(prev => { const n = { ...prev }; if (w <= 0) delete n[id]; else n[id] = Math.min(4, w); return n; });
   const offSeason = picks.filter(p => !inSeason(p.species, m));
   const frost = picks.filter(p => p.species.frost_sensitive && m < 5);

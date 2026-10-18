@@ -2,7 +2,7 @@ import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import type { Garden, Planting, Profile, Species, Zone } from './types';
 import { useCatalogue, usePlantings, useProfile, useZones } from './data';
-import type { Relations } from './garden';
+import { isSol, type Relations } from './garden';
 import { lastRainyDay, useWeather, type Weather } from './weather';
 
 export type AppData = {
@@ -12,7 +12,10 @@ export type AppData = {
   gardens: Garden[];
   selectGarden: (id: string) => void;
   zones: Zone[];
+  /** Toutes les plantations, sols compris (jachère, paillage) : pour dessiner les grilles */
   plantings: Planting[];
+  /** Seulement les plantes (sans jachère ni paillage) : arrosage, récolte, comptes */
+  crops: Planting[];
   species: Species[];
   byId: Map<string, Species>;
   bySlug: Map<string, Species>;
@@ -45,6 +48,7 @@ export function AppProvider({ session, garden, gardens, selectGarden, children }
     selectGarden,
     zones: zones.data ?? [],
     plantings: plantings.data ?? [],
+    crops: (plantings.data ?? []).filter(p => !isSol(cat.byId.get(p.species_id))),
     species: cat.species,
     byId: cat.byId,
     bySlug: cat.bySlug,

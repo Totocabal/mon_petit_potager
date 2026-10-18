@@ -168,6 +168,17 @@ export function useWater() {
     onSuccess: (gid) => qc.invalidateQueries({ queryKey: ['plantings', gid] })
   });
 }
+/** Retire plusieurs plantations d'un coup (elles gardent leur historique). */
+export function useRemovePlantings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (ps: Planting[]) => {
+      check(await supabase.from('plantings').update({ removed_at: new Date().toISOString() }).in('id', ps.map(p => p.id)));
+      return ps[0]?.garden_id;
+    },
+    onSuccess: (gid) => qc.invalidateQueries({ queryKey: ['plantings', gid] })
+  });
+}
 export function useUpdatePlanting() {
   const qc = useQueryClient();
   return useMutation({

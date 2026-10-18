@@ -13,12 +13,12 @@ function Chips({ list }: { list: Species[] }) {
 }
 
 export default function Calendar() {
-  const { species, plantings, byId } = useApp();
+  const { species, crops, byId } = useApp();
   const now = today().getMonth() + 1;
   const [m, setM] = useState(now);
   const months = Array.from({ length: 12 }, (_, i) => ((now - 1 + i) % 12) + 1);
   const sow = species.filter(s => s.sow_indoor_months.includes(m) || s.plant_out_months.includes(m));
-  const mineIds = new Set(plantings.map(p => p.species_id).filter(id => byId.get(id)?.harvest_months.includes(m)));
+  const mineIds = new Set(crops.map(p => p.species_id).filter(id => byId.get(id)?.harvest_months.includes(m)));
   const mine = [...mineIds].map(id => byId.get(id)!).filter(Boolean);
   const other = species.filter(s => s.harvest_months.includes(m) && !mineIds.has(s.id));
 

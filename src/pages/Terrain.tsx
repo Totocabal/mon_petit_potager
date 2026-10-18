@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { useUpdateZone } from '../lib/data';
 import { BottomNav, Loading, Page, Picto, useToast } from '../components/ui';
-import { CELL_CM, isReady, meters, nf, plantCount, SPCOLOR, zoneFits, zoneSize } from '../lib/garden';
+import { CELL_CM, isReady, isSol, meters, nf, plantCount, SPCOLOR, zoneFits, zoneGround, zoneSize } from '../lib/garden';
 import type { Zone } from '../lib/types';
 
 const SNAP_CM = 10;
@@ -68,11 +68,12 @@ export default function Terrain() {
   const stats = useMemo(() => new Map(zones.map(z => {
     const ps = plantings.filter(p => p.zone_id === z.id);
     const used = ps.reduce((t, p) => t + p.w * p.h, 0);
+    const planted = ps.reduce((t, p) => t + (isSol(byId.get(p.species_id)) ? 0 : p.w * p.h), 0);
     const by = new Map<string, number>();
     ps.forEach(p => by.set(p.species_id, (by.get(p.species_id) ?? 0) + p.w * p.h));
     const top = [...by.entries()].sort((a, b) => b[1] - a[1]).map(e => e[0]);
     const ready = ps.some(p => { const s = byId.get(p.species_id); return s ? isReady(p, s) : false; });
-    return [z.id, { used, total: z.cols * z.rows, top, ready }];
+    return [z.id, { used, planted, total: z.cols * z.rows, top, ready, ground: zoneGround(z, ps, byId) }];
   })), [zones, plantings, byId]);
 
   if (loading) return <Loading />;
@@ -101,7 +102,8 @@ export default function Terrain() {
             boxShadow: dragging ? (drag.ok ? '0 0 0 3px #2E6B3F, 0 8px 18px rgba(0,0,0,.25)' : '0 0 0 3px #B8402C, 0 8px 18px rgba(0,0,0,.25)') : z.sheltered ? 'inset 0 0 0 2px #3F7DA0' : st.ready ? 'inset 0 0 0 2px #F6C445' : 'none' };
           const inner = (
             <>
-              {dom && st.used / st.total > 0.15 && <span className="absolute inset-[22%] rounded-sm" style={{ background: SPCOLOR[dom.slug] }} />}
+              {st.ground ? <span className="absolute inset-[18%] flex items-center justify-center rounded-sm" style={{ background: SPCOLOR[st.ground] }}><Picto slug={st.ground} size={40} className="max-h-full max-w-full" /></span>
+                : dom && st.used / st.total > 0.15 && <span className="absolute inset-[22%] rounded-sm" style={{ background: SPCOLOR[dom.slug] }} />}
               {editing && <span className="absolute inset-x-0 top-0 truncate bg-black/35 px-1 text-[10px] font-extrabold leading-4 text-white">{z.name}</span>}
             </>
           );
@@ -126,7 +128,7 @@ export default function Terrain() {
               <span className="h-9 w-2.5 shrink-0 rounded" style={{ background: z.sheltered ? '#3F7DA0' : st.ready ? '#F6C445' : '#C08B5C' }} />
               <span className="flex min-w-0 flex-1 flex-col">
                 <b className="font-extrabold">{z.name}</b>
-                <span className="text-xs text-gris">{meters(z.cols * CELL_CM)} × {meters(z.rows * CELL_CM)} · {nf(st.total)} cases · {Math.round((st.used / st.total) * 100)} % planté{z.sheltered ? ' · sous abri' : ''}</span>
+                <span className="text-xs text-gris">{meters(z.cols * CELL_CM)} × {meters(z.rows * CELL_CM)} · {nf(st.total)} cases · {Math.round((st.planted / st.total) * 100)} % planté{z.sheltered ? ' · sous abri' : ''}{st.ground ? ' · ' + (st.ground === 'jachere' ? 'en jachère' : 'paillée') : ''}</span>
               </span>
               <span className="flex gap-0.5">{st.top.slice(0, 3).map(id => <Picto key={id} slug={byId.get(id)?.slug ?? 'salade'} size={24} />)}</span>
             </Link>

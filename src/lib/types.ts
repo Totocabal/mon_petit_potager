@@ -20,6 +20,8 @@ export type Species = {
   perennial: boolean;
   frost_sensitive: boolean;
   notes: string | null;
+  /** 'sol' : jachère, paillage… (ni arrosé, ni récolté, ni compté comme plant) */
+  kind: 'plante' | 'sol';
 };
 
 export type Companion = {

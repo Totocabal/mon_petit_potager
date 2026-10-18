@@ -11,7 +11,7 @@ import { WeatherIcon } from '../components/WeatherIcon';
 import type { Planting } from '../lib/types';
 
 export default function Home() {
-  const { profile, plantings, zones, byId, loading, garden, weather, rainFor } = useApp();
+  const { profile, crops, zones, byId, loading, garden, weather, rainFor } = useApp();
   const water = useWater();
   const { session } = useApp();
   const tasks = useTasks(garden.id);
@@ -22,18 +22,18 @@ export default function Home() {
 
   const groups = useMemo(() => {
     const harvest = new Map<string, Planting[]>(), thirsty = new Map<string, Planting[]>();
-    for (const p of plantings) {
+    for (const p of crops) {
       const s = byId.get(p.species_id); if (!s) continue;
       const key = p.species_id + '|' + p.zone_id;
       if (isReady(p, s)) harvest.set(key, [...(harvest.get(key) ?? []), p]);
       if (p.alerts_enabled && needsWater(p, s, undefined, rainFor(p.zone_id))) thirsty.set(key, [...(thirsty.get(key) ?? []), p]);
     }
     return { harvest: [...harvest.values()], thirsty: [...thirsty.values()] };
-  }, [plantings, byId, rainFor]);
+  }, [crops, byId, rainFor]);
 
   if (loading) return <Loading />;
   const zoneName = (id: string) => zones.find(z => z.id === id)?.name ?? '';
-  const recent = plantings.slice().sort((a, b) => ageDays(a) - ageDays(b)).slice(0, 10);
+  const recent = crops.slice().sort((a, b) => ageDays(a) - ageDays(b)).slice(0, 10);
 
   return (
     <Page nav wide>

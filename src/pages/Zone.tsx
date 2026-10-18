@@ -3,8 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { useDeleteZone, useUpdateZone } from '../lib/data';
 import { BackHeader, Btn, Loading, Page, Sheet, Tile, useToast } from '../components/ui';
-import { CellGrid, RangSheet, WaterButton } from '../components/garden';
-import { BLOC, blocInfo, blocName, CELL_CM, isBig, meters, nf, occupancy, SPCOLOR } from '../lib/garden';
+import { CellGrid, GroundActions, RangSheet, WaterButton } from '../components/garden';
+import { BLOC, blocInfo, blocName, CELL_CM, isBig, isSol, meters, nf, occupancy, SPCOLOR, zoneGround } from '../lib/garden';
 import type { Zone } from '../lib/types';
 
 export default function ZonePage() {
@@ -13,6 +13,7 @@ export default function ZonePage() {
   const zone = zones.find(z => z.id === zoneId);
   const ps = useMemo(() => plantings.filter(p => p.zone_id === zoneId), [plantings, zoneId]);
   const grid = useMemo(() => (zone ? occupancy(zone, ps) : []), [zone, ps]);
+  const ground = useMemo(() => (zone ? zoneGround(zone, ps, byId) : null), [zone, ps, byId]);
   const [rang, setRang] = useState<number | null>(null);
   const [rowPick, setRowPick] = useState(0);
   const [renaming, setRenaming] = useState(false);
@@ -21,13 +22,14 @@ export default function ZonePage() {
   if (!zone) return <Page><BackHeader title="Zone introuvable" /></Page>;
 
   const used = ps.reduce((t, p) => t + p.w * p.h, 0), total = zone.cols * zone.rows;
+  const planted = ps.reduce((t, p) => t + (isSol(byId.get(p.species_id)) ? 0 : p.w * p.h), 0);
   const head = (
     <>
       <BackHeader kicker={garden.name + ' ›'} title={zone.name}
         right={<button onClick={() => setRenaming(true)} aria-label="Renommer la zone" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-vert shadow-sm">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="M13 7l4 4" /></svg>
         </button>} />
-      <p className="text-sm font-bold text-gris">{meters(zone.cols * CELL_CM)} × {meters(zone.rows * CELL_CM)} · {nf(total)} cases · {Math.round((used / total) * 100)} % planté{zone.sheltered ? ' · sous abri' : ''}</p>
+      <p className="text-sm font-bold text-gris">{meters(zone.cols * CELL_CM)} × {meters(zone.rows * CELL_CM)} · {nf(total)} cases · {Math.round((planted / total) * 100)} % planté{zone.sheltered ? ' · sous abri' : ''}{ground ? ' · ' + (ground === 'jachere' ? 'en jachère' : 'paillée') : ''}</p>
     </>
   );
 
@@ -49,6 +51,7 @@ export default function ZonePage() {
         </div>
         <Link to={`/zones/${zone.id}/generer`} className="flex min-h-12 items-center justify-center rounded-[20px] bg-vert-doux px-4 font-titre text-[17px] font-semibold text-vert">Générer un plan automatique</Link>
         {rang !== null && <RangSheet zone={zone} y={rang} x0={-1} onClose={() => setRang(null)} />}
+        <GroundActions zone={zone} grid={grid} label={'la zone ' + zone.name} />
         <WaterButton plantings={ps} label={'la zone ' + zone.name} />
         <DeleteZone zone={zone} plants={ps.length} />
         {renaming && <RenameZone zone={zone} onClose={() => setRenaming(false)} />}
@@ -85,6 +88,7 @@ export default function ZonePage() {
         <span className="inline-flex items-center gap-1.5 rounded-full bg-white py-1 pl-2 pr-3 text-sm font-bold"><span className="h-4 w-4 rounded bg-terre-libre" />Libre · {nf(total - used)}</span>
       </div>
       <p className="text-[13px] text-gris">Touchez un bloc pour voir ses cases. Contour jaune : à récolter. Coin brun : cases libres dans le bloc.</p>
+      <GroundActions zone={zone} grid={grid} label={'la zone ' + zone.name} />
       <WaterButton plantings={ps} label={'la zone ' + zone.name} />
       <DeleteZone zone={zone} plants={ps.length} />
       {renaming && <RenameZone zone={zone} onClose={() => setRenaming(false)} />}
