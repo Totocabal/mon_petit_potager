@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../lib/app';
-import { useAddPlantings } from '../lib/data';
+import { useAddPlantings, useClearRow } from '../lib/data';
 import { BLOC, de, isReady, lc, meters, nf, occupancy, rangPlan, toSegments, type Grid } from '../lib/garden';
 import { iso, today } from '../lib/dates';
-import type { Species, Zone } from '../lib/types';
+import type { Planting, Species, Zone } from '../lib/types';
 import { Btn, Note, Picto, Sheet, Tile, useToast } from './ui';
 
 /** Bande horizontale d'espèces à choisir, celles de saison en premier. */
@@ -74,6 +74,8 @@ export function RangSheet({ zone, y, x0, onClose }: { zone: Zone; y: number; x0:
   const { plantings, rels, byId, species, garden } = useApp();
   const toast = useToast();
   const add = useAddPlantings();
+  const clear = useClearRow();
+  const [confirmClear, setConfirmClear] = useState(false);
   const big = zone.cols > BLOC;
   const [scope, setScope] = useState<'bloc' | 'zone'>(big && x0 >= 0 ? 'bloc' : 'zone');
   const [sp, setSp] = useState<string | null>(() => species.find(s => s.slug === 'ail')?.id ?? species[0]?.id ?? null);
@@ -87,6 +89,15 @@ export function RangSheet({ zone, y, x0, onClose }: { zone: Zone; y: number; x0:
     : plan.bad.length ? ['neutre', plan.badCells + ' case(s) sautée(s) : trop près de ' + plan.bad.map(i => lc(byId.get(i)!.name)).join(', ') + '.']
     : plan.good.length ? ['bon', 'Bon voisinage avec ' + plan.good.map(i => lc(byId.get(i)!.name)).join(', ') + '.']
     : ['neutre', plan.busy ? plan.busy + ' case(s) déjà plantée(s), laissée(s) telles quelles.' : 'Voisines neutres : rien à signaler.'];
+
+  const inRow = [...new Set(grid[y].slice(xa, xb).filter((p): p is Planting => !!p))];
+  const busy = grid[y].slice(xa, xb).filter(Boolean).length;
+
+  async function clearRow() {
+    await clear.mutateAsync({ ps: inRow, y, xa, xb });
+    toast(`Rang ${y + 1} vidé · ${busy} case${busy > 1 ? 's' : ''} libérée${busy > 1 ? 's' : ''}`);
+    onClose();
+  }
 
   async function plant() {
     if (!s || !plan || !n) return;
@@ -116,6 +127,15 @@ export function RangSheet({ zone, y, x0, onClose }: { zone: Zone; y: number; x0:
       )}
       <Btn onClick={plant} disabled={!n || add.isPending}>{add.isPending ? 'Plantation…' : `Planter ${n} case${n > 1 ? 's' : ''}`}</Btn>
       {add.isError && <p className="text-sm font-bold text-alerte">{(add.error as Error).message}</p>}
+      {busy > 0 && (confirmClear ? (
+        <div className="flex flex-col gap-2.5 rounded-[20px] bg-alerte-doux p-4 text-[#6B2418]">
+          <p className="font-extrabold">Retirer les plantes de {busy} case{busy > 1 ? 's' : ''} du rang {y + 1} ?</p>
+          <div className="flex gap-2"><Btn variant="danger" onClick={clearRow} disabled={clear.isPending}>Vider le rang</Btn><Btn variant="contour" onClick={() => setConfirmClear(false)}>Annuler</Btn></div>
+          {clear.isError && <p className="text-sm font-bold text-alerte">{(clear.error as Error).message}</p>}
+        </div>
+      ) : (
+        <button onClick={() => setConfirmClear(true)} className="min-h-11 self-center font-extrabold text-alerte">Vider le rang · {busy} case{busy > 1 ? 's' : ''} plantée{busy > 1 ? 's' : ''}</button>
+      ))}
     </Sheet>
   );
 }
