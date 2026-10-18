@@ -5,6 +5,20 @@ import { addDays, diffDays, parse, today } from './dates';
 export const CELL_CM = 30;
 export const BLOC = 5;
 
+/** Emprise d'une zone sur le terrain, en cm. */
+export const zoneSize = (z: Pick<Zone, 'cols' | 'rows'>) => ({ w: z.cols * CELL_CM, h: z.rows * CELL_CM });
+
+/** La zone peut-elle être posée en (x, y) cm : dans le terrain et sans chevaucher une autre zone ? */
+export function zoneFits(zones: Zone[], z: Zone, x: number, y: number, terrain: { w: number; h: number }): boolean {
+  const s = zoneSize(z);
+  if (x < 0 || y < 0 || x + s.w > terrain.w || y + s.h > terrain.h) return false;
+  return !zones.some(o => {
+    if (o.id === z.id) return false;
+    const t = zoneSize(o);
+    return x < o.x_cm + t.w && o.x_cm < x + s.w && y < o.y_cm + t.h && o.y_cm < y + s.h;
+  });
+}
+
 /** Une zone est « grande » au-delà de 12 × 12 cases : on la parcourt en blocs de 5 × 5. */
 export const isBig = (z: Pick<Zone, 'cols' | 'rows'>) => z.cols > 12 || z.rows > 12;
 
