@@ -41,9 +41,9 @@ export function WeatherIcon({ sky, size = 76 }: { sky: Sky; size?: number }) {
         {sky === 'averses' && SUN}
         <path d="M22 52h40a12 12 0 0 0 0-24 16 16 0 0 0-30 4 10 10 0 0 0-10 20z" fill={sky === 'orage' ? '#C4D5DB' : '#FFFFFF'} />
         {FACE}
-        {sky === 'orage' ? <path d="M46 50l-9 11h6l-3 7 12-13h-7l3-5z" fill="#F6C445" /> : drops}
+        {sky === 'orage' ? <path d="M46 47l-8 9h6l-3 7 11-12h-7l3-4z" fill="#F6C445" /> : drops}
       </>
     );
   }
-  return <svg aria-hidden="true" viewBox="0 0 80 70" width={size} height={Math.round(size * 0.875)} className="shrink-0">{body}</svg>;
+  return <svg aria-hidden="true" viewBox="0 0 80 64" width={size} height={Math.round(size * 0.8)} className="shrink-0">{body}</svg>;
 }

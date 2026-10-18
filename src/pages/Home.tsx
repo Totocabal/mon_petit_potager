@@ -118,8 +118,8 @@ function WeatherCard({ weather, thirsty }: { weather: Weather; thirsty: number }
   return (
     <div className="flex items-center gap-4 rounded-[28px] bg-[#D3EAEE] px-5 py-[18px]">
       <WeatherIcon sky={sky} />
-      <div className="flex min-w-0 flex-col gap-1">
-        <p className="font-titre text-[28px] font-semibold leading-tight text-[#1F4D5A]">{temp}° <span className="text-base font-medium">{SKY_LABEL[sky]}</span></p>
+      <div className="flex min-w-0 flex-col gap-1 leading-[normal]">
+        <p className="font-titre text-[28px] font-semibold text-[#1F4D5A]">{temp}° <span className="text-base font-medium">{SKY_LABEL[sky]}</span></p>
         <p className="text-sm text-[#2C5A66]">{line}</p>
         {pill && <p className="mt-1 self-start rounded-full bg-white px-3 py-[5px] text-[13px] font-extrabold text-vert">{pill}</p>}
       </div>

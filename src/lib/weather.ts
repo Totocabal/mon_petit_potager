@@ -5,7 +5,7 @@ import { iso, parse, today } from './dates';
 export const RAIN_MM = 3;
 
 export type WeatherDay = { date: string; rain: number; tmax: number; tmin: number; code: number };
-export type Weather = { days: WeatherDay[] };
+export type Weather = { days: WeatherDay[]; current?: { temp: number; code: number } };
 export type Place = { name: string; lat: number; lon: number };
 
 /** Trouve une ville (Open-Meteo, sans clé). */
@@ -18,11 +18,15 @@ export async function geocode(city: string): Promise<Place | null> {
 }
 
 async function fetchWeather(lat: number, lon: number): Promise<Weather> {
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=precipitation_sum,temperature_2m_max,temperature_2m_min,weather_code&past_days=3&forecast_days=4&timezone=auto`;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=precipitation_sum,temperature_2m_max,temperature_2m_min,weather_code&current=temperature_2m,weather_code&past_days=3&forecast_days=4&timezone=auto`;
   const r = await fetch(url);
   if (!r.ok) throw new Error('Météo indisponible');
-  const d = (await r.json()).daily;
-  return { days: d.time.map((t: string, i: number) => ({ date: t, rain: d.precipitation_sum[i] ?? 0, tmax: Math.round(d.temperature_2m_max[i]), tmin: Math.round(d.temperature_2m_min[i]), code: d.weather_code[i] })) };
+  const j = await r.json();
+  const d = j.daily, c = j.current;
+  return {
+    days: d.time.map((t: string, i: number) => ({ date: t, rain: d.precipitation_sum[i] ?? 0, tmax: Math.round(d.temperature_2m_max[i]), tmin: Math.round(d.temperature_2m_min[i]), code: d.weather_code[i] })),
+    current: c ? { temp: Math.round(c.temperature_2m), code: c.weather_code } : undefined
+  };
 }
 
 export function useWeather(lat: number | null | undefined, lon: number | null | undefined) {
@@ -49,6 +53,30 @@ export function rainSoon(w: Weather | undefined, now = today()): number {
   const t = iso(now);
   const tm = iso(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
   return w.days.filter(d => d.date === t || d.date === tm).reduce((s, d) => s + d.rain, 0);
+}
+
+/** Pluie (mm) prévue un jour donné (yyyy-mm-dd). */
+export function rainOn(w: Weather | undefined, date: string): number {
+  return w?.days.find(d => d.date === date)?.rain ?? 0;
+}
+
+export type Sky = 'soleil' | 'eclaircies' | 'nuageux' | 'brouillard' | 'pluie' | 'averses' | 'neige' | 'orage';
+
+export const SKY_LABEL: Record<Sky, string> = {
+  soleil: 'ensoleillé', eclaircies: 'éclaircies', nuageux: 'nuageux', brouillard: 'brouillard',
+  pluie: 'pluie', averses: 'averses', neige: 'neige', orage: 'orage'
+};
+
+/** Code WMO (Open-Meteo) → ciel illustré. */
+export function skyOf(code: number): Sky {
+  if (code === 0) return 'soleil';
+  if (code <= 2) return 'eclaircies';
+  if (code === 3) return 'nuageux';
+  if (code <= 48) return 'brouillard';
+  if (code <= 67) return 'pluie';
+  if (code <= 77) return 'neige';
+  if (code <= 86) return code >= 85 ? 'neige' : 'averses';
+  return 'orage';
 }
 
 export function describe(code: number): { label: string; icon: string } {
