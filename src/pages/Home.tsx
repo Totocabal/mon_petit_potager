@@ -1,16 +1,22 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../lib/app';
-import { useWater } from '../lib/data';
+import { useTasks, useToggleTask, useWater } from '../lib/data';
+import { TaskSheet } from '../components/TaskSheet';
 import { BottomNav, Loading, Page, Tile, useToast } from '../components/ui';
 import { ageDays, isReady, lc, needsWater } from '../lib/garden';
-import { longDate, today, iso } from '../lib/dates';
+import { longDate, today, iso, parse, diffDays, whenText } from '../lib/dates';
 import { describe, rainSoon } from '../lib/weather';
 import type { Planting } from '../lib/types';
 
 export default function Home() {
   const { profile, plantings, zones, byId, loading, garden, weather, rainFor } = useApp();
   const water = useWater();
+  const { session } = useApp();
+  const tasks = useTasks(garden.id);
+  const toggle = useToggleTask(garden.id, session.user.id);
+  const [adding, setAdding] = useState(false);
+  const dueTasks = (tasks.data ?? []).filter(t => !t.done_at && diffDays(parse(t.due_date), today()) <= 0);
   const toast = useToast();
 
   const groups = useMemo(() => {
@@ -60,7 +66,18 @@ export default function Home() {
             </Link>
           );
         })}
-        {!groups.thirsty.length && !groups.harvest.length && <p className="py-4 text-gris">Rien à faire aujourd’hui. Profitez-en pour regarder pousser.</p>}
+        {dueTasks.map(t => (
+          <div key={t.id} className="flex min-h-[58px] items-center gap-3 border-b border-dashed border-trait last:border-0">
+            <button aria-label={`Terminer : ${t.title}`} onClick={async () => { await toggle.mutateAsync({ id: t.id, done: true }); toast('Tâche terminée'); }} className="h-10 w-10 shrink-0 rounded-full border-2 border-vert" />
+            <span className="flex min-w-0 flex-1 flex-col"><b className="font-extrabold">{t.title}</b><span className="text-[13px] text-gris">{diffDays(parse(t.due_date), today()) < 0 ? 'En retard' : whenText(parse(t.due_date))}{zoneName(t.zone_id!) ? ' · ' + zoneName(t.zone_id!) : ''}</span></span>
+          </div>
+        ))}
+        {!groups.thirsty.length && !groups.harvest.length && !dueTasks.length && <p className="py-4 text-gris">Rien à faire aujourd’hui. Profitez-en pour regarder pousser.</p>}
+      </div>
+
+      <div className="flex gap-2.5">
+        <button onClick={() => setAdding(true)} className="min-h-11 flex-1 rounded-2xl bg-vert-doux font-extrabold text-vert">+ Tâche</button>
+        <Link to="/taches" className="flex min-h-11 flex-1 items-center justify-center rounded-2xl bg-white font-extrabold text-vert">Toutes les tâches</Link>
       </div>
 
       <div className="flex items-baseline justify-between"><h2 className="font-titre text-xl font-semibold">Mes plantes</h2><Link to="/potager" className="font-extrabold text-vert">Tout voir</Link></div>
@@ -80,6 +97,7 @@ export default function Home() {
       ) : (
         <Link to="/potager" className="rounded-carte bg-white p-4 font-bold text-vert">Commencez par créer une zone et y planter quelque chose →</Link>
       )}
+      {adding && <TaskSheet onClose={() => setAdding(false)} />}
       <BottomNav />
     </Page>
   );

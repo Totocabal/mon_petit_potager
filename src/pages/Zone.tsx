@@ -41,6 +41,7 @@ export default function ZonePage() {
             <button onClick={() => setRang(rowPick)} className="min-h-12 rounded-2xl bg-vert px-4 font-titre font-semibold text-white">Choisir l’espèce</button>
           </div>
         </div>
+        <Link to={`/zones/${zone.id}/generer`} className="flex min-h-12 items-center justify-center rounded-[20px] bg-vert-doux px-4 font-titre text-[17px] font-semibold text-vert">Générer un plan automatique</Link>
         {rang !== null && <RangSheet zone={zone} y={rang} x0={-1} onClose={() => setRang(null)} />}
       </Page>
     );

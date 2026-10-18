@@ -12,6 +12,8 @@ import NewZone from './pages/NewZone';
 import AddPlant from './pages/AddPlant';
 import PlantPage from './pages/Plant';
 import Calendar from './pages/Calendar';
+import Generate from './pages/Generate';
+import Tasks from './pages/Tasks';
 import ProfilePage from './pages/Profile';
 
 export default function App() {
@@ -33,9 +35,11 @@ function Signed({ session }: { session: NonNullable<ReturnType<typeof useSession
         <Route path="/potager/nouvelle-zone" element={<NewZone />} />
         <Route path="/zones/:zoneId" element={<ZonePage />} />
         <Route path="/zones/:zoneId/blocs/:bx/:by" element={<BlocPage />} />
+        <Route path="/zones/:zoneId/generer" element={<Generate />} />
         <Route path="/zones/:zoneId/planter" element={<AddPlant />} />
         <Route path="/plantes/:plantingId" element={<PlantPage />} />
         <Route path="/calendrier" element={<Calendar />} />
+        <Route path="/taches" element={<Tasks />} />
         <Route path="/profil" element={<ProfilePage />} />
         <Route path="*" element={<Home />} />
       </Routes>
