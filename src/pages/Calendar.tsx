@@ -24,11 +24,11 @@ export default function Calendar() {
 
   return (
     <Page nav>
-      <div className="pt-6">
+      <div className="pt-6 lg:pt-0">
         <h1 className="font-titre text-[31px] font-semibold text-vert">Calendrier</h1>
         <p className="mt-1 font-bold text-gris">Que faire au potager en {MOIS[m - 1]} ?</p>
       </div>
-      <div role="group" aria-label="Mois" className="no-scrollbar -mr-4 flex gap-2 overflow-x-auto pb-1">
+      <div role="group" aria-label="Mois" className="no-scrollbar -mr-4 flex gap-2 overflow-x-auto pb-1 lg:mr-0 lg:flex-wrap lg:overflow-visible">
         {months.map(x => <button key={x} aria-pressed={x === m} onClick={() => setM(x)} className={`min-h-9 shrink-0 rounded-full px-3.5 text-[13px] font-extrabold ${x === m ? 'bg-vert text-white' : 'bg-white'}`}>{cap(MOIS[x - 1])}</button>)}
       </div>
       <section className="flex flex-col gap-2.5 rounded-carte bg-white p-4">

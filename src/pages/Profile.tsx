@@ -27,7 +27,7 @@ export default function ProfilePage() {
 
   return (
     <Page nav>
-      <div className="pt-6">
+      <div className="pt-6 lg:pt-0">
         <h1 className="font-titre text-[31px] font-semibold text-vert">Profil</h1>
         <p className="mt-1 font-bold text-gris">{session.user.email}</p>
       </div>

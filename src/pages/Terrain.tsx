@@ -24,12 +24,13 @@ export default function Terrain() {
   const cases = zones.reduce((t, z) => t + z.cols * z.rows, 0);
 
   return (
-    <Page nav>
-      <div className="pt-6">
+    <Page nav wide>
+      <div className="pt-6 lg:pt-0">
         <h1 className="font-titre text-[31px] font-semibold text-vert">{garden.name}</h1>
         <p className="mt-1 font-bold text-gris">{meters(T.w)} × {meters(T.h)} · {zones.length} zone{zones.length > 1 ? 's' : ''} · {nf(cases)} cases · {nf(totalPlants)} plants</p>
       </div>
 
+      <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:items-start lg:gap-6">
       <div className="relative w-full rounded-[22px] bg-[#DCEBCD] shadow-[inset_0_0_0_1px_rgba(46,107,63,.18)]" style={{ aspectRatio: `${T.w} / ${T.h}` }}>
         {zones.map(z => {
           const st = stats.get(z.id)!;
@@ -64,6 +65,7 @@ export default function Terrain() {
         <Link to="/potager/nouvelle-zone" className="flex min-h-[56px] items-center gap-3 font-extrabold text-vert">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-vert-doux">+</span>Nouvelle zone
         </Link>
+      </div>
       </div>
       <BottomNav />
     </Page>

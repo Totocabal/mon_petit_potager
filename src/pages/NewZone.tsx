@@ -76,7 +76,7 @@ export default function NewZone() {
       </button>
       <p className="text-[13px] text-gris">La zone est placée sur la première place libre du terrain.</p>
       {create.isError && <p className="text-sm font-bold text-alerte">{(create.error as Error).message}</p>}
-      <div className="fixed bottom-0 left-1/2 z-20 w-[min(440px,100%)] -translate-x-1/2 bg-gradient-to-t from-fond from-70% to-transparent px-4 pb-[calc(16px+env(safe-area-inset-bottom))] pt-3">
+      <div className="fixed bottom-0 left-1/2 z-20 w-[min(440px,100%)] -translate-x-1/2 lg:left-[calc(50%+142px)] bg-gradient-to-t from-fond from-70% to-transparent px-4 pb-[calc(16px+env(safe-area-inset-bottom))] pt-3">
         <Btn onClick={submit} disabled={create.isPending}>{create.isPending ? 'Création…' : 'Créer la zone'}</Btn>
       </div>
     </Page>

@@ -36,9 +36,39 @@ const tabs = [
   { to: '/calendrier', label: 'Calendrier', d: 'M4 8a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3zM8 3v4M16 3v4M4 10h16' },
   { to: '/profil', label: 'Profil', d: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 20c1.5-4 4.5-6 8-6s6.5 2 8 6' }
 ];
+const sideTabs = [
+  tabs[0],
+  { ...tabs[1], label: 'Mon potager' },
+  tabs[2],
+  { to: '/alertes', label: 'Alertes d’arrosage', d: 'M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 21h4' },
+  tabs[3]
+];
+
+/** Navigation latérale, affichée à la place de la barre du bas sur grand écran. */
+export function SideNav() {
+  return (
+    <aside className="hidden lg:fixed lg:bottom-6 lg:left-6 lg:top-6 lg:z-20 lg:flex lg:w-[236px] lg:flex-col lg:gap-6 lg:overflow-y-auto lg:rounded-[28px] lg:bg-white lg:px-[18px] lg:py-6">
+      <div className="flex items-center gap-3 px-1.5">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-vert text-white">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20v-8M12 12c0-4-3-6-7-6 0 4 3 6 7 6zM12 10c0-3 2-5 6-5 0 3-2 5-6 5z" /></svg>
+        </span>
+        <span className="font-titre text-xl font-semibold leading-[1.1] text-vert">Mon petit potager</span>
+      </div>
+      <nav aria-label="Navigation principale" className="flex flex-col gap-1.5">
+        {sideTabs.map(t => (
+          <NavLink key={t.to} to={t.to} end={t.to === '/'} className={({ isActive }) => `flex min-h-12 items-center gap-3 rounded-2xl px-3.5 text-[15px] ${isActive ? 'bg-vert-doux font-extrabold text-vert' : 'font-bold text-[#3D4A3F] hover:bg-fond'}`}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={t.d} /></svg>
+            {t.label}
+          </NavLink>
+        ))}
+      </nav>
+    </aside>
+  );
+}
+
 export function BottomNav() {
   return (
-    <nav aria-label="Navigation principale" className="fixed bottom-[calc(14px+env(safe-area-inset-bottom))] left-1/2 z-20 flex h-[72px] w-[min(408px,calc(100%-24px))] -translate-x-1/2 items-center justify-around rounded-[28px] bg-white px-2 shadow-[0_8px_24px_rgba(46,107,63,0.16)]">
+    <nav aria-label="Navigation principale" className="lg:hidden fixed bottom-[calc(14px+env(safe-area-inset-bottom))] left-1/2 z-20 flex h-[72px] w-[min(408px,calc(100%-24px))] -translate-x-1/2 items-center justify-around rounded-[28px] bg-white px-2 shadow-[0_8px_24px_rgba(46,107,63,0.16)]">
       {tabs.map(t => (
         <NavLink key={t.to} to={t.to} end={t.to === '/'} className={({ isActive }) => `flex min-w-[70px] flex-col items-center gap-0.5 rounded-[20px] py-2 text-xs ${isActive ? 'bg-vert-doux font-extrabold text-vert' : 'font-bold text-gris'}`}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={t.d} /></svg>
@@ -49,15 +79,15 @@ export function BottomNav() {
   );
 }
 
-export function Page({ children, nav = false }: { children: ReactNode; nav?: boolean }) {
-  return <main className={`mx-auto flex min-h-full max-w-[440px] flex-col gap-4 overflow-x-clip px-4 pt-5 ${nav ? 'pb-32' : 'pb-40'}`}>{children}</main>;
+export function Page({ children, nav = false, wide = false }: { children: ReactNode; nav?: boolean; wide?: boolean }) {
+  return <main className={`mx-auto flex min-h-full max-w-[440px] flex-col gap-4 overflow-x-clip px-4 pt-5 lg:gap-5 lg:px-8 lg:pb-12 lg:pt-8 ${wide ? 'lg:max-w-[1180px]' : 'lg:max-w-[760px]'} ${nav ? 'pb-32' : 'pb-40'}`}>{children}</main>;
 }
 
 export function Sheet({ children, onClose, title }: { children: ReactNode; onClose: () => void; title: string }) {
   return (
     <>
       <div className="h-80" aria-hidden="true" />
-      <div role="dialog" aria-label={title} className="fixed bottom-0 left-1/2 z-30 flex max-h-[70%] w-[min(440px,100%)] -translate-x-1/2 flex-col gap-3 overflow-y-auto rounded-t-[30px] bg-white px-5 pb-[calc(20px+env(safe-area-inset-bottom))] pt-5 shadow-[0_-10px_28px_rgba(46,107,63,0.16)]">
+      <div role="dialog" aria-label={title} className="fixed bottom-0 left-1/2 z-30 flex max-h-[70%] w-[min(440px,100%)] -translate-x-1/2 flex-col lg:left-[calc(50%+142px)] lg:w-[min(520px,calc(100%-332px))] gap-3 overflow-y-auto rounded-t-[30px] bg-white px-5 pb-[calc(20px+env(safe-area-inset-bottom))] pt-5 shadow-[0_-10px_28px_rgba(46,107,63,0.16)]">
         <div className="flex items-baseline justify-between gap-3">
           <h2 className="font-titre text-[22px] font-semibold text-vert">{title}</h2>
           <button onClick={onClose} className="min-h-11 px-1 font-extrabold text-vert">Fermer</button>

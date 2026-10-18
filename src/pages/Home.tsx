@@ -36,13 +36,15 @@ export default function Home() {
   const recent = plantings.slice().sort((a, b) => ageDays(a) - ageDays(b)).slice(0, 10);
 
   return (
-    <Page nav>
-      <div className="pt-6">
+    <Page nav wide>
+      <div className="pt-6 lg:pt-0">
         <p className="font-bold text-gris">{longDate(today())}</p>
         <h1 className="mt-1 font-titre text-[31px] font-semibold text-vert">Bonjour{profile?.first_name ? ' ' + profile.first_name : ''} !</h1>
         <p className="font-bold text-gris">{garden.name}</p>
       </div>
 
+      <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] lg:items-start lg:gap-6">
+      <div className="flex flex-col gap-4 lg:gap-5">
       {weather ? <WeatherCard weather={weather} thirsty={groups.thirsty.length} /> : !profile?.lat && <Link to="/profil" className="rounded-carte bg-white p-4 font-bold text-vert">Ajoutez votre ville pour voir la météo et éviter d’arroser sous la pluie →</Link>}
 
       <h2 className="font-titre text-xl font-semibold">Aujourd’hui au jardin</h2>
@@ -80,14 +82,17 @@ export default function Home() {
         <button onClick={() => setAdding(true)} className="min-h-11 flex-1 rounded-2xl bg-vert-doux font-extrabold text-vert">+ Tâche</button>
         <Link to="/taches" className="flex min-h-11 flex-1 items-center justify-center rounded-2xl bg-white font-extrabold text-vert">Toutes les tâches</Link>
       </div>
+      </div>
+
+      <div className="flex flex-col gap-4 lg:gap-5 lg:rounded-[28px] lg:bg-white lg:p-6">
 
       <div className="flex items-baseline justify-between"><h2 className="font-titre text-xl font-semibold">Mes plantes</h2><Link to="/potager" className="font-extrabold text-vert">Tout voir</Link></div>
       {recent.length ? (
-        <div className="no-scrollbar -mr-4 flex gap-3 overflow-x-auto pb-1">
+        <div className="no-scrollbar -mr-4 flex gap-3 overflow-x-auto pb-1 lg:mr-0 lg:grid lg:grid-cols-[repeat(auto-fill,minmax(130px,1fr))] lg:gap-3.5 lg:overflow-visible lg:pb-0">
           {recent.map(p => {
             const s = byId.get(p.species_id)!;
             return (
-              <Link key={p.id} to={`/plantes/${p.id}`} className="flex w-[108px] shrink-0 flex-col items-center gap-1 rounded-carte bg-white p-2.5">
+              <Link key={p.id} to={`/plantes/${p.id}`} className="flex w-[108px] shrink-0 flex-col items-center gap-1 rounded-carte bg-white p-2.5 lg:w-auto lg:bg-fond lg:px-2.5 lg:py-3.5">
                 <Tile slug={s.slug} w={88} h={72} size={58} round={18} />
                 <b className="text-center text-sm font-extrabold">{s.name}</b>
                 <span className="text-xs text-gris">Jour {ageDays(p)}</span>
@@ -98,6 +103,8 @@ export default function Home() {
       ) : (
         <Link to="/potager" className="rounded-carte bg-white p-4 font-bold text-vert">Commencez par créer une zone et y planter quelque chose →</Link>
       )}
+      </div>
+      </div>
       {adding && <TaskSheet onClose={() => setAdding(false)} />}
       <BottomNav />
     </Page>

@@ -1,7 +1,7 @@
 import { Route, Routes, useLocation } from 'react-router-dom';
 import { useCurrentGarden, useSession } from './lib/data';
 import { AppProvider } from './lib/app';
-import { Loading } from './components/ui';
+import { Loading, SideNav } from './components/ui';
 import Login from './pages/Login';
 import Onboarding from './pages/Onboarding';
 import Home from './pages/Home';
@@ -47,6 +47,8 @@ function Signed({ session }: { session: NonNullable<ReturnType<typeof useSession
   if (!garden) return <Onboarding onCreated={select} />;
   return (
     <AppProvider session={session} garden={garden} gardens={gardens} selectGarden={select}>
+      <SideNav />
+      <div className="min-h-full lg:pl-[284px]">
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/potager" element={<Terrain />} />
@@ -64,6 +66,7 @@ function Signed({ session }: { session: NonNullable<ReturnType<typeof useSession
         <Route path="/profil" element={<ProfilePage />} />
         <Route path="*" element={<Home />} />
       </Routes>
+      </div>
     </AppProvider>
   );
 }
