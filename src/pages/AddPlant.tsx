@@ -3,7 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { useAddPlantings } from '../lib/data';
 import { BackHeader, Btn, Note, Page, Sheet, Tile, useToast } from '../components/ui';
-import { inSeason, lc, neighbors, nf, occupancy } from '../lib/garden';
+import { inSeason, lc, neighbors, nf, occupancy, pitchCm, spacingOk, tooClose } from '../lib/garden';
 import { iso, MOIS, monthsText, today } from '../lib/dates';
 
 export default function AddPlant() {
@@ -29,6 +29,10 @@ export default function AddPlant() {
   const span = s?.span_cells ?? 1;
   const fits = !!s && x + span <= zone.cols && y + span <= zone.rows && (() => { for (let dy = 0; dy < span; dy++) for (let dx = 0; dx < span; dx++) if (grid[y + dy][x + dx]) return false; return true; })();
   const nb = s ? neighbors(grid, { x, y, w: span, h: span }, s.id, rels) : { good: [], bad: [] };
+  const close = s && fits ? tooClose(grid, { x, y, w: span, h: span }, s, byId) : new Map<string, { gap: number; need: number }>();
+  const dist: string[] = [];
+  if (s && !spacingOk(s)) dist.push(`Dans la grille, ${lc(s.name)} est à ${Math.round(pitchCm(s))} cm de la plante voisine du même rang ; on recommande ${s.inrow_spacing_cm} cm.`);
+  close.forEach((v, id) => dist.push(`Trop près de ${lc(byId.get(id)!.name)} : ${v.gap} cm entre les plants, on recommande ${v.need} cm.`));
   const check: ['bon' | 'mauvais' | 'neutre', string] = !s ? ['neutre', '']
     : !fits ? ['mauvais', `${s.name} prend 2 × 2 cases : pas assez de place à partir de cette case.`]
     : nb.bad.length ? ['mauvais', 'Mauvais voisinage avec ' + nb.bad.map(i => lc(byId.get(i)!.name)).join(', ') + '. Choisissez une autre case.']
@@ -73,7 +77,9 @@ export default function AddPlant() {
           <label className="flex flex-col gap-1 text-sm font-extrabold">Planté le
             <input type="date" value={date} onChange={e => setDate(e.target.value)} className="min-h-11 rounded-2xl border-2 border-trait bg-white px-3 font-bold" />
           </label>
+          <p className="text-sm font-bold text-gris">Distances recommandées : {s.inrow_spacing_cm} cm entre plants, {s.row_spacing_cm} cm entre rangs.</p>
           <Note tone={check[0]}>{check[1]}</Note>
+          {dist.length > 0 && <Note tone="neutre">Attention : {dist.join(' ')}</Note>}
           <Btn onClick={plant} disabled={!fits || nb.bad.length > 0 || add.isPending}>{add.isPending ? 'Plantation…' : 'Planter'}</Btn>
           {add.isError && <p className="text-sm font-bold text-alerte">{(add.error as Error).message}</p>}
         </Sheet>

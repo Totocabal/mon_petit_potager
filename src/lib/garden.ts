@@ -37,6 +37,27 @@ export function occupancy(z: Pick<Zone, 'cols' | 'rows'>, plantings: Planting[])
   return g;
 }
 
+/** Distance réelle (cm) entre deux plants d'une même plantation, selon la grille de cases. */
+export const pitchCm = (s: Species) => (s.span_cells > 1 ? CELL_CM * 2 : CELL_CM / Math.sqrt(s.plants_per_cell));
+
+/** La grille respecte-t-elle la distance recommandée entre plants ? (tolérance de 25 %) */
+export const spacingOk = (s: Species) => pitchCm(s) >= s.inrow_spacing_cm * 0.75;
+
+/** Espèces voisines plantées plus près que la distance recommandée (moyenne des deux espèces, tolérance de 25 %). */
+export function tooClose(g: Grid, r: { x: number; y: number; w: number; h: number }, s: Species, byId: Map<string, Species>, excludeId?: string) {
+  const out = new Map<string, { gap: number; need: number }>();
+  for (let y = r.y - 1; y <= r.y + r.h; y++) for (let x = r.x - 1; x <= r.x + r.w; x++) {
+    const inside = x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
+    const q = !inside && g[y] ? g[y][x] : null;
+    const o = q && q.id !== excludeId ? byId.get(q.species_id) : undefined;
+    if (!q || !o) continue;
+    const gap = (pitchCm(s) + pitchCm(o)) / 2;
+    const need = 0.75 * (s.inrow_spacing_cm + o.inrow_spacing_cm) / 2;
+    if (gap < need) out.set(o.id, { gap: Math.round(gap), need: Math.round(need) });
+  }
+  return out;
+}
+
 /** Plantations distinctes qui touchent le rectangle de cases [x0, x1) × [y0, y1). */
 export function plantingsIn(grid: Grid, x0: number, x1: number, y0: number, y1: number): Planting[] {
   const seen = new Set<Planting>();

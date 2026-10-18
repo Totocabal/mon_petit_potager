@@ -42,7 +42,7 @@ Le propriétaire peut retirer un membre ; un membre peut quitter le potager. Les
 ## Base de données
 
 - `supabase/migrations/` : schéma appliqué au projet (tables, RLS, fonctions).
-- `supabase/seed_catalogue.sql` : 32 espèces de base ; la migration 0005 en ajoute 28 (60 au total).
+- `supabase/seed_catalogue.sql` : 32 espèces de base ; la migration 0005 en ajoute 28 (60 au total), la 0006 aligne les distances entre plants sur la grille de 30 cm (`spacing_cm` = distance réelle, `inrow_spacing_cm` / `row_spacing_cm` = distances recommandées).
 
 Une plantation est un **rectangle de cases** d'une même espèce (`x, y, w, h`) : un rang entier de 80 cases = une seule ligne en base.
 
