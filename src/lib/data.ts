@@ -88,6 +88,16 @@ export function useCreateGarden() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['gardens'] })
   });
 }
+export function useDeleteGarden() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => { check(await supabase.from('gardens').delete().eq('id', id)); return id; },
+    onSuccess: (id) => {
+      qc.invalidateQueries({ queryKey: ['gardens'] });
+      for (const k of ['zones', 'plantings', 'tasks', 'members', 'invites']) qc.removeQueries({ queryKey: [k, id] });
+    }
+  });
+}
 export function useUpdateGarden() {
   const qc = useQueryClient();
   return useMutation({

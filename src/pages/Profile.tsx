@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../lib/app';
-import { useSaveProfile, useUpdateGarden } from '../lib/data';
+import { useDeleteGarden, useMembers, useSaveProfile, useUpdateGarden } from '../lib/data';
 import { supabase } from '../lib/supabase';
 import { BottomNav, Btn, Page, useToast } from '../components/ui';
 import { Stepper } from '../components/Stepper';
@@ -61,7 +61,40 @@ export default function ProfilePage() {
         </label>
       )}
       <Btn variant="contour" onClick={() => supabase.auth.signOut()}>Se déconnecter</Btn>
+      <DeleteGarden />
       <BottomNav />
     </Page>
+  );
+}
+
+/** Suppression du potager : réservée au propriétaire, avec confirmation. */
+function DeleteGarden() {
+  const { session, garden, zones, plantings } = useApp();
+  const members = useMembers(garden.id);
+  const del = useDeleteGarden();
+  const nav = useNavigate();
+  const toast = useToast();
+  const [confirm, setConfirm] = useState(false);
+  const others = (members.data?.length ?? 1) - 1;
+  if (members.data?.find(m => m.user_id === session.user.id)?.role !== 'owner') return null;
+
+  async function onDelete() {
+    await del.mutateAsync(garden.id);
+    toast(`Potager supprimé : ${garden.name}`);
+    nav('/', { replace: true });
+  }
+
+  return confirm ? (
+    <div className="flex flex-col gap-2.5 rounded-[20px] bg-alerte-doux p-4 text-[#6B2418]">
+      <p className="font-extrabold">Supprimer le potager « {garden.name} » ?</p>
+      <p className="text-sm">
+        {zones.length} zone{zones.length > 1 ? 's' : ''}, {plantings.length} plantation{plantings.length > 1 ? 's' : ''}, ses tâches et ses alertes seront supprimées.
+        {others > 0 ? ` Les ${others} autre${others > 1 ? 's' : ''} membre${others > 1 ? 's' : ''} perdront l’accès.` : ''} Impossible de revenir en arrière.
+      </p>
+      <div className="flex gap-2"><Btn variant="danger" onClick={onDelete} disabled={del.isPending}>{del.isPending ? 'Suppression…' : 'Supprimer'}</Btn><Btn variant="contour" onClick={() => setConfirm(false)}>Annuler</Btn></div>
+      {del.isError && <p className="text-sm font-bold">{(del.error as Error).message}</p>}
+    </div>
+  ) : (
+    <button onClick={() => setConfirm(true)} className="min-h-11 self-center font-extrabold text-alerte">Supprimer ce potager</button>
   );
 }
