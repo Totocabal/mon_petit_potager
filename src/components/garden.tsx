@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { useAddPlantings, useClearRow, useWater } from '../lib/data';
@@ -34,39 +34,60 @@ export function CellGrid({ zone, grid, x0 = 0, y0 = 0, x1, y1, rowHeaders = fals
 }) {
   const { byId } = useApp();
   const xe = x1 ?? zone.cols, ye = y1 ?? zone.rows;
-  const rows = [];
+  const nCols = Math.max(xe - x0, rowHeaders ? BLOC : 0);
+  const items: ReactNode[] = [];
   for (let y = y0; y < ye; y++) {
-    const cells = [];
+    const col = (x: number) => x - x0 + 1 + (rowHeaders ? 1 : 0);
+    if (selectedRow === y) items.push(<span key={'on' + y} aria-hidden="true" className="pointer-events-none -m-0.5 rounded-2xl shadow-[0_0_0_3px_#F6C445]" style={{ gridRow: y - y0 + 1, gridColumn: '1 / -1' }} />);
+    if (rowHeaders) {
+      const on = selectedRow === y;
+      items.push(
+        <button key={'h' + y} onClick={() => onRow?.(y)} aria-label={`Remplir le rang ${y + 1}`} style={{ gridRow: y - y0 + 1, gridColumn: 1 }}
+          className={`flex h-full min-h-12 w-11 shrink-0 flex-col items-center justify-center rounded-xl font-titre text-[15px] font-semibold leading-none ${on ? 'bg-soleil text-soleil-encre' : 'bg-white text-vert'}`}>
+          <span className="font-corps text-[10px] font-extrabold">rang</span>{y + 1}
+        </button>
+      );
+    }
     for (let x = x0; x < xe; x++) {
       const p = grid[y][x];
       const s = p ? byId.get(p.species_id) : null;
-      cells.push(p && s ? (
-        <Link key={x} to={`/plantes/${p.id}`} aria-label={`${s.name}, rang ${y + 1}, case ${x + 1}${isReady(p, s) ? ', prête à récolter' : ''}`}
-          className={`flex aspect-square min-w-0 flex-1 items-center justify-center rounded-2xl bg-terre-case ${isReady(p, s) ? 'shadow-[inset_0_0_0_3px_#F6C445]' : ''}`}>
-          <Picto slug={s.slug} size={44} className="h-[72%] w-[72%]" />
-        </Link>
-      ) : (
-        <Link key={x} to={`/zones/${zone.id}/planter?x=${x}&y=${y}`} aria-label={`Planter rang ${y + 1}, case ${x + 1}`}
-          className="flex aspect-square min-w-0 flex-1 items-center justify-center rounded-2xl border-2 border-dashed border-[#E9C9A6] bg-terre-libre text-[#F6E3CC]">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
-        </Link>
-      ));
+      const pos = { gridRow: y - y0 + 1, gridColumn: col(x) };
+      if (p && s && s.span_cells > 1) {
+        // Un plant sur 2 × 2 cases : une seule grande case, à la place des quatre petites
+        const ux = p.x + Math.floor((x - p.x) / 2) * 2, uy = p.y + Math.floor((y - p.y) / 2) * 2;
+        items.push(<span key={`g${x}-${y}`} aria-hidden="true" className="aspect-square min-w-0" style={pos} />);
+        if (x === Math.max(ux, x0) && y === Math.max(uy, y0)) {
+          const w = Math.min(ux + 2, xe, p.x + p.w) - x, h = Math.min(uy + 2, ye, p.y + p.h) - y;
+          items.push(
+            <Link key={`p${x}-${y}`} to={`/plantes/${p.id}`} aria-label={`${s.name}, rang ${uy + 1}, case ${ux + 1}, sur 2 × 2 cases${isReady(p, s) ? ', prête à récolter' : ''}`}
+              className={`z-10 flex min-h-0 min-w-0 items-center justify-center rounded-2xl bg-terre-case ${isReady(p, s) ? 'shadow-[inset_0_0_0_3px_#F6C445]' : ''}`}
+              style={{ gridRow: `${y - y0 + 1} / span ${h}`, gridColumn: `${col(x)} / span ${w}` }}>
+              <Picto slug={s.slug} size={64} className={w > 1 ? 'h-[64%] w-[64%]' : 'h-auto w-[80%]'} />
+            </Link>
+          );
+        }
+      } else if (p && s) {
+        items.push(
+          <Link key={`p${x}-${y}`} to={`/plantes/${p.id}`} aria-label={`${s.name}, rang ${y + 1}, case ${x + 1}${isReady(p, s) ? ', prête à récolter' : ''}`} style={pos}
+            className={`flex aspect-square min-w-0 items-center justify-center rounded-2xl bg-terre-case ${isReady(p, s) ? 'shadow-[inset_0_0_0_3px_#F6C445]' : ''}`}>
+            <Picto slug={s.slug} size={44} className="h-[72%] w-[72%]" />
+          </Link>
+        );
+      } else {
+        items.push(
+          <Link key={`p${x}-${y}`} to={`/zones/${zone.id}/planter?x=${x}&y=${y}`} aria-label={`Planter rang ${y + 1}, case ${x + 1}`} style={pos}
+            className="flex aspect-square min-w-0 items-center justify-center rounded-2xl border-2 border-dashed border-[#E9C9A6] bg-terre-libre text-[#F6E3CC]">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+          </Link>
+        );
+      }
     }
-    for (let x = xe; x < x0 + (rowHeaders ? BLOC : 0); x++) cells.push(<span key={'e' + x} className="flex-1" />);
-    const on = selectedRow === y;
-    rows.push(
-      <div key={y} className={`flex items-center gap-1.5 rounded-2xl p-0.5 ${on ? 'shadow-[0_0_0_3px_#F6C445]' : ''}`}>
-        {rowHeaders && (
-          <button onClick={() => onRow?.(y)} aria-label={`Remplir le rang ${y + 1}`}
-            className={`flex h-full min-h-12 w-11 shrink-0 flex-col items-center justify-center rounded-xl font-titre text-[15px] font-semibold leading-none ${on ? 'bg-soleil text-soleil-encre' : 'bg-white text-vert'}`}>
-            <span className="font-corps text-[10px] font-extrabold">rang</span>{y + 1}
-          </button>
-        )}
-        {cells}
-      </div>
-    );
   }
-  return <div className="flex flex-col gap-1.5 rounded-[26px] bg-terre p-2.5 shadow-[inset_0_-6px_0_#A7724A]">{rows}</div>;
+  return (
+    <div className="rounded-[26px] bg-terre p-2.5 shadow-[inset_0_-6px_0_#A7724A]">
+      <div className="grid gap-1.5 p-0.5" style={{ gridTemplateColumns: `${rowHeaders ? '2.75rem ' : ''}repeat(${nCols}, minmax(0, 1fr))` }}>{items}</div>
+    </div>
+  );
 }
 
 /** « J'ai arrosé » pour un ensemble de plantations : zone, bloc ou rang. */
