@@ -1,0 +1,64 @@
+import { useQuery } from '@tanstack/react-query';
+import { iso, parse, today } from './dates';
+
+/** Seuil de pluie (mm) à partir duquel une plante en pleine terre est considérée comme arrosée. */
+export const RAIN_MM = 3;
+
+export type WeatherDay = { date: string; rain: number; tmax: number; tmin: number; code: number };
+export type Weather = { days: WeatherDay[] };
+export type Place = { name: string; lat: number; lon: number };
+
+/** Trouve une ville (Open-Meteo, sans clé). */
+export async function geocode(city: string): Promise<Place | null> {
+  const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=fr&format=json`);
+  if (!r.ok) throw new Error('Recherche de la ville impossible');
+  const j = await r.json();
+  const p = j.results?.[0];
+  return p ? { name: p.name, lat: p.latitude, lon: p.longitude } : null;
+}
+
+async function fetchWeather(lat: number, lon: number): Promise<Weather> {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=precipitation_sum,temperature_2m_max,temperature_2m_min,weather_code&past_days=3&forecast_days=4&timezone=auto`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('Météo indisponible');
+  const d = (await r.json()).daily;
+  return { days: d.time.map((t: string, i: number) => ({ date: t, rain: d.precipitation_sum[i] ?? 0, tmax: Math.round(d.temperature_2m_max[i]), tmin: Math.round(d.temperature_2m_min[i]), code: d.weather_code[i] })) };
+}
+
+export function useWeather(lat: number | null | undefined, lon: number | null | undefined) {
+  return useQuery({
+    queryKey: ['weather', lat, lon],
+    enabled: lat != null && lon != null,
+    staleTime: 30 * 60_000,
+    retry: 1,
+    queryFn: () => fetchWeather(lat!, lon!)
+  });
+}
+
+/** Dernier jour (≤ aujourd'hui) où il a assez plu pour arroser, ou null. */
+export function lastRainyDay(w: Weather | undefined, now = today()): Date | null {
+  if (!w) return null;
+  const limit = iso(now);
+  const hit = w.days.filter(d => d.date <= limit && d.rain >= RAIN_MM).map(d => d.date).sort().pop();
+  return hit ? parse(hit) : null;
+}
+
+/** Pluie prévue aujourd'hui ou demain (mm). */
+export function rainSoon(w: Weather | undefined, now = today()): number {
+  if (!w) return 0;
+  const t = iso(now);
+  const tm = iso(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
+  return w.days.filter(d => d.date === t || d.date === tm).reduce((s, d) => s + d.rain, 0);
+}
+
+export function describe(code: number): { label: string; icon: string } {
+  if (code === 0) return { label: 'Ensoleillé', icon: '☀️' };
+  if (code <= 2) return { label: 'Éclaircies', icon: '🌤️' };
+  if (code === 3) return { label: 'Couvert', icon: '☁️' };
+  if (code <= 48) return { label: 'Brouillard', icon: '🌫️' };
+  if (code <= 57) return { label: 'Bruine', icon: '🌦️' };
+  if (code <= 67) return { label: 'Pluie', icon: '🌧️' };
+  if (code <= 77) return { label: 'Neige', icon: '❄️' };
+  if (code <= 82) return { label: 'Averses', icon: '🌦️' };
+  return { label: 'Orage', icon: '⛈️' };
+}

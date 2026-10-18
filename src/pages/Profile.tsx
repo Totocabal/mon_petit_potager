@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { BottomNav, Btn, Page, useToast } from '../components/ui';
 import { Stepper } from '../components/Stepper';
 import { CELL_CM } from '../lib/garden';
+import { geocode } from '../lib/weather';
 
 export default function ProfilePage() {
   const { session, profile, garden, gardens, selectGarden, zones } = useApp();
@@ -29,7 +30,11 @@ export default function ProfilePage() {
         <h1 className="font-titre text-[31px] font-semibold text-vert">Profil</h1>
         <p className="mt-1 font-bold text-gris">{session.user.email}</p>
       </div>
-      <form className="flex flex-col gap-3 rounded-carte bg-white p-4" onSubmit={async e => { e.preventDefault(); await save.mutateAsync({ first_name: first.trim() || null, city: city.trim() || null }); toast('Profil enregistré'); }}>
+      <form className="flex flex-col gap-3 rounded-carte bg-white p-4" onSubmit={async e => { e.preventDefault(); const c = city.trim(); let place = null;
+          if (c && c !== profile?.city) { try { place = await geocode(c); } catch { /* hors ligne : on garde la ville sans coordonnées */ } if (!place) { toast('Ville introuvable : météo non activée'); } }
+          const keep = c && c === profile?.city;
+          await save.mutateAsync({ first_name: first.trim() || null, city: place?.name ?? (c || null), ...(keep ? {} : { lat: place?.lat ?? null, lon: place?.lon ?? null }) });
+          if (place) toast('Profil enregistré · météo de ' + place.name); else if (!c || keep) toast('Profil enregistré'); }}>
         <div className="grid grid-cols-2 gap-2.5">
           <label className="flex flex-col gap-1.5 text-sm font-extrabold">Prénom<input value={first} onChange={e => setFirst(e.target.value)} className={input} /></label>
           <label className="flex flex-col gap-1.5 text-sm font-extrabold">Ville<input value={city} onChange={e => setCity(e.target.value)} className={input} /></label>

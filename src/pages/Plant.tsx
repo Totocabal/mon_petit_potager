@@ -8,7 +8,7 @@ import { cap, fmt, iso, monthsText, parse, today, whenText } from '../lib/dates'
 
 export default function PlantPage() {
   const { plantingId } = useParams();
-  const { plantings, zones, byId, rels } = useApp();
+  const { plantings, zones, byId, rels, rainFor } = useApp();
   const p = plantings.find(x => x.id === plantingId);
   const zone = p ? zones.find(z => z.id === p.zone_id) : undefined;
   const s = p ? byId.get(p.species_id) : undefined;
@@ -63,7 +63,7 @@ export default function PlantPage() {
       </div>
       <div className="flex flex-col gap-2.5 rounded-carte bg-white p-4">
         <div className="flex items-baseline justify-between"><h2 className="font-titre text-lg font-semibold">Arrosage</h2>
-          <span className="text-sm font-extrabold text-eau">{needsWater(p, s) ? 'À arroser' : 'Prochain : ' + whenText(nextWater(p, s))}</span></div>
+          <span className="text-sm font-extrabold text-eau">{needsWater(p, s, undefined, rainFor(p.zone_id)) ? 'À arroser' : 'Prochain : ' + whenText(nextWater(p, s, rainFor(p.zone_id)))}</span></div>
         <Btn variant={wateredToday ? 'eau' : 'plein'} onClick={onWater} disabled={water.isPending || wateredToday}>{wateredToday ? 'Arrosée aujourd’hui' : 'J’ai arrosé'}</Btn>
       </div>
       <div className="flex flex-col gap-2 rounded-carte bg-white p-4">

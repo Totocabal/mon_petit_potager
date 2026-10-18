@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import type { Garden, Planting, Profile, Species, Zone } from './types';
 import { useCatalogue, usePlantings, useProfile, useZones } from './data';
 import type { Relations } from './garden';
+import { lastRainyDay, useWeather, type Weather } from './weather';
 
 export type AppData = {
   session: Session;
@@ -16,6 +17,9 @@ export type AppData = {
   byId: Map<string, Species>;
   bySlug: Map<string, Species>;
   rels: Relations;
+  weather: Weather | undefined;
+  /** Dernier jour de pluie utile pour une zone (null si zone abritée ou sans météo). */
+  rainFor: (zoneId: string) => Date | null;
   loading: boolean;
 };
 
@@ -32,6 +36,7 @@ export function AppProvider({ session, garden, gardens, selectGarden, children }
   const zones = useZones(garden.id);
   const plantings = usePlantings(garden.id);
   const profile = useProfile(session.user.id);
+  const weather = useWeather(profile.data?.lat, profile.data?.lon);
   const value = useMemo<AppData>(() => ({
     session,
     profile: profile.data ?? null,
@@ -44,7 +49,9 @@ export function AppProvider({ session, garden, gardens, selectGarden, children }
     byId: cat.byId,
     bySlug: cat.bySlug,
     rels: cat.rels,
+    weather: weather.data,
+    rainFor: (zoneId: string) => (zones.data?.find(z => z.id === zoneId)?.sheltered ? null : lastRainyDay(weather.data)),
     loading: cat.loading || zones.isLoading || plantings.isLoading
-  }), [session, profile.data, garden, gardens, selectGarden, zones.data, plantings.data, cat, zones.isLoading, plantings.isLoading]);
+  }), [session, profile.data, garden, gardens, selectGarden, zones.data, plantings.data, cat, weather.data, zones.isLoading, plantings.isLoading]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

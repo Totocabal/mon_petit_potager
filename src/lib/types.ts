@@ -73,6 +73,8 @@ export type Profile = {
   id: string;
   first_name: string | null;
   city: string | null;
+  lat: number | null;
+  lon: number | null;
   timezone: string;
 };
 

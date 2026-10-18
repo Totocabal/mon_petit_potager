@@ -4,11 +4,12 @@ import { useApp } from '../lib/app';
 import { useWater } from '../lib/data';
 import { BottomNav, Loading, Page, Tile, useToast } from '../components/ui';
 import { ageDays, isReady, lc, needsWater } from '../lib/garden';
-import { longDate, today } from '../lib/dates';
+import { longDate, today, iso } from '../lib/dates';
+import { describe, rainSoon } from '../lib/weather';
 import type { Planting } from '../lib/types';
 
 export default function Home() {
-  const { profile, plantings, zones, byId, loading, garden } = useApp();
+  const { profile, plantings, zones, byId, loading, garden, weather, rainFor } = useApp();
   const water = useWater();
   const toast = useToast();
 
@@ -18,10 +19,10 @@ export default function Home() {
       const s = byId.get(p.species_id); if (!s) continue;
       const key = p.species_id + '|' + p.zone_id;
       if (isReady(p, s)) harvest.set(key, [...(harvest.get(key) ?? []), p]);
-      if (p.alerts_enabled && needsWater(p, s)) thirsty.set(key, [...(thirsty.get(key) ?? []), p]);
+      if (p.alerts_enabled && needsWater(p, s, undefined, rainFor(p.zone_id))) thirsty.set(key, [...(thirsty.get(key) ?? []), p]);
     }
     return { harvest: [...harvest.values()], thirsty: [...thirsty.values()] };
-  }, [plantings, byId]);
+  }, [plantings, byId, rainFor]);
 
   if (loading) return <Loading />;
   const zoneName = (id: string) => zones.find(z => z.id === id)?.name ?? '';
@@ -34,6 +35,8 @@ export default function Home() {
         <h1 className="mt-1 font-titre text-[31px] font-semibold text-vert">Bonjour{profile?.first_name ? ' ' + profile.first_name : ''} !</h1>
         <p className="font-bold text-gris">{garden.name}</p>
       </div>
+
+      {weather ? <WeatherCard weather={weather} /> : !profile?.lat && <Link to="/profil" className="rounded-carte bg-white p-4 font-bold text-vert">Ajoutez votre ville pour voir la météo et éviter d’arroser sous la pluie →</Link>}
 
       <h2 className="font-titre text-xl font-semibold">Aujourd’hui au jardin</h2>
       <div className="rounded-carte bg-white px-4 py-1">
@@ -79,5 +82,25 @@ export default function Home() {
       )}
       <BottomNav />
     </Page>
+  );
+}
+
+function WeatherCard({ weather }: { weather: import('../lib/weather').Weather }) {
+  const t = iso(today());
+  const days = weather.days.filter(d => d.date >= t).slice(0, 4);
+  const now = days[0];
+  const soon = rainSoon(weather);
+  if (!now) return null;
+  return (
+    <div className="rounded-carte bg-white p-4">
+      <div className="flex items-center gap-3">
+        <span className="text-4xl" aria-hidden>{describe(now.code).icon}</span>
+        <div className="flex-1"><b className="font-titre text-lg font-semibold">{describe(now.code).label}, {now.tmax}° / {now.tmin}°</b>
+          <p className="text-[13px] text-gris">{soon >= 3 ? `Pluie prévue (${Math.round(soon)} mm) : inutile d’arroser en pleine terre.` : 'Pas de pluie utile prévue aujourd’hui ou demain.'}</p></div>
+      </div>
+      <div className="mt-3 grid grid-cols-4 gap-2 text-center text-xs font-bold text-gris">
+        {days.map(d => <div key={d.date} className="rounded-xl bg-fond py-2"><div>{new Date(d.date + 'T12:00').toLocaleDateString('fr-FR', { weekday: 'short' })}</div><div className="text-lg" aria-hidden>{describe(d.code).icon}</div><div>{d.tmax}°</div><div className="text-eau">{d.rain >= 0.5 ? Math.round(d.rain) + ' mm' : '–'}</div></div>)}
+      </div>
+    </div>
   );
 }

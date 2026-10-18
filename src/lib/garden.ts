@@ -55,11 +55,13 @@ export function isReady(p: Planting, s: Species, now = today()): boolean {
 export const ageDays = (p: Planting, now = today()) => diffDays(now, parse(p.sown_at));
 export const everyDays = (p: Planting, s: Species) => p.water_every_days ?? s.water_every_days;
 
-export function nextWater(p: Planting, s: Species): Date {
-  const last = parse(p.last_watered_at ?? p.sown_at);
+/** `rain` : dernier jour de pluie suffisante, à ignorer pour une zone abritée. */
+export function nextWater(p: Planting, s: Species, rain: Date | null = null): Date {
+  let last = parse(p.last_watered_at ?? p.sown_at);
+  if (rain && rain > last) last = rain;
   return addDays(last, everyDays(p, s));
 }
-export const needsWater = (p: Planting, s: Species, now = today()) => diffDays(nextWater(p, s), now) <= 0;
+export const needsWater = (p: Planting, s: Species, now = today(), rain: Date | null = null) => diffDays(nextWater(p, s, rain), now) <= 0;
 
 /** Stade affiché sur la frise : 0 semis, 1 plantation, 2 croissance/fleurs, 3 récolte. */
 export function stage(p: Planting, s: Species): number {
