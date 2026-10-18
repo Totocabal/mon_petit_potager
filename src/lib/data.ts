@@ -111,6 +111,13 @@ export function useCreateZone() {
     onSuccess: (z) => qc.invalidateQueries({ queryKey: ['zones', z.garden_id] })
   });
 }
+export function useUpdateZone() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ z, patch }: { z: Zone; patch: Partial<Zone> }) => { check(await supabase.from('zones').update(patch).eq('id', z.id)); return z; },
+    onSuccess: (z) => qc.invalidateQueries({ queryKey: ['zones', z.garden_id] })
+  });
+}
 export function useDeleteZone() {
   const qc = useQueryClient();
   return useMutation({

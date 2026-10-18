@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../lib/app';
-import { useDeleteZone } from '../lib/data';
-import { BackHeader, Btn, Loading, Page, Tile, useToast } from '../components/ui';
+import { useDeleteZone, useUpdateZone } from '../lib/data';
+import { BackHeader, Btn, Loading, Page, Sheet, Tile, useToast } from '../components/ui';
 import { CellGrid, RangSheet } from '../components/garden';
 import { BLOC, blocInfo, blocName, CELL_CM, isBig, meters, nf, occupancy, SPCOLOR } from '../lib/garden';
 import type { Zone } from '../lib/types';
@@ -15,6 +15,7 @@ export default function ZonePage() {
   const grid = useMemo(() => (zone ? occupancy(zone, ps) : []), [zone, ps]);
   const [rang, setRang] = useState<number | null>(null);
   const [rowPick, setRowPick] = useState(0);
+  const [renaming, setRenaming] = useState(false);
 
   if (loading) return <Loading />;
   if (!zone) return <Page><BackHeader title="Zone introuvable" /></Page>;
@@ -22,7 +23,11 @@ export default function ZonePage() {
   const used = ps.reduce((t, p) => t + p.w * p.h, 0), total = zone.cols * zone.rows;
   const head = (
     <>
-      <BackHeader kicker={garden.name + ' ›'} title={zone.name} />
+      <BackHeader kicker={garden.name + ' ›'} title={zone.name}
+        right={<button onClick={() => setRenaming(true)} aria-label="Renommer la zone" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-vert shadow-sm">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="M13 7l4 4" /></svg>
+        </button>} />
+      {renaming && <RenameZone zone={zone} onClose={() => setRenaming(false)} />}
       <p className="text-sm font-bold text-gris">{meters(zone.cols * CELL_CM)} × {meters(zone.rows * CELL_CM)} · {nf(total)} cases · {Math.round((used / total) * 100)} % planté{zone.sheltered ? ' · sous abri' : ''}</p>
     </>
   );
@@ -81,6 +86,32 @@ export default function ZonePage() {
       <p className="text-[13px] text-gris">Touchez un bloc pour voir ses cases. Contour jaune : à récolter. Coin brun : cases libres dans le bloc.</p>
       <DeleteZone zone={zone} plants={ps.length} />
     </Page>
+  );
+}
+
+function RenameZone({ zone, onClose }: { zone: Zone; onClose: () => void }) {
+  const update = useUpdateZone();
+  const toast = useToast();
+  const [name, setName] = useState(zone.name);
+  const clean = name.trim();
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    if (!clean || clean === zone.name) return onClose();
+    await update.mutateAsync({ z: zone, patch: { name: clean } });
+    toast('Zone renommée : ' + clean);
+    onClose();
+  }
+
+  return (
+    <Sheet title="Renommer la zone" onClose={onClose}>
+      <form onSubmit={save} className="flex flex-col gap-3">
+        <label htmlFor="zone-name" className="sr-only">Nom de la zone</label>
+        <input id="zone-name" autoFocus value={name} onChange={e => setName(e.target.value)} maxLength={60} className="min-h-12 rounded-2xl border-2 border-trait bg-white px-4 text-base font-bold outline-none focus:border-vert" />
+        <Btn type="submit" disabled={!clean || update.isPending}>{update.isPending ? 'Enregistrement…' : 'Enregistrer'}</Btn>
+        {update.isError && <p className="text-sm font-bold text-alerte">{(update.error as Error).message}</p>}
+      </form>
+    </Sheet>
   );
 }
 
