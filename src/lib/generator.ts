@@ -1,5 +1,5 @@
 import type { Species, Zone } from './types';
-import { rel, type Grid, type Relations } from './garden';
+import { isMulti, rel, type Grid, type Relations } from './garden';
 
 export type Area = { x: number; y: number; w: number; h: number };
 export type Choice = { species: Species; weight: number };
@@ -76,7 +76,7 @@ type Attempt = { sp: (string | null)[][]; value: number; bad: number; good: numb
 
 /**
  * Propose un plan : chaque espèce reçoit une part des cases libres (selon son poids),
- * les espèces à 2 × 2 cases sont posées d'abord, les autres remplissent le reste par bandes.
+ * les espèces qui occupent plusieurs cases (2 × 1, 2 × 2…) sont posées d'abord, les autres remplissent le reste par bandes.
  * On teste de nombreux ordres et on garde celui avec le moins de mauvais voisins, puis le plus de bons.
  */
 export function generatePlan(opts: { zone: Pick<Zone, 'cols' | 'rows' | 'north_side'>; area: Area; existing: Grid; picks: Choice[]; rels: Relations; seed: number }): Plan {
@@ -87,8 +87,8 @@ export function generatePlan(opts: { zone: Pick<Zone, 'cols' | 'rows' | 'north_s
   const freeCells: [number, number][] = [];
   for (let y = area.y; y < Math.min(zone.rows, area.y + area.h); y++) for (let x = area.x; x < Math.min(zone.cols, area.x + area.w); x++) if (isFree(x, y)) freeCells.push([x, y]);
   const tall = new Set(picks.filter(p => p.species.height === 'haute').map(p => p.species.id));
-  const big = picks.filter(p => p.species.span_cells > 1);
-  const small = picks.filter(p => p.species.span_cells <= 1);
+  const big = picks.filter(p => isMulti(p.species));
+  const small = picks.filter(p => !isMulti(p.species));
   const totalW = picks.reduce((t, p) => t + p.weight, 0) || 1;
 
   const empty = (): Plan['cells'] => base.map(row => row.slice());
@@ -104,17 +104,19 @@ export function generatePlan(opts: { zone: Pick<Zone, 'cols' | 'rows' | 'north_s
   const run = (order: Choice[], dir: 'rows' | 'cols', rr: () => number): { a: Attempt; blocks: Rect[] } => {
     const sp = empty();
     const placedBlocks: Rect[] = [];
-    // 1. espèces 2 × 2 : blocs alignés sur la grille de la zone, éparpillés au hasard
+    // 1. espèces à plusieurs cases : blocs alignés sur la grille de la zone, éparpillés au hasard
     for (const b of big) {
-      const want = Math.max(1, Math.round(((freeCells.length * b.weight) / totalW) / 4));
+      const sw = b.species.span_w, sh = b.species.span_h;
+      const want = Math.max(1, Math.round(((freeCells.length * b.weight) / totalW) / (sw * sh)));
       const cand: [number, number][] = [];
-      for (let y = area.y; y + 1 < area.y + area.h; y += 2) for (let x = area.x; x + 1 < area.x + area.w; x += 2) cand.push([x, y]);
+      for (let y = area.y; y + sh <= area.y + area.h; y += sh) for (let x = area.x; x + sw <= area.x + area.w; x += sw) cand.push([x, y]);
       let n = 0;
       for (const [x, y] of shuffle(cand, rr)) {
         if (n >= want) break;
-        if (![0, 1].every(dy => [0, 1].every(dx => isFree(x + dx, y + dy) && sp[y + dy][x + dx] === null))) continue;
-        for (const dy of [0, 1]) for (const dx of [0, 1]) sp[y + dy][x + dx] = b.species.id;
-        placedBlocks.push({ species_id: b.species.id, x, y, w: 2, h: 2 });
+        const cells = Array.from({ length: sh }, (_, dy) => Array.from({ length: sw }, (_, dx) => [x + dx, y + dy] as const)).flat();
+        if (!cells.every(([cx, cy]) => isFree(cx, cy) && sp[cy][cx] === null)) continue;
+        for (const [cx, cy] of cells) sp[cy][cx] = b.species.id;
+        placedBlocks.push({ species_id: b.species.id, x, y, w: sw, h: sh });
         n++;
       }
     }
@@ -122,7 +124,7 @@ export function generatePlan(opts: { zone: Pick<Zone, 'cols' | 'rows' | 'north_s
     const rest = freeCells.filter(([x, y]) => sp[y][x] === null);
     rest.sort(dir === 'rows' ? (a, b) => a[1] - b[1] || a[0] - b[0] : (a, b) => a[0] - b[0] || a[1] - b[1]);
     if (small.length && rest.length) {
-      const ord = order.filter(p => p.species.span_cells <= 1);
+      const ord = order.filter(p => !isMulti(p.species));
       const q = share(rest.length, ord.map(p => p.weight));
       let i = 0;
       ord.forEach((p, k) => { for (let n = 0; n < q[k]; n++) { const [x, y] = rest[i++]; sp[y][x] = p.species.id; } });
@@ -150,8 +152,8 @@ export function generatePlan(opts: { zone: Pick<Zone, 'cols' | 'rows' | 'north_s
   if (fin.bad > 0) {
     const total = () => { const m = new Map<string, number>(); for (const row of fin.sp) for (const id of row) if (id) m.set(id, (m.get(id) ?? 0) + 1); return m; };
     const clear = (x: number, y: number) => {
-      const bi = blocks.findIndex(b => x >= b.x && x < b.x + 2 && y >= b.y && y < b.y + 2);
-      if (bi >= 0) { const b = blocks[bi]; for (const dy of [0, 1]) for (const dx of [0, 1]) { fin.sp[b.y + dy][b.x + dx] = null; gaps++; } blocks.splice(bi, 1); }
+      const bi = blocks.findIndex(b => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h);
+      if (bi >= 0) { const b = blocks[bi]; for (let dy = 0; dy < b.h; dy++) for (let dx = 0; dx < b.w; dx++) { fin.sp[b.y + dy][b.x + dx] = null; gaps++; } blocks.splice(bi, 1); }
       else { fin.sp[y][x] = null; gaps++; }
     };
     for (let guard = 0; guard < zone.cols * zone.rows; guard++) {
@@ -174,10 +176,10 @@ export function generatePlan(opts: { zone: Pick<Zone, 'cols' | 'rows' | 'north_s
     fin.bad = 0;
   }
 
-  // rectangles : cases à 1 plant fusionnées en segments puis en rangs identiques ; blocs 2 × 2 tels quels
+  // rectangles : cases à 1 plant fusionnées en segments puis en rangs identiques ; blocs multi-cases tels quels
   const bigIds = new Set(big.map(b => b.species.id));
   const rects: Rect[] = [...blocks];
-  const taken = new Set(blocks.flatMap(b => [0, 1].flatMap(dy => [0, 1].map(dx => (b.y + dy) * zone.cols + b.x + dx))));
+  const taken = new Set(blocks.flatMap(b => Array.from({ length: b.h }, (_, dy) => Array.from({ length: b.w }, (_, dx) => (b.y + dy) * zone.cols + b.x + dx)).flat()));
   const segs: Rect[] = [];
   for (let y = area.y; y < Math.min(zone.rows, area.y + area.h); y++) {
     let x = area.x;

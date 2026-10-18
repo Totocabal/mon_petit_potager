@@ -3,7 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { useAddPlantings } from '../lib/data';
 import { BackHeader, Btn, Note, Page, Sheet, Tile, useToast } from '../components/ui';
-import { inSeason, lc, neighbors, nf, occupancy, pitchCm, spacingOk, tooClose } from '../lib/garden';
+import { footprintText, inSeason, isMulti, lc, neighbors, nf, occupancy, pitchCm, spacingOk, tooClose } from '../lib/garden';
 import { iso, MOIS, monthsText, today } from '../lib/dates';
 
 export default function AddPlant() {
@@ -26,22 +26,22 @@ export default function AddPlant() {
 
   const list = species.filter(s => (q ? s.name.toLowerCase().includes(q.toLowerCase()) : filter === 'toutes' || inSeason(s, m)));
   const s = pick ? byId.get(pick) : undefined;
-  const span = s?.span_cells ?? 1;
-  const fits = !!s && x + span <= zone.cols && y + span <= zone.rows && (() => { for (let dy = 0; dy < span; dy++) for (let dx = 0; dx < span; dx++) if (grid[y + dy][x + dx]) return false; return true; })();
-  const nb = s ? neighbors(grid, { x, y, w: span, h: span }, s.id, rels) : { good: [], bad: [] };
-  const close = s && fits ? tooClose(grid, { x, y, w: span, h: span }, s, byId) : new Map<string, { gap: number; need: number }>();
+  const sw = s?.span_w ?? 1, sh = s?.span_h ?? 1;
+  const fits = !!s && x + sw <= zone.cols && y + sh <= zone.rows && (() => { for (let dy = 0; dy < sh; dy++) for (let dx = 0; dx < sw; dx++) if (grid[y + dy][x + dx]) return false; return true; })();
+  const nb = s ? neighbors(grid, { x, y, w: sw, h: sh }, s.id, rels) : { good: [], bad: [] };
+  const close = s && fits ? tooClose(grid, { x, y, w: sw, h: sh }, s, byId) : new Map<string, { gap: number; need: number }>();
   const dist: string[] = [];
   if (s && !spacingOk(s)) dist.push(`Dans la grille, ${lc(s.name)} est à ${Math.round(pitchCm(s))} cm de la plante voisine du même rang ; on recommande ${s.inrow_spacing_cm} cm.`);
   close.forEach((v, id) => dist.push(`Trop près de ${lc(byId.get(id)!.name)} : ${v.gap} cm entre les plants, on recommande ${v.need} cm.`));
   const check: ['bon' | 'mauvais' | 'neutre', string] = !s ? ['neutre', '']
-    : !fits ? ['mauvais', `${s.name} prend 2 × 2 cases : pas assez de place à partir de cette case.`]
+    : !fits ? ['mauvais', `${s.name} prend ${footprintText(s)} cases : pas assez de place à partir de cette case.`]
     : nb.bad.length ? ['mauvais', 'Mauvais voisinage avec ' + nb.bad.map(i => lc(byId.get(i)!.name)).join(', ') + '. Choisissez une autre case.']
     : nb.good.length ? ['bon', 'Bon voisinage : ' + nb.good.map(i => lc(byId.get(i)!.name)).join(', ') + '.']
     : ['neutre', 'Voisines neutres : rien à signaler.'];
 
   async function plant() {
     if (!s) return;
-    await add.mutateAsync([{ garden_id: garden.id, zone_id: zone!.id, species_id: s.id, x, y, w: span, h: span, sown_at: date }]);
+    await add.mutateAsync([{ garden_id: garden.id, zone_id: zone!.id, species_id: s.id, x, y, w: sw, h: sh, sown_at: date }]);
     toast(`${s.name} plantée · rang ${y + 1}, case ${x + 1}`);
     nav(-1);
   }
@@ -65,7 +65,7 @@ export default function AddPlant() {
             className={`flex min-w-0 flex-col items-center gap-1 rounded-[20px] bg-white px-1.5 py-2 ${pick === sp.id ? 'shadow-[inset_0_0_0_3px_#2E6B3F]' : ''}`}>
             <Tile slug={sp.slug} w={72} h={58} size={50} />
             <b className="text-center text-sm font-extrabold leading-tight">{sp.name}</b>
-            <span className="text-xs text-gris">{sp.span_cells > 1 ? '2 × 2 cases' : sp.plants_per_cell + ' par case'}</span>
+            <span className="text-xs text-gris">{isMulti(sp) ? footprintText(sp) + ' cases' : sp.plants_per_cell + ' par case'}</span>
           </button>
         ))}
         {!list.length && <p className="col-span-3 text-gris">Aucune plante ne correspond. Essayez « Toutes ».</p>}
@@ -73,7 +73,7 @@ export default function AddPlant() {
       {s && (
         <Sheet title={s.name} onClose={() => setPick(null)}>
           <p className="text-sm">Semis ou plantation : {monthsText(s.plant_out_months.length ? s.plant_out_months : s.sow_indoor_months)} · arrosage {s.water_every_days === 1 ? 'tous les jours' : `tous les ${s.water_every_days} j`} · récolte {monthsText(s.harvest_months)}</p>
-          <p className="text-sm font-bold text-gris">{span > 1 ? '1 plant sur 2 × 2 cases' : `${nf(s.plants_per_cell)} plant${s.plants_per_cell > 1 ? 's' : ''} dans la case`}</p>
+          <p className="text-sm font-bold text-gris">{isMulti(s) ? `1 plant sur ${footprintText(s)} cases` : `${nf(s.plants_per_cell)} plant${s.plants_per_cell > 1 ? 's' : ''} dans la case`}</p>
           <label className="flex flex-col gap-1 text-sm font-extrabold">Planté le
             <input type="date" value={date} onChange={e => setDate(e.target.value)} className="min-h-11 rounded-2xl border-2 border-trait bg-white px-3 font-bold" />
           </label>

@@ -23,8 +23,14 @@ export function placeText(p: Pick<Planting, 'x' | 'y' | 'w' | 'h'>): string {
 
 /** Nombre de plants d'une plantation (rectangle de cases). */
 export function plantCount(p: Pick<Planting, 'w' | 'h'>, s: Species): number {
-  return s.span_cells > 1 ? Math.max(1, Math.floor(p.w / 2) * Math.floor(p.h / 2)) : p.w * p.h * s.plants_per_cell;
+  return isMulti(s) ? Math.max(1, Math.floor(p.w / s.span_w) * Math.floor(p.h / s.span_h)) : p.w * p.h * s.plants_per_cell;
 }
+
+/** Un plant qui occupe plusieurs cases (2 × 1, 3 × 1, 2 × 2…). */
+export const isMulti = (s: Pick<Species, 'span_w' | 'span_h'>) => s.span_w * s.span_h > 1;
+
+/** « 2 × 2 », « 3 × 1 »… */
+export const footprintText = (s: Pick<Species, 'span_w' | 'span_h'>) => `${s.span_w} × ${s.span_h}`;
 
 export type Grid = (Planting | null)[][];
 
@@ -38,7 +44,7 @@ export function occupancy(z: Pick<Zone, 'cols' | 'rows'>, plantings: Planting[])
 }
 
 /** Distance réelle (cm) entre deux plants d'une même plantation, selon la grille de cases. */
-export const pitchCm = (s: Species) => (s.span_cells > 1 ? CELL_CM * 2 : CELL_CM / Math.sqrt(s.plants_per_cell));
+export const pitchCm = (s: Species) => (isMulti(s) ? CELL_CM * s.span_w : CELL_CM / Math.sqrt(s.plants_per_cell));
 
 /** La grille respecte-t-elle la distance recommandée entre plants ? (tolérance de 25 %) */
 export const spacingOk = (s: Species) => pitchCm(s) >= s.inrow_spacing_cm * 0.75;

@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { useAddPlantings, useClearRow, useWater } from '../lib/data';
-import { BLOC, de, isReady, lc, meters, nf, occupancy, rangPlan, toSegments, type Grid } from '../lib/garden';
+import { BLOC, de, footprintText, isMulti, isReady, lc, meters, nf, occupancy, rangPlan, toSegments, type Grid } from '../lib/garden';
 import { iso, today } from '../lib/dates';
 import type { Planting, Species, Zone } from '../lib/types';
 import { Btn, Note, Picto, Sheet, Tile, useToast } from './ui';
@@ -12,7 +12,7 @@ export function SpeciesStrip({ value, onChange, onlySingleCell = false }: { valu
   const { species } = useApp();
   const m = today().getMonth() + 1;
   const list = useMemo(() => species
-    .filter(s => !onlySingleCell || s.span_cells === 1)
+    .filter(s => !onlySingleCell || !isMulti(s))
     .slice()
     .sort((a, b) => Number(b.plant_out_months.includes(m) || b.sow_indoor_months.includes(m)) - Number(a.plant_out_months.includes(m) || a.sow_indoor_months.includes(m))), [species, m, onlySingleCell]);
   return (
@@ -52,17 +52,17 @@ export function CellGrid({ zone, grid, x0 = 0, y0 = 0, x1, y1, rowHeaders = fals
       const p = grid[y][x];
       const s = p ? byId.get(p.species_id) : null;
       const pos = { gridRow: y - y0 + 1, gridColumn: col(x) };
-      if (p && s && s.span_cells > 1) {
-        // Un plant sur 2 × 2 cases : une seule grande case, à la place des quatre petites
-        const ux = p.x + Math.floor((x - p.x) / 2) * 2, uy = p.y + Math.floor((y - p.y) / 2) * 2;
+      if (p && s && isMulti(s)) {
+        // Un plant sur plusieurs cases (2 × 1, 3 × 1, 2 × 2…) : une seule grande case à la place des petites
+        const ux = p.x + Math.floor((x - p.x) / s.span_w) * s.span_w, uy = p.y + Math.floor((y - p.y) / s.span_h) * s.span_h;
         items.push(<span key={`g${x}-${y}`} aria-hidden="true" className="aspect-square min-w-0" style={pos} />);
         if (x === Math.max(ux, x0) && y === Math.max(uy, y0)) {
-          const w = Math.min(ux + 2, xe, p.x + p.w) - x, h = Math.min(uy + 2, ye, p.y + p.h) - y;
+          const w = Math.min(ux + s.span_w, xe, p.x + p.w) - x, h = Math.min(uy + s.span_h, ye, p.y + p.h) - y;
           items.push(
-            <Link key={`p${x}-${y}`} to={`/plantes/${p.id}`} aria-label={`${s.name}, rang ${uy + 1}, case ${ux + 1}, sur 2 × 2 cases${isReady(p, s) ? ', prête à récolter' : ''}`}
-              className={`z-10 flex min-h-0 min-w-0 items-center justify-center rounded-2xl bg-terre-case ${isReady(p, s) ? 'shadow-[inset_0_0_0_3px_#F6C445]' : ''}`}
+            <Link key={`p${x}-${y}`} to={`/plantes/${p.id}`} aria-label={`${s.name}, rang ${uy + 1}, case ${ux + 1}, sur ${footprintText(s)} cases${isReady(p, s) ? ', prête à récolter' : ''}`}
+              className={`relative z-10 min-h-0 min-w-0 overflow-hidden rounded-2xl bg-terre-case ${isReady(p, s) ? 'shadow-[inset_0_0_0_3px_#F6C445]' : ''}`}
               style={{ gridRow: `${y - y0 + 1} / span ${h}`, gridColumn: `${col(x)} / span ${w}` }}>
-              <Picto slug={s.slug} size={64} className={w > 1 ? 'h-[64%] w-[64%]' : 'h-auto w-[80%]'} />
+              <Picto slug={s.slug} size={64} className={`absolute inset-0 m-auto ${w >= h ? 'h-[78%] w-auto' : 'h-auto w-[78%]'}`} />
             </Link>
           );
         }

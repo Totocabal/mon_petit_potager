@@ -6,7 +6,9 @@ export type Species = {
   height: 'basse' | 'moyenne' | 'haute';
   spacing_cm: number;
   plants_per_cell: number;
-  span_cells: number;
+  /** Empreinte d'un plant, en cases : 1 × 1 (défaut), 2 × 1, 3 × 1, 2 × 2… */
+  span_w: number;
+  span_h: number;
   inrow_spacing_cm: number;
   row_spacing_cm: number;
   water_every_days: number;

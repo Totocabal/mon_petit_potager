@@ -3,7 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { useAddPlantings } from '../lib/data';
 import { BackHeader, Btn, Loading, Note, Page, Tile, useToast } from '../components/ui';
-import { inSeason, lc, nf, occupancy, plantCount, SPCOLOR } from '../lib/garden';
+import { footprintText, inSeason, isMulti, lc, nf, occupancy, plantCount, SPCOLOR } from '../lib/garden';
 import { generatePlan, type Area } from '../lib/generator';
 import { MOIS, today } from '../lib/dates';
 
@@ -109,7 +109,7 @@ export default function Generate() {
                   <b className="w-5 text-center text-sm">{w}</b>
                   <button aria-label="Plus" onClick={() => set(s.id, w + 1)} className="h-8 w-8 rounded-full bg-vert-doux font-extrabold text-vert">+</button>
                 </span>
-              ) : <span className="text-xs text-gris">{s.span_cells > 1 ? '2 × 2 cases' : s.plants_per_cell + ' par case'}</span>}
+              ) : <span className="text-xs text-gris">{isMulti(s) ? footprintText(s) + ' cases' : s.plants_per_cell + ' par case'}</span>}
             </div>
           );
         })}
