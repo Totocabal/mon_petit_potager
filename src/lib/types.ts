@@ -84,3 +84,21 @@ export const ZONE_TYPES: { value: ZoneType; label: string; big: boolean }[] = [
   { value: 'parcelle', label: 'Parcelle', big: true },
   { value: 'serre', label: 'Serre', big: true }
 ];
+
+export type Task = {
+  id: string;
+  garden_id: string;
+  planting_id: string | null;
+  zone_id: string | null;
+  title: string;
+  detail: string | null;
+  due_date: string;
+  done_at: string | null;
+  done_by: string | null;
+  origin: 'auto' | 'manuel';
+};
+
+export type Member = { garden_id: string; user_id: string; role: 'owner' | 'member'; joined_at: string; first_name: string | null };
+export type Invite = { id: string; garden_id: string; email: string | null; token: string; expires_at: string; accepted_at: string | null };
+
+export type AlertSettings = { user_id: string; enabled: boolean; skip_if_rain: boolean; reminder_hour: 8 | 19 };

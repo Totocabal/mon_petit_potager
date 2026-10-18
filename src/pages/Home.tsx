@@ -5,8 +5,9 @@ import { useTasks, useToggleTask, useWater } from '../lib/data';
 import { TaskSheet } from '../components/TaskSheet';
 import { BottomNav, Loading, Page, Tile, useToast } from '../components/ui';
 import { ageDays, isReady, lc, needsWater } from '../lib/garden';
-import { longDate, today, iso, parse, diffDays, whenText } from '../lib/dates';
-import { describe, rainSoon } from '../lib/weather';
+import { addDays, longDate, today, iso, parse, diffDays, whenText } from '../lib/dates';
+import { RAIN_MM, rainOn, SKY_LABEL, skyOf, type Weather } from '../lib/weather';
+import { WeatherIcon } from '../components/WeatherIcon';
 import type { Planting } from '../lib/types';
 
 export default function Home() {
@@ -42,7 +43,7 @@ export default function Home() {
         <p className="font-bold text-gris">{garden.name}</p>
       </div>
 
-      {weather ? <WeatherCard weather={weather} /> : !profile?.lat && <Link to="/profil" className="rounded-carte bg-white p-4 font-bold text-vert">Ajoutez votre ville pour voir la météo et éviter d’arroser sous la pluie →</Link>}
+      {weather ? <WeatherCard weather={weather} thirsty={groups.thirsty.length} /> : !profile?.lat && <Link to="/profil" className="rounded-carte bg-white p-4 font-bold text-vert">Ajoutez votre ville pour voir la météo et éviter d’arroser sous la pluie →</Link>}
 
       <h2 className="font-titre text-xl font-semibold">Aujourd’hui au jardin</h2>
       <div className="rounded-carte bg-white px-4 py-1">
@@ -103,21 +104,24 @@ export default function Home() {
   );
 }
 
-function WeatherCard({ weather }: { weather: import('../lib/weather').Weather }) {
+function WeatherCard({ weather, thirsty }: { weather: Weather; thirsty: number }) {
   const t = iso(today());
-  const days = weather.days.filter(d => d.date >= t).slice(0, 4);
-  const now = days[0];
-  const soon = rainSoon(weather);
-  if (!now) return null;
+  const tomorrow = iso(addDays(today(), 1));
+  const day = weather.days.find(d => d.date === t);
+  if (!day) return null;
+  const code = weather.current?.code ?? day.code;
+  const temp = weather.current?.temp ?? day.tmax;
+  const sky = skyOf(code);
+  const rainToday = rainOn(weather, t), rainTomorrow = rainOn(weather, tomorrow);
+  const line = rainToday >= 0.5 ? `Pluie prévue aujourd’hui (${Math.round(rainToday)} mm)` : rainTomorrow >= 0.5 ? `Pluie prévue demain (${Math.round(rainTomorrow)} mm)` : `Pas de pluie prévue · ${day.tmin}° / ${day.tmax}°`;
+  const pill = rainToday >= RAIN_MM ? 'Pas d’arrosage aujourd’hui' : thirsty > 0 ? `${thirsty} à arroser aujourd’hui` : null;
   return (
-    <div className="rounded-carte bg-white p-4">
-      <div className="flex items-center gap-3">
-        <span className="text-4xl" aria-hidden>{describe(now.code).icon}</span>
-        <div className="flex-1"><b className="font-titre text-lg font-semibold">{describe(now.code).label}, {now.tmax}° / {now.tmin}°</b>
-          <p className="text-[13px] text-gris">{soon >= 3 ? `Pluie prévue (${Math.round(soon)} mm) : inutile d’arroser en pleine terre.` : 'Pas de pluie utile prévue aujourd’hui ou demain.'}</p></div>
-      </div>
-      <div className="mt-3 grid grid-cols-4 gap-2 text-center text-xs font-bold text-gris">
-        {days.map(d => <div key={d.date} className="rounded-xl bg-fond py-2"><div>{new Date(d.date + 'T12:00').toLocaleDateString('fr-FR', { weekday: 'short' })}</div><div className="text-lg" aria-hidden>{describe(d.code).icon}</div><div>{d.tmax}°</div><div className="text-eau">{d.rain >= 0.5 ? Math.round(d.rain) + ' mm' : '–'}</div></div>)}
+    <div className="flex items-center gap-4 rounded-[28px] bg-[#D3EAEE] px-5 py-[18px]">
+      <WeatherIcon sky={sky} />
+      <div className="flex min-w-0 flex-col gap-1">
+        <p className="font-titre text-[28px] font-semibold leading-tight text-[#1F4D5A]">{temp}° <span className="text-base font-medium">{SKY_LABEL[sky]}</span></p>
+        <p className="text-sm text-[#2C5A66]">{line}</p>
+        {pill && <p className="mt-1 self-start rounded-full bg-white px-3 py-[5px] text-[13px] font-extrabold text-vert">{pill}</p>}
       </div>
     </div>
   );

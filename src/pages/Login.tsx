@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Btn, Picto } from '../components/ui';
 
-export default function Login() {
+export default function Login({ invite = false }: { invite?: boolean }) {
   const [email, setEmail] = useState('');
   const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const [error, setError] = useState('');
@@ -19,6 +19,7 @@ export default function Login() {
       <div className="flex flex-col items-center gap-3 text-center">
         <span className="flex h-24 w-24 items-center justify-center rounded-[28px] bg-vert"><Picto slug="tomate" size={68} /></span>
         <h1 className="font-titre text-[34px] font-semibold text-vert">Mon petit potager</h1>
+        {invite && <p className="rounded-2xl bg-vert-doux px-4 py-2 text-sm font-bold text-vert-fonce">Vous êtes invité à rejoindre un potager. Connectez-vous pour y accéder.</p>}
         <p className="text-gris">Suivez vos plantes, sachez quoi faire chaque jour, n’oubliez plus d’arroser.</p>
       </div>
       {state === 'sent' ? (

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
-import type { Companion, Garden, Planting, Profile, Species, Zone } from './types';
+import type { AlertSettings, Companion, Garden, Invite, Member, Planting, Profile, Species, Task, Zone } from './types';
 import { buildRelations } from './garden';
 import { iso, today } from './dates';
 
@@ -159,5 +159,118 @@ export function useUpdatePlanting() {
       return p.garden_id;
     },
     onSuccess: (gid) => qc.invalidateQueries({ queryKey: ['plantings', gid] })
+  });
+}
+
+/* ---------- tâches manuelles ---------- */
+export function useTasks(gardenId: string) {
+  return useQuery({
+    queryKey: ['tasks', gardenId],
+    queryFn: async () => check(await supabase.from('tasks').select('*').eq('garden_id', gardenId).order('due_date')) as Task[]
+  });
+}
+export function useAddTask(gardenId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (t: { title: string; due_date: string; zone_id?: string | null; detail?: string | null }) => {
+      check(await supabase.from('tasks').insert({ garden_id: gardenId, origin: 'manuel', ...t }));
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks', gardenId] })
+  });
+}
+export function useToggleTask(gardenId: string, userId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, done }: { id: string; done: boolean }) => {
+      check(await supabase.from('tasks').update(done ? { done_at: new Date().toISOString(), done_by: userId } : { done_at: null, done_by: null }).eq('id', id));
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks', gardenId] })
+  });
+}
+export function useDeleteTask(gardenId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => { check(await supabase.from('tasks').delete().eq('id', id)); },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks', gardenId] })
+  });
+}
+
+/* ---------- partage du potager ---------- */
+export function useMembers(gardenId: string) {
+  return useQuery({
+    queryKey: ['members', gardenId],
+    queryFn: async () => {
+      const ms = check(await supabase.from('garden_members').select('*').eq('garden_id', gardenId).order('joined_at')) as Omit<Member, 'first_name'>[];
+      const ps = check(await supabase.from('profiles').select('id, first_name').in('id', ms.map(m => m.user_id))) as { id: string; first_name: string | null }[];
+      return ms.map(m => ({ ...m, first_name: ps.find(p => p.id === m.user_id)?.first_name ?? null })) as Member[];
+    }
+  });
+}
+export function useInvites(gardenId: string) {
+  return useQuery({
+    queryKey: ['invites', gardenId],
+    queryFn: async () => check(await supabase.from('garden_invites').select('*').eq('garden_id', gardenId).is('accepted_at', null).gt('expires_at', new Date().toISOString()).order('expires_at', { ascending: false })) as Invite[]
+  });
+}
+export function useCreateInvite(gardenId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (email: string | null) => check(await supabase.from('garden_invites').insert({ garden_id: gardenId, email }).select().single()) as Invite,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['invites', gardenId] })
+  });
+}
+export function useDeleteInvite(gardenId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => { check(await supabase.from('garden_invites').delete().eq('id', id)); },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['invites', gardenId] })
+  });
+}
+export function useRemoveMember(gardenId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (userId: string) => { check(await supabase.from('garden_members').delete().eq('garden_id', gardenId).eq('user_id', userId)); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['members', gardenId] }); qc.invalidateQueries({ queryKey: ['gardens'] }); }
+  });
+}
+
+export const inviteUrl = (token: string) => `${window.location.origin}/invitation/${token}`;
+/** Envoie à la personne un lien de connexion qui la mène directement à l'invitation. */
+export async function sendInviteEmail(email: string, token: string) {
+  const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: inviteUrl(token) } });
+  if (error) throw new Error(error.message);
+}
+export async function acceptInvite(token: string): Promise<string> {
+  const { data, error } = await supabase.rpc('accept_invite', { invite_token: token });
+  if (error) throw new Error(error.message);
+  return data as string;
+}
+
+/* ---------- alertes ---------- */
+const DEFAULT_ALERTS = { enabled: false, skip_if_rain: true, reminder_hour: 19 as const };
+export function useAlertSettings(userId: string) {
+  return useQuery({
+    queryKey: ['alerts', userId],
+    queryFn: async () => ((check(await supabase.from('alert_settings').select('*').eq('user_id', userId).maybeSingle()) as AlertSettings | null) ?? { user_id: userId, ...DEFAULT_ALERTS }) as AlertSettings
+  });
+}
+export function useSaveAlertSettings(userId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (patch: Partial<Omit<AlertSettings, 'user_id'>>) => {
+      const cur = qc.getQueryData<AlertSettings>(['alerts', userId]) ?? { user_id: userId, ...DEFAULT_ALERTS };
+      check(await supabase.from('alert_settings').upsert({ ...cur, ...patch, user_id: userId }));
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['alerts', userId] })
+  });
+}
+/** Active ou coupe les alertes d'arrosage de toutes les plantations d'une espèce. */
+export function useSetSpeciesAlerts(gardenId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ speciesId, on }: { speciesId: string; on: boolean }) => {
+      check(await supabase.from('plantings').update({ alerts_enabled: on }).eq('garden_id', gardenId).eq('species_id', speciesId).is('removed_at', null));
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['plantings', gardenId] })
   });
 }

@@ -7,19 +7,19 @@ Stack : React 18 + Vite + TypeScript, Tailwind, TanStack Query, Supabase (auth p
 ## Lancer en local
 
 ```bash
-cp .env.example .env.local
 npm install
 npm run dev
 ```
 
-Puis ouvrir http://localhost:5173. Avant le premier lancement : `cp .env.example .env.local` (le fichier contient l’URL et la clé publique du projet Supabase `mon-petit-potager`, région Paris).
+Puis ouvrir http://localhost:5173. Le fichier `.env.local` contient déjà l'URL et la clé publique du projet Supabase `mon-petit-potager` (région Paris). Ce fichier n'est pas versionné ; `.env.example` montre son format.
 
 ## Réglage Supabase à faire une fois
 
 Dans le tableau de bord Supabase › Authentication › URL Configuration :
 
 - **Site URL** : l'adresse de production (par exemple `https://mon-petit-potager.vercel.app`)
-- **Redirect URLs** : ajouter `http://localhost:5173` et l'adresse de production
+- **Redirect URLs** : ajouter `http://localhost:5173/**` et `https://votre-adresse/**` (les deux étoiles sont nécessaires : les invitations renvoient vers `/invitation/…`)
+- Facultatif : Authentication › Email Templates › Magic Link, pour personnaliser le texte du message reçu (connexion et invitations).
 
 Sans cela, le lien magique reçu par e-mail renvoie vers une mauvaise adresse.
 
@@ -29,6 +29,15 @@ Sans cela, le lien magique reçu par e-mail renvoie vers une mauvaise adresse.
 2. Sur Vercel : Add New › Project › importer le dépôt (préréglage Vite détecté).
 3. Variables d'environnement : `VITE_SUPABASE_URL` et `VITE_SUPABASE_PUBLISHABLE_KEY` (mêmes valeurs que `.env.local`).
 4. Le fichier `vercel.json` fourni renvoie toutes les adresses vers `index.html`, pour que les liens profonds (`/zones/…`) fonctionnent.
+
+## Inviter un proche
+
+Profil › Inviter un proche. Deux façons :
+
+- par e-mail : la personne reçoit un lien de connexion qui l'amène directement au potager ;
+- par lien à copier (valable 7 jours, une seule fois) : à envoyer par message.
+
+Le propriétaire peut retirer un membre ; un membre peut quitter le potager. Les envois d'e-mails passent par Supabase Auth, limités à quelques messages par heure tant qu'aucun serveur d'e-mail personnel n'est branché (Authentication › SMTP Settings).
 
 ## Base de données
 
@@ -56,10 +65,13 @@ public/pictos/  les 32 pictos SVG
 - Fiche plante : stade, arrosage (« J'ai arrosé » + journal), voisines, récolte, retrait
 - Accueil (à arroser, à récolter), calendrier par mois, profil
 
+## Notifications (rappels d'arrosage, récolte, tâches)
+
+- L'app est une PWA (`public/manifest.webmanifest`, `public/sw.js`). Sur iPhone : l'ajouter à l'écran d'accueil d'abord (page `/installer`), puis activer les alertes.
+- Réglages dans **Profil › Alertes d'arrosage** (matin 8 h / soir 19 h, pas d'alerte s'il pleut, espèces suivies, bouton de test).
+- Ajouter `VITE_VAPID_PUBLIC_KEY` aux variables d'environnement Vercel (valeur dans `.env.example`).
+- Envoi : la fonction `supabase/functions/send-reminders` est appelée chaque heure par `pg_cron` (migration `0004_rappels_push.sql`). Les clés VAPID et le secret du cron sont dans le Vault Supabase, jamais dans le code.
+
 ## Étapes suivantes
 
-1. Météo (Open-Meteo) et règle pluie
-2. Tâches manuelles et automatiques
-3. Générateur de plan pour les petites zones
-4. Partage du potager (invitations) et notifications push (PWA, Edge Function + pg_cron)
-# mon_petit_potager
+Les étapes prévues (météo, tâches, générateur de plan, partage, notifications) sont faites. Reste à affiner selon l'usage.
