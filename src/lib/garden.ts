@@ -37,6 +37,13 @@ export function occupancy(z: Pick<Zone, 'cols' | 'rows'>, plantings: Planting[])
   return g;
 }
 
+/** Plantations distinctes qui touchent le rectangle de cases [x0, x1) × [y0, y1). */
+export function plantingsIn(grid: Grid, x0: number, x1: number, y0: number, y1: number): Planting[] {
+  const seen = new Set<Planting>();
+  for (let y = y0; y < Math.min(y1, grid.length); y++) for (let x = x0; x < Math.min(x1, grid[y].length); x++) { const p = grid[y][x]; if (p) seen.add(p); }
+  return [...seen];
+}
+
 /** Index des voisinages, par paire d'identifiants d'espèces. */
 export type Relations = Map<string, Companion>;
 export function buildRelations(list: Companion[]): Relations {

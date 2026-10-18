@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../lib/app';
-import { useAddPlantings, useClearRow } from '../lib/data';
+import { useAddPlantings, useClearRow, useWater } from '../lib/data';
 import { BLOC, de, isReady, lc, meters, nf, occupancy, rangPlan, toSegments, type Grid } from '../lib/garden';
 import { iso, today } from '../lib/dates';
 import type { Planting, Species, Zone } from '../lib/types';
@@ -69,6 +69,25 @@ export function CellGrid({ zone, grid, x0 = 0, y0 = 0, x1, y1, rowHeaders = fals
   return <div className="flex flex-col gap-1.5 rounded-[26px] bg-terre p-2.5 shadow-[inset_0_-6px_0_#A7724A]">{rows}</div>;
 }
 
+/** « J'ai arrosé » pour un ensemble de plantations : zone, bloc ou rang. */
+export function WaterButton({ plantings, label, onDone }: { plantings: Planting[]; label: string; onDone?: () => void }) {
+  const water = useWater();
+  const toast = useToast();
+  const n = plantings.length;
+  if (!n) return null;
+  async function go() {
+    await water.mutateAsync(plantings);
+    toast(`Arrosage noté : ${label}`);
+    onDone?.();
+  }
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Btn variant="eau" onClick={go} disabled={water.isPending}>{water.isPending ? 'Enregistrement…' : `J’ai arrosé ${label} · ${n} plantation${n > 1 ? 's' : ''}`}</Btn>
+      {water.isError && <p className="text-sm font-bold text-alerte">{(water.error as Error).message}</p>}
+    </div>
+  );
+}
+
 /** Feuille « Remplir le rang » : sur un bloc ou toute la zone. */
 export function RangSheet({ zone, y, x0, onClose }: { zone: Zone; y: number; x0: number; onClose: () => void }) {
   const { plantings, rels, byId, species, garden } = useApp();
@@ -117,6 +136,7 @@ export function RangSheet({ zone, y, x0, onClose }: { zone: Zone; y: number; x0:
           ))}
         </div>
       )}
+      <WaterButton plantings={inRow} label={`le rang ${y + 1}`} onDone={onClose} />
       <SpeciesStrip value={sp} onChange={setSp} onlySingleCell />
       <Note tone={msg[0]}>{msg[1]}</Note>
       {s && (

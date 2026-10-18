@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { useDeleteZone, useUpdateZone } from '../lib/data';
 import { BackHeader, Btn, Loading, Page, Sheet, Tile, useToast } from '../components/ui';
-import { CellGrid, RangSheet } from '../components/garden';
+import { CellGrid, RangSheet, WaterButton } from '../components/garden';
 import { BLOC, blocInfo, blocName, CELL_CM, isBig, meters, nf, occupancy, SPCOLOR } from '../lib/garden';
 import type { Zone } from '../lib/types';
 
@@ -49,6 +49,7 @@ export default function ZonePage() {
         </div>
         <Link to={`/zones/${zone.id}/generer`} className="flex min-h-12 items-center justify-center rounded-[20px] bg-vert-doux px-4 font-titre text-[17px] font-semibold text-vert">Générer un plan automatique</Link>
         {rang !== null && <RangSheet zone={zone} y={rang} x0={-1} onClose={() => setRang(null)} />}
+        <WaterButton plantings={ps} label={'la zone ' + zone.name} />
         <DeleteZone zone={zone} plants={ps.length} />
         {renaming && <RenameZone zone={zone} onClose={() => setRenaming(false)} />}
       </Page>
@@ -84,6 +85,7 @@ export default function ZonePage() {
         <span className="inline-flex items-center gap-1.5 rounded-full bg-white py-1 pl-2 pr-3 text-sm font-bold"><span className="h-4 w-4 rounded bg-terre-libre" />Libre · {nf(total - used)}</span>
       </div>
       <p className="text-[13px] text-gris">Touchez un bloc pour voir ses cases. Contour jaune : à récolter. Coin brun : cases libres dans le bloc.</p>
+      <WaterButton plantings={ps} label={'la zone ' + zone.name} />
       <DeleteZone zone={zone} plants={ps.length} />
       {renaming && <RenameZone zone={zone} onClose={() => setRenaming(false)} />}
     </Page>
