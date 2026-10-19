@@ -48,24 +48,12 @@ export const useCellSel = (): CellSel => { const [cells, set] = useState<Set<num
 
 const HOLD_MS = 450, SLOP_PX = 10;
 
-/** Grille de cases d'une petite zone (ou d'un bloc), cliquable. Avec `sel`, un appui long sélectionne des cases (glisser pour en ajouter, numéro de rang pour tout le rang). */
-export function CellGrid({ zone, grid, x0 = 0, y0 = 0, x1, y1, rowHeaders = false, selectedRow, onRow, sel }: {
-  zone: Zone; grid: Grid; x0?: number; y0?: number; x1?: number; y1?: number; rowHeaders?: boolean; selectedRow?: number | null; onRow?: (y: number) => void; sel?: CellSel;
-}) {
-  const { byId, rainFor } = useApp();
+/** Appui long qui lance une sélection, glisser pour l'étendre, toucher pour basculer. `keysOf` donne les cases visées par un élément (vide : rien à sélectionner). */
+export function useHoldSelect(sel: CellSel | undefined, keysOf: (el: Element | null) => number[]) {
   const wrap = useRef<HTMLDivElement>(null);
   const press = useRef<{ x: number; y: number; timer: number; held: boolean } | null>(null);
   const swallow = useRef(false);
   const selecting = !!sel && sel.cells.size > 0;
-  const keysOf = (el: Element | null): number[] => {
-    const row = el?.closest('[data-row]'), rect = el?.closest('[data-rect]');
-    if (row) { const y = +row.getAttribute('data-row')!; return Array.from({ length: Math.min(zone.cols, x1 ?? zone.cols) - x0 }, (_, i) => y * zone.cols + x0 + i); }
-    if (!rect) return [];
-    const [rx, ry, rw, rh] = rect.getAttribute('data-rect')!.split(',').map(Number);
-    const out: number[] = [];
-    for (let j = ry; j < ry + rh; j++) for (let i = rx; i < rx + rw; i++) out.push(j * zone.cols + i);
-    return out;
-  };
   // Une fois l'appui long reconnu, le doigt dessine la sélection : le défilement de la page est suspendu
   useEffect(() => {
     const el = wrap.current;
@@ -78,7 +66,7 @@ export function CellGrid({ zone, grid, x0 = 0, y0 = 0, x1, y1, rowHeaders = fals
   const down = (e: React.PointerEvent) => {
     if (!sel || (e.pointerType === 'mouse' && e.button !== 0)) return;
     const target = e.target as Element;
-    if (!target.closest('[data-rect],[data-row]')) return;
+    if (!keysOf(target).length) return;
     const st = { x: e.clientX, y: e.clientY, held: false, timer: 0 };
     st.timer = window.setTimeout(() => {
       st.held = true;
@@ -116,8 +104,29 @@ export function CellGrid({ zone, grid, x0 = 0, y0 = 0, x1, y1, rowHeaders = fals
     sel.set(prev => { const n = new Set(prev); const all = ks.every(k => n.has(k)); ks.forEach(k => (all ? n.delete(k) : n.add(k))); return n; });
     void tick();
   };
+  return { ref: wrap, selecting, props: { onPointerDown: down, onPointerMove: move, onPointerUp: up, onPointerCancel: up, onClickCapture: click, onContextMenu: (e: React.MouseEvent) => { if (sel) e.preventDefault(); } } };
+}
+
+/** Coche posée sur une case ou un bloc sélectionné. */
+export const CheckMark = ({ round = 'rounded-2xl' }: { round?: string }) => <span aria-hidden="true" className={`pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-[rgba(246,196,69,.5)] shadow-[inset_0_0_0_4px_#F6C445] ${round}`}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4A3A10" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.500l4.500 4.500L19 7.500" /></svg></span>;
+
+/** Grille de cases d'une petite zone (ou d'un bloc), cliquable. Avec `sel`, un appui long sélectionne des cases (glisser pour en ajouter, numéro de rang pour tout le rang). */
+export function CellGrid({ zone, grid, x0 = 0, y0 = 0, x1, y1, rowHeaders = false, selectedRow, onRow, sel }: {
+  zone: Zone; grid: Grid; x0?: number; y0?: number; x1?: number; y1?: number; rowHeaders?: boolean; selectedRow?: number | null; onRow?: (y: number) => void; sel?: CellSel;
+}) {
+  const { byId, rainFor } = useApp();
+  const keysOf = (el: Element | null): number[] => {
+    const row = el?.closest('[data-row]'), rect = el?.closest('[data-rect]');
+    if (row) { const y = +row.getAttribute('data-row')!; return Array.from({ length: Math.min(zone.cols, x1 ?? zone.cols) - x0 }, (_, i) => y * zone.cols + x0 + i); }
+    if (!rect) return [];
+    const [rx, ry, rw, rh] = rect.getAttribute('data-rect')!.split(',').map(Number);
+    const out: number[] = [];
+    for (let j = ry; j < ry + rh; j++) for (let i = rx; i < rx + rw; i++) out.push(j * zone.cols + i);
+    return out;
+  };
+  const hold = useHoldSelect(sel, keysOf);
   const picked = (x: number, y: number, w = 1, h = 1) => { if (!sel) return false; for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) if (sel.cells.has(j * zone.cols + i)) return true; return false; };
-  const mark = (x: number, y: number, w = 1, h = 1) => picked(x, y, w, h) && <span aria-hidden="true" className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-2xl bg-[rgba(246,196,69,.5)] shadow-[inset_0_0_0_4px_#F6C445]"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4A3A10" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.500l4.500 4.500L19 7.500" /></svg></span>;
+  const mark = (x: number, y: number, w = 1, h = 1) => picked(x, y, w, h) && <CheckMark />;
   const rain = rainFor(zone.id);
   const xe = x1 ?? zone.cols, ye = y1 ?? zone.rows;
   const nCols = Math.max(xe - x0, rowHeaders ? BLOC : 0);
@@ -175,7 +184,7 @@ export function CellGrid({ zone, grid, x0 = 0, y0 = 0, x1, y1, rowHeaders = fals
     }
   }
   return (
-    <div ref={wrap} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onClickCapture={click} onContextMenu={e => { if (sel) e.preventDefault(); }}
+    <div ref={hold.ref} {...hold.props}
       className="rounded-[26px] bg-terre p-2.5 shadow-[inset_0_-6px_0_#A7724A] [-webkit-touch-callout:none]">
       <div className="grid gap-1.5 p-0.5" style={{ gridTemplateColumns: `${rowHeaders ? '2.75rem ' : ''}repeat(${nCols}, minmax(0, 1fr))` }}>{items}</div>
     </div>

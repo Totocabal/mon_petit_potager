@@ -3,9 +3,10 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { useDeleteZone, useUpdateZone } from '../lib/data';
 import { BackHeader, Btn, Loading, Page, Sheet, Tile, useToast } from '../components/ui';
-import { CellGrid, ClearArea, DropBadge, GroundActions, RangSheet, useCellSel, WaterButton } from '../components/garden';
+import { CellGrid, CheckMark, ClearArea, DropBadge, GroundActions, RangSheet, useCellSel, useHoldSelect, WaterButton, type CellSel } from '../components/garden';
 import { SelectionPanel } from '../components/CellSelection';
-import { BLOC, blocInfo, blocName, CELL_CM, isBig, isSol, isThirsty, meters, nf, occupancy, SPCOLOR, thirstyIn, zoneGround } from '../lib/garden';
+import { BLOC, blocInfo, blocKeys, blocName, CELL_CM, isBig, isSol, isThirsty, meters, nf, occupancy, SPCOLOR, thirstyIn, zoneGround } from '../lib/garden';
+import type { Grid } from '../lib/garden';
 import type { Zone } from '../lib/types';
 
 export default function ZonePage() {
@@ -67,29 +68,13 @@ export default function ZonePage() {
     );
   }
 
-  const bc = Math.ceil(zone.cols / BLOC), br = Math.ceil(zone.rows / BLOC);
-  const tiles = [];
-  for (let by = 0; by < br; by++) for (let bx = 0; bx < bc; bx++) {
-    const b = blocInfo(zone, grid, bx, by, byId);
-    const s = b.dom ? byId.get(b.dom) : null;
-    const dry = thirstyIn(grid, bx * BLOC, (bx + 1) * BLOC, by * BLOC, (by + 1) * BLOC, byId, rain).length;
-    tiles.push(
-      <Link key={bx + '-' + by} to={`/zones/${zone.id}/blocs/${bx}/${by}`} aria-label={`Bloc ${blocName(bx, by)} : ${s ? s.name : 'libre'}${b.ready ? ', à récolter' : ''}${dry ? ', à arroser' : ''}`}
-        className="relative aspect-square rounded-[4px]" style={{ background: s ? SPCOLOR[s.slug] : '#6A432C', boxShadow: b.ready ? 'inset 0 0 0 2px #F6C445' : 'none' }}>
-        {s && b.free > 0 && <span className="absolute bottom-0 right-0 h-[40%] w-[40%] rounded-tl-[3px] bg-terre-libre" />}
-        {dry > 0 && <DropBadge size={14} className="!-right-[3px] !-top-[3px]" />}
-      </Link>
-    );
-  }
   const counts = new Map<string, number>();
   ps.forEach(p => counts.set(p.species_id, (counts.get(p.species_id) ?? 0) + p.w * p.h));
   return (
     <Page>
       {head}
       <div className="flex items-baseline justify-between text-xs"><span className="font-extrabold tracking-wider text-gris">NORD</span><span className="font-bold">1 carreau = 1 bloc de 5 × 5 cases (1,5 m)</span></div>
-      <div className="rounded-[22px] bg-terre p-2 shadow-[inset_0_-5px_0_#A7724A]">
-        <div className="grid gap-[2px]" style={{ gridTemplateColumns: `repeat(${bc}, minmax(0, 1fr))` }}>{tiles}</div>
-      </div>
+      <BlocMosaic zone={zone} grid={grid} sel={sel} />
       <div className="flex flex-wrap gap-2">
         {[...counts.entries()].sort((a, b) => b[1] - a[1]).map(([id, n]) => {
           const s = byId.get(id)!;
@@ -97,13 +82,48 @@ export default function ZonePage() {
         })}
         <span className="inline-flex items-center gap-1.5 rounded-full bg-white py-1 pl-2 pr-3 text-sm font-bold"><span className="h-4 w-4 rounded bg-terre-libre" />Libre · {nf(total - used)}</span>
       </div>
-      <p className="text-[13px] text-gris">Touchez un bloc pour voir ses cases. Contour jaune : à récolter. Goutte bleue : à arroser. Coin brun : cases libres dans le bloc.</p>
+      <p className="text-[13px] text-gris">Touchez un bloc pour voir ses cases. Appui long : sélectionner plusieurs blocs (glissez pour en ajouter). Contour jaune : à récolter. Goutte bleue : à arroser. Coin brun : cases libres dans le bloc.</p>
+      <SelectionPanel zone={zone} grid={grid} sel={sel} byBloc />
       <GroundActions zone={zone} grid={grid} label={'la zone ' + zone.name} />
       <WaterButton plantings={ps} label={'la zone ' + zone.name} />
       <ClearArea zone={zone} grid={grid} label={'la zone ' + zone.name} />
       <DeleteZone zone={zone} plants={ps.length} />
       {renaming && <RenameZone zone={zone} onClose={() => setRenaming(false)} />}
     </Page>
+  );
+}
+
+/** Plan d'une grande zone : un carreau par bloc. Appui long pour sélectionner des blocs entiers, glisser pour en ajouter. */
+function BlocMosaic({ zone, grid, sel }: { zone: Zone; grid: Grid; sel: CellSel }) {
+  const { byId, rainFor } = useApp();
+  const rain = rainFor(zone.id);
+  const bc = Math.ceil(zone.cols / BLOC), br = Math.ceil(zone.rows / BLOC);
+  const keysOf = (el: Element | null) => {
+    const t = el?.closest('[data-bloc]');
+    if (!t) return [];
+    const [bx, by] = t.getAttribute('data-bloc')!.split(',').map(Number);
+    return blocKeys(zone, bx, by);
+  };
+  const hold = useHoldSelect(sel, keysOf);
+  const tiles = [];
+  for (let by = 0; by < br; by++) for (let bx = 0; bx < bc; bx++) {
+    const b = blocInfo(zone, grid, bx, by, byId);
+    const s = b.dom ? byId.get(b.dom) : null;
+    const dry = thirstyIn(grid, bx * BLOC, (bx + 1) * BLOC, by * BLOC, (by + 1) * BLOC, byId, rain).length;
+    const ks = blocKeys(zone, bx, by);
+    tiles.push(
+      <Link key={bx + '-' + by} to={`/zones/${zone.id}/blocs/${bx}/${by}`} data-bloc={`${bx},${by}`} aria-label={`Bloc ${blocName(bx, by)} : ${s ? s.name : 'libre'}${b.ready ? ', à récolter' : ''}${dry ? ', à arroser' : ''}`}
+        className="squish relative aspect-square select-none rounded-[4px]" style={{ background: s ? SPCOLOR[s.slug] : '#6A432C', boxShadow: b.ready ? 'inset 0 0 0 2px #F6C445' : 'none' }}>
+        {s && b.free > 0 && <span className="absolute bottom-0 right-0 h-[40%] w-[40%] rounded-tl-[3px] bg-terre-libre" />}
+        {dry > 0 && <DropBadge size={14} className="!-right-[3px] !-top-[3px]" />}
+        {ks.every(k => sel.cells.has(k)) && <CheckMark round="rounded-[4px]" />}
+      </Link>
+    );
+  }
+  return (
+    <div ref={hold.ref} {...hold.props} className="rounded-[22px] bg-terre p-2 shadow-[inset_0_-5px_0_#A7724A] [-webkit-touch-callout:none]">
+      <div className="grid gap-[2px]" style={{ gridTemplateColumns: `repeat(${bc}, minmax(0, 1fr))` }}>{tiles}</div>
+    </div>
   );
 }
 

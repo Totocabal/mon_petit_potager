@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useApp } from '../lib/app';
 import { useAddPlantings, useCutPlantings, useWater } from '../lib/data';
-import { de, isSol, lc, nf, rangPlan, remainingPieces, toSegments, type Grid } from '../lib/garden';
+import { BLOC, de, isSol, lc, nf, rangPlan, remainingPieces, toSegments, type Grid } from '../lib/garden';
 import { iso, today } from '../lib/dates';
 import { blockedCells } from '../lib/rotation';
 import { buzz } from '../lib/native';
@@ -12,7 +12,7 @@ import { SpeciesStrip, WaterSplash, unitOf, type CellSel } from './garden';
 type Cell = { x: number; y: number; p: Planting | null };
 
 /** Barre d'actions d'une sélection de cases (appui long dans la grille) : planter, arroser, vider. */
-export function SelectionPanel({ zone, grid, sel }: { zone: Zone; grid: Grid; sel: CellSel }) {
+export function SelectionPanel({ zone, grid, sel, byBloc = false }: { zone: Zone; grid: Grid; sel: CellSel; byBloc?: boolean }) {
   const { byId } = useApp();
   const toast = useToast();
   const water = useWater();
@@ -27,6 +27,7 @@ export function SelectionPanel({ zone, grid, sel }: { zone: Zone; grid: Grid; se
   const crops = [...new Set(planted.map(c => c.p!).filter(p => !isSol(byId.get(p.species_id))))];
   const done = () => { sel.set(new Set()); setMode(null); };
   const n = cells.length;
+  const blocs = byBloc ? new Set(cells.map(c => Math.floor(c.y / BLOC) * 1000 + Math.floor(c.x / BLOC))).size : 0;
 
   async function drink() {
     await water.mutateAsync(crops);
@@ -46,7 +47,7 @@ export function SelectionPanel({ zone, grid, sel }: { zone: Zone; grid: Grid; se
       {!mode && (
         <div role="toolbar" aria-label="Cases sélectionnées" className="sheet-up fixed bottom-[calc(14px+env(safe-area-inset-bottom))] left-1/2 z-30 flex w-[min(408px,calc(100%-24px))] -translate-x-1/2 flex-col gap-2 rounded-[26px] bg-encre p-3 text-white shadow-[0_10px_28px_rgba(0,0,0,.3)] lg:left-[calc(50%+142px)]">
           <div className="flex items-center justify-between gap-2 px-1">
-            <b className="font-titre text-[17px] font-semibold">{n} case{n > 1 ? 's' : ''} sélectionnée{n > 1 ? 's' : ''}</b>
+            <b className="font-titre text-[17px] font-semibold">{byBloc ? `${blocs} bloc${blocs > 1 ? 's' : ''} · ${n} cases` : `${n} case${n > 1 ? 's' : ''} sélectionnée${n > 1 ? 's' : ''}`}</b>
             <button onClick={() => sel.set(new Set())} className="min-h-11 px-2 text-[14px] font-extrabold text-white/80">Annuler</button>
           </div>
           <div className="flex gap-2">

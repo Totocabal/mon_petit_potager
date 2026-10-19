@@ -217,6 +217,13 @@ export function toSegments(xs: number[]): { x: number; w: number }[] {
   return out;
 }
 
+/** Clés des cases d'un bloc (rang × largeur de la zone + colonne), pour une sélection. */
+export function blocKeys(z: Pick<Zone, 'cols' | 'rows'>, bx: number, by: number): number[] {
+  const out: number[] = [];
+  for (let y = by * BLOC; y < Math.min(z.rows, by * BLOC + BLOC); y++) for (let x = bx * BLOC; x < Math.min(z.cols, bx * BLOC + BLOC); x++) out.push(y * z.cols + x);
+  return out;
+}
+
 export function blocInfo(z: Pick<Zone, 'cols' | 'rows'>, g: Grid, bx: number, by: number, bySpecies: Map<string, Species>) {
   const cnt = new Map<string, number>();
   let free = 0, ready = false;
