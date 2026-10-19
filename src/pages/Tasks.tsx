@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useApp } from '../lib/app';
 import { useDeleteTask, useTasks, useToggleTask } from '../lib/data';
-import { BackHeader, Btn, Page } from '../components/ui';
+import { BackHeader, Btn, Page, useToast } from '../components/ui';
 import { TaskSheet } from '../components/TaskSheet';
 import { diffDays, parse, today, whenText } from '../lib/dates';
 
@@ -10,10 +10,18 @@ export default function Tasks() {
   const tasks = useTasks(garden.id);
   const toggle = useToggleTask(garden.id, session.user.id);
   const del = useDeleteTask(garden.id);
+  const toast = useToast();
   const [open, setOpen] = useState(false);
+  const [confirmAll, setConfirmAll] = useState(false);
   const list = tasks.data ?? [];
   const todo = list.filter(t => !t.done_at);
-  const done = list.filter(t => t.done_at).slice(-10).reverse();
+  const allDone = list.filter(t => t.done_at);
+  const done = allDone.slice(-10).reverse();
+  async function clearDone() {
+    for (const t of allDone) await del.mutateAsync(t.id);
+    toast(`${allDone.length} tâche${allDone.length > 1 ? 's' : ''} supprimée${allDone.length > 1 ? 's' : ''}`);
+    setConfirmAll(false);
+  }
   const zoneName = (id: string | null) => zones.find(z => z.id === id)?.name;
 
   return (
@@ -38,10 +46,21 @@ export default function Tasks() {
         <section className="flex flex-col gap-1 rounded-carte bg-white px-4 py-3">
           <h2 className="font-titre text-lg font-semibold">Terminées</h2>
           {done.map(t => (
-            <button key={t.id} onClick={() => toggle.mutate({ id: t.id, done: false })} className="flex min-h-11 items-center gap-3 text-left text-gris line-through">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-vert text-xs text-white no-underline">✓</span>{t.title}
-            </button>
+            <div key={t.id} className="flex min-h-11 items-center gap-1">
+              <button onClick={() => toggle.mutate({ id: t.id, done: false })} aria-label={`Rouvrir : ${t.title}`} className="flex min-h-11 min-w-0 flex-1 items-center gap-3 text-left text-gris">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-vert text-xs text-white">✓</span><span className="truncate line-through">{t.title}</span>
+              </button>
+              <button aria-label={`Supprimer : ${t.title}`} onClick={() => del.mutate(t.id)} disabled={del.isPending} className="flex h-11 w-11 shrink-0 items-center justify-center text-xl text-gris">×</button>
+            </div>
           ))}
+          {confirmAll ? (
+            <div className="mt-1 flex flex-col gap-2 rounded-[20px] bg-alerte-doux p-3 text-[#6B2418]">
+              <p className="font-extrabold">Supprimer les {allDone.length} tâches terminées ?</p>
+              <div className="flex gap-2"><Btn variant="danger" onClick={clearDone} disabled={del.isPending}>Supprimer</Btn><Btn variant="contour" onClick={() => setConfirmAll(false)}>Annuler</Btn></div>
+            </div>
+          ) : (
+            <button onClick={() => setConfirmAll(true)} className="mt-1 min-h-11 self-center text-sm font-extrabold text-alerte">Supprimer toutes les terminées · {allDone.length}</button>
+          )}
         </section>
       )}
       {open && <TaskSheet onClose={() => setOpen(false)} />}
