@@ -84,7 +84,7 @@ Identifiant : `fr.monpetitpotager.app`. Après toute modification du code web : 
 
 ### Réglages à faire une fois
 
-1. **Connexion par code** : dans Supabase, *Authentication → Email Templates → Magic Link*, ajoutez le code au message, par exemple `Votre code : {{ .Token }}`. L'app native se connecte avec ce code (le lien d'e-mail ouvrirait le navigateur).
+1. **Lien de connexion qui rouvre l'app** : dans Supabase, *Authentication → URL Configuration → Redirect URLs*, ajoutez `fr.monpetitpotager.app://**`. Sans cela, le lien de l'e-mail ouvre le site dans le navigateur au lieu de l'app. Aucun changement du modèle d'e-mail n'est nécessaire.
 2. **Adresse du site** : renseignez `VITE_SITE_URL` (voir `.env.example`) avec l'adresse publique du site, utilisée pour les liens d'invitation. Sans elle, les liens créés dans l'app sont inutilisables.
 3. **Notifications** : les rappels d'arrosage (notifications web) ne fonctionnent pas encore dans l'app, seulement sur le site. Les notifications natives (Firebase pour Android, Apple pour iOS) sont à ajouter.
 

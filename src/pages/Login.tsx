@@ -1,35 +1,25 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Btn, Picto } from '../components/ui';
-import { isNative } from '../lib/native';
+import { AUTH_CALLBACK, isNative } from '../lib/native';
 
 export default function Login({ invite = false }: { invite?: boolean }) {
   const [email, setEmail] = useState('');
   const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const [error, setError] = useState('');
-  const [code, setCode] = useState('');
-  const [checking, setChecking] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setState('sending');
-    // Dans l'app native, le lien d'email ouvrirait le navigateur : on se connecte avec le code
-    const { error } = await supabase.auth.signInWithOtp({ email: email.trim(), options: isNative ? {} : { emailRedirectTo: window.location.origin } });
-    if (error) { setError(error.message); setState('error'); } else { setCode(''); setError(''); setState('sent'); }
+    // Dans l'app, le lien de l'e-mail rouvre l'app ; sur le site, il revient sur le site
+    const { error } = await supabase.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: isNative ? AUTH_CALLBACK : window.location.origin } });
+    if (error) { setError(error.message); setState('error'); } else { setError(''); setState('sent'); }
   }
 
   async function google() {
     setError('');
     const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
     if (error) { setError(error.message); setState('error'); }
-  }
-
-  async function verify(e: React.FormEvent) {
-    e.preventDefault();
-    setChecking(true); setError('');
-    const { error } = await supabase.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: 'email' });
-    if (error) setError(error.message.toLowerCase().includes('expired') || error.message.toLowerCase().includes('invalid') ? 'Code incorrect ou expiré. Vérifiez-le ou demandez-en un nouveau.' : error.message);
-    setChecking(false);
   }
 
   return (
@@ -41,24 +31,19 @@ export default function Login({ invite = false }: { invite?: boolean }) {
         <p className="text-gris">Suivez vos plantes, sachez quoi faire chaque jour, n’oubliez plus d’arroser.</p>
       </div>
       {state === 'sent' ? (
-        <form onSubmit={verify} className="flex flex-col gap-3 rounded-carte bg-white p-5">
-          <p className="text-center font-titre text-xl font-semibold text-vert">Regardez vos e-mails</p>
-          <p className="text-center text-sm">Un code de connexion a été envoyé à <strong>{email}</strong>. Saisissez-le ci-dessous{isNative ? '.' : ', ou ouvrez le lien de l’e-mail sur cet appareil.'}</p>
-          <label htmlFor="code" className="sr-only">Code reçu par e-mail</label>
-          <input id="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6,10}" maxLength={10} required value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} placeholder="123456"
-            className="min-h-14 rounded-2xl border-2 border-trait px-4 text-center font-titre text-2xl font-semibold tracking-[0.3em] outline-none focus:border-vert" />
-          {error && <p className="text-sm font-bold text-alerte">{error}</p>}
-          <Btn type="submit" disabled={checking || code.length < 6}>{checking ? 'Vérification…' : 'Me connecter'}</Btn>
-          <button type="button" onClick={() => { setState('idle'); setError(''); }} className="min-h-11 text-sm font-extrabold text-vert">Changer d’adresse ou renvoyer un code</button>
-        </form>
+        <div className="rounded-carte bg-white p-5 text-center">
+          <p className="font-titre text-xl font-semibold text-vert">Regardez vos e-mails</p>
+          <p className="mt-2 text-sm">Un lien de connexion a été envoyé à <strong>{email}</strong>. Ouvrez-le sur cet appareil{isNative ? ' : il rouvre l’app et vous connecte.' : '.'}</p>
+          <button type="button" onClick={() => { setState('idle'); setError(''); }} className="mt-3 min-h-11 text-sm font-extrabold text-vert">Changer d’adresse ou renvoyer le lien</button>
+        </div>
       ) : (
         <form onSubmit={submit} className="flex flex-col gap-3 rounded-carte bg-white p-5">
           <label htmlFor="email" className="text-sm font-extrabold">Votre adresse e-mail</label>
           <input id="email" type="email" required autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="prenom@exemple.fr"
             className="min-h-12 rounded-2xl border-2 border-trait px-4 text-base font-bold outline-none focus:border-vert" />
           {state === 'error' && <p className="text-sm font-bold text-alerte">{error}</p>}
-          <Btn type="submit" disabled={state === 'sending'}>{state === 'sending' ? 'Envoi…' : isNative ? 'Recevoir un code de connexion' : 'Recevoir un lien de connexion'}</Btn>
-          <p className="text-center text-xs text-gris">Pas de mot de passe : un code ou un lien suffit.</p>
+          <Btn type="submit" disabled={state === 'sending'}>{state === 'sending' ? 'Envoi…' : 'Recevoir un lien de connexion'}</Btn>
+          <p className="text-center text-xs text-gris">Pas de mot de passe : un lien suffit.</p>
           {!isNative && (
             <>
               <div className="flex items-center gap-3 text-xs font-bold text-gris"><span className="h-px flex-1 bg-trait" />ou<span className="h-px flex-1 bg-trait" /></div>
