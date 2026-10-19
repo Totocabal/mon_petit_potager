@@ -4,6 +4,7 @@ import { useApp } from '../lib/app';
 import { useAlertSettings, useSaveAlertSettings, useSetSpeciesAlerts } from '../lib/data';
 import { BackHeader, Btn, Note, Page, Tile, useToast } from '../components/ui';
 import { isNative } from '../lib/native';
+import { cancelReminders, remindersEnabled, remindersPermission, requestRemindersPermission, setRemindersEnabled, testReminder } from '../lib/localReminders';
 import { currentSubscription, disablePush, enablePush, needsInstall, pushSupported, sendTestPush, VAPID_PUBLIC } from '../lib/push';
 import { everyDays, lc, nextWater } from '../lib/garden';
 import { whenText } from '../lib/dates';
@@ -23,14 +24,17 @@ export default function Alerts() {
   const save = useSaveAlertSettings(session.user.id);
   const setSpecies = useSetSpeciesAlerts(garden.id);
   const toast = useToast();
-  const [device, setDevice] = useState<boolean | null>(null);
+  const [device, setDevice] = useState<boolean | null>(isNative ? false : null);
+  const [nativeOn, setNativeOn] = useState(remindersEnabled);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const st = settings.data;
   const install = needsInstall();
   const supported = pushSupported();
 
-  useEffect(() => { currentSubscription().then(s => setDevice(!!s)).catch(() => setDevice(false)); }, []);
+  useEffect(() => { if (!isNative) currentSubscription().then(s => setDevice(!!s)).catch(() => setDevice(false)); }, []);
+  // Dans l'app : les rappels ne comptent que si le téléphone a aussi autorisé les notifications
+  useEffect(() => { if (isNative && nativeOn) remindersPermission().then(ok => { if (!ok) { setRemindersEnabled(false); setNativeOn(false); } }).catch(() => undefined); }, [nativeOn]);
 
   const rows = useMemo(() => {
     const m = new Map<string, { id: string; on: boolean; every: number; next: Date }>();
@@ -44,21 +48,27 @@ export default function Alerts() {
     return [...m.values()].sort((a, b) => byId.get(a.id)!.name.localeCompare(byId.get(b.id)!.name, 'fr'));
   }, [crops, byId, rainFor]);
 
-  const active = !!st?.enabled && device === true;
+  const active = isNative ? nativeOn : !!st?.enabled && device === true;
   const hour = st?.reminder_hour ?? 19;
   const thirsty = rows.filter(r => r.on).slice(0, 2).map(r => byId.get(r.id)!.name);
 
   async function toggleAll() {
     setBusy(true); setError('');
     try {
-      if (active) { await disablePush(); await save.mutateAsync({ enabled: false }); setDevice(false); toast('Alertes désactivées'); }
+      if (isNative) {
+        if (active) { setRemindersEnabled(false); setNativeOn(false); await cancelReminders(); toast('Rappels désactivés'); }
+        else {
+          if (!(await requestRemindersPermission())) throw new Error('Notifications refusées. Autorisez-les pour « Mon petit potager » dans les réglages du téléphone.');
+          setRemindersEnabled(true); setNativeOn(true); toast('Rappels activés sur ce téléphone');
+        }
+      } else if (active) { await disablePush(); await save.mutateAsync({ enabled: false }); setDevice(false); toast('Alertes désactivées'); }
       else { await enablePush(); await save.mutateAsync({ enabled: true }); setDevice(true); toast('Alertes activées sur cet appareil'); }
     } catch (e) { setError((e as Error).message); }
     setBusy(false);
   }
   async function test() {
     setBusy(true); setError('');
-    try { await sendTestPush(); toast('Notification envoyée'); } catch (e) { setError((e as Error).message); }
+    try { if (isNative) { await testReminder(); toast('Notification de test dans quelques secondes'); } else { await sendTestPush(); toast('Notification envoyée'); } } catch (e) { setError((e as Error).message); }
     setBusy(false);
   }
 
@@ -67,7 +77,7 @@ export default function Alerts() {
       <BackHeader title="Alertes d’arrosage" kicker="On vous prévient quand vos plantes ont soif" />
 
       {install && <Note tone="neutre">Sur iPhone, les alertes demandent d’ajouter l’app à l’écran d’accueil. <Link to="/installer" className="font-extrabold underline">Voir comment faire</Link></Note>}
-      {isNative && <Note tone="neutre">Les rappels d’arrosage ne sont pas encore disponibles dans l’app : ils fonctionnent sur le site web.</Note>}
+      {isNative && <Note tone="neutre">Les rappels sont programmés sur ce téléphone pour les 7 prochains jours et se mettent à jour à chaque ouverture de l’app. Pensez à l’ouvrir au moins une fois par semaine.</Note>}
       {!install && !supported && !isNative && <Note tone="neutre">Ce navigateur ne gère pas les notifications. Essayez avec Chrome, Edge, Firefox ou Safari récent.</Note>}
       {!VAPID_PUBLIC && !isNative && <Note tone="mauvais">Les notifications ne sont pas encore configurées : la clé VITE_VAPID_PUBLIC_KEY manque.</Note>}
 
@@ -75,7 +85,7 @@ export default function Alerts() {
         <div className="flex min-h-[58px] items-center gap-3 border-b border-dashed border-trait">
           <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-vert-doux text-vert"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z" /><path d="M10 21h4" /></svg></span>
           <span className="flex flex-1 flex-col"><b className="font-extrabold">Activer les alertes</b><span className="text-[13px] text-gris">Sur cet appareil</span></span>
-          <Switch on={active} label="Activer les alertes" onChange={toggleAll} disabled={busy || install || !supported || !VAPID_PUBLIC || device === null} />
+          <Switch on={active} label="Activer les alertes" onChange={toggleAll} disabled={busy || (!isNative && (install || !supported || !VAPID_PUBLIC || device === null))} />
         </div>
         <div className="flex min-h-16 items-center gap-3">
           <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#D3EAEE] text-[#2C5A66]"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 15h10a4 4 0 0 0 0-8 6 6 0 0 0-11 2 3 3 0 0 0 1 6z" /><path d="M9 18l-1 2M13 18l-1 2M17 18l-1 2" /></svg></span>

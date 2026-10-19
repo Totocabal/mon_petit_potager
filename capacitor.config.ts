@@ -7,6 +7,7 @@ const config: CapacitorConfig = {
   backgroundColor: '#EAF2E3',
   plugins: {
     SplashScreen: { launchShowDuration: 800, backgroundColor: '#EAF2E3', showSpinner: false },
+    LocalNotifications: { smallIcon: 'ic_stat_potager', iconColor: '#2E6B3F' },
     StatusBar: { style: 'DARK', backgroundColor: '#EAF2E3', overlaysWebView: false }
   }
 };

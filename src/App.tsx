@@ -2,6 +2,8 @@ import { Route, Routes, useLocation } from 'react-router-dom';
 import { useCurrentGarden, useSession } from './lib/data';
 import { AppProvider } from './lib/app';
 import { Loading, SideNav } from './components/ui';
+import { ReminderSync } from './components/ReminderSync';
+import { isNative } from './lib/native';
 import Login from './pages/Login';
 import Onboarding from './pages/Onboarding';
 import Home from './pages/Home';
@@ -51,6 +53,7 @@ function Signed({ session }: { session: NonNullable<ReturnType<typeof useSession
   return (
     <AppProvider session={session} garden={garden} gardens={gardens} selectGarden={select}>
       <SideNav />
+      {isNative && <ReminderSync />}
       <div className="min-h-full lg:pl-[284px]">
       <Routes>
         <Route path="/" element={<Home />} />

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Icône de notification (blanche, une tomate et sa feuille) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,6.5C7.9,6.5 4.5,9.5 4.5,13.4C4.5,17.3 7.9,20.5 12,20.5C16.1,20.5 19.5,17.3 19.5,13.4C19.5,9.5 16.1,6.5 12,6.5z"/>
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M7.5,6.2C9.2,4.9 10.9,5.2 12,6.3C13.1,5.2 14.8,4.9 16.5,6.2C15.6,7.4 14.1,7.6 12,7.1C9.9,7.6 8.4,7.4 7.5,6.2z"/>
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M11.2,3.2L12.8,3.2L12.8,6.4L11.2,6.4z"/>
+</vector>
