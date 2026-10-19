@@ -115,3 +115,13 @@ Dans Xcode : choisissez votre équipe (*Signing & Capabilities*), puis lancez su
 ### Icône et écran de démarrage
 
 Les images sources sont dans `assets/`. Pour les régénérer après modification : `npx @capacitor/assets generate --android --ios` (outil à installer à la demande, il n'est pas dans les dépendances).
+
+### Connexion Google
+
+Sur le site web, le bouton « Continuer avec Google » passe par Supabase. Réglages à faire une fois :
+
+1. Google Cloud (*APIs & Services → Credentials*) : un identifiant OAuth de type **Application Web**, avec l'URI de redirection autorisée `https://kfdusbzchhbzshznlvmb.supabase.co/auth/v1/callback`.
+2. Supabase (*Authentication → Providers → Google*) : activer le fournisseur et y saisir l'identifiant client et le secret.
+3. Supabase (*Authentication → URL Configuration*) : ajouter l'adresse du site dans les *Redirect URLs*.
+
+Le bouton n'est pas encore proposé dans l'app Android et iOS : cela demande une connexion Google native (identifiants Android et iOS dédiés).
