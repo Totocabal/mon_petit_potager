@@ -53,7 +53,8 @@ h1, h2, h3 { text-wrap: balance; }
 .wb-bolt { animation: wi-flash 3s linear infinite; }
 .wb-fog { animation: wi-fog 7s ease-in-out infinite; }
 /* Animations « vivantes » : apparition des pages et des cases, gouttes qui rebondissent, plantes assoiffées qui se balancent, pression « boule de gomme ». Les propriétés `translate`/`scale` laissent intact le transform de Tailwind. */
-@keyframes rise-in { from { opacity: 0; translate: 0 14px; } to { opacity: 1; translate: 0 0; } }
+/* Fondu seul : un translate sur <main> en ferait le repère de la barre du bas (position: fixed) et la décalerait pendant l'animation */
+@keyframes rise-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes pop-in { 0% { opacity: 0; scale: .5; } 65% { opacity: 1; scale: 1.08; } 100% { opacity: 1; scale: 1; } }
 @keyframes sheet-up { from { opacity: 0; translate: 0 36px; } to { opacity: 1; translate: 0 0; } }
 @keyframes toast-in { 0% { opacity: 0; translate: 0 -16px; scale: .9; } 60% { opacity: 1; translate: 0 3px; scale: 1.03; } 100% { opacity: 1; translate: 0 0; scale: 1; } }
