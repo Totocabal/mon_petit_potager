@@ -6,7 +6,8 @@ import { supabase } from '../lib/supabase';
 import { BottomNav, Btn, Page, Select, useToast } from '../components/ui';
 import { Stepper } from '../components/Stepper';
 import { CELL_CM } from '../lib/garden';
-import { geocode } from '../lib/weather';
+import { geocode, type Place } from '../lib/weather';
+import { CityInput } from '../components/CityInput';
 
 export default function ProfilePage() {
   const { session, profile, garden, gardens, selectGarden, zones } = useApp();
@@ -15,10 +16,11 @@ export default function ProfilePage() {
   const toast = useToast();
   const [first, setFirst] = useState('');
   const [city, setCity] = useState('');
+  const [picked, setPicked] = useState<Place | null>(null); // ville choisie dans les suggestions : coordonnées déjà connues
   const [gname, setGname] = useState(garden.name);
   const [w, setW] = useState(garden.terrain_width_cm);
   const [h, setH] = useState(garden.terrain_length_cm);
-  useEffect(() => { setFirst(profile?.first_name ?? ''); setCity(profile?.city ?? ''); }, [profile]);
+  useEffect(() => { setFirst(profile?.first_name ?? ''); setCity(profile?.city ?? ''); setPicked(null); }, [profile]);
   useEffect(() => { setGname(garden.name); setW(garden.terrain_width_cm); setH(garden.terrain_length_cm); }, [garden]);
 
   const minW = Math.max(300, ...zones.map(z => z.x_cm + z.cols * CELL_CM));
@@ -32,13 +34,14 @@ export default function ProfilePage() {
         <p className="mt-1 font-bold text-gris">{session.user.email}</p>
       </div>
       <form className="flex flex-col gap-3 rounded-carte bg-white p-4" onSubmit={async e => { e.preventDefault(); const c = city.trim(); let place = null;
-          if (c && c !== profile?.city) { try { place = await geocode(c); } catch { /* hors ligne : on garde la ville sans coordonnées */ } if (!place) { toast('Ville introuvable : météo non activée'); } }
-          const keep = c && c === profile?.city;
+          if (c && picked && picked.name === c) place = picked;
+          else if (c && c !== profile?.city) { try { place = await geocode(c); } catch { /* hors ligne : on garde la ville sans coordonnées */ } if (!place) { toast('Ville introuvable : météo non activée'); } }
+          const keep = c && c === profile?.city && !picked;
           await save.mutateAsync({ first_name: first.trim() || null, city: place?.name ?? (c || null), ...(keep ? {} : { lat: place?.lat ?? null, lon: place?.lon ?? null }) });
           if (place) toast('Profil enregistré · météo de ' + place.name); else if (!c || keep) toast('Profil enregistré'); }}>
         <div className="grid grid-cols-2 gap-2.5">
           <label className="flex flex-col gap-1.5 text-sm font-extrabold">Prénom<input value={first} onChange={e => setFirst(e.target.value)} className={input} /></label>
-          <label className="flex flex-col gap-1.5 text-sm font-extrabold">Ville<input value={city} onChange={e => setCity(e.target.value)} className={input} /></label>
+          <label className="flex flex-col gap-1.5 text-sm font-extrabold">Ville<CityInput value={city} onChange={v => { setCity(v); setPicked(null); }} onPick={p => { setCity(p.name); setPicked(p); }} className={input + ' w-full'} /></label>
         </div>
         <Btn type="submit" variant="doux" disabled={save.isPending}>Enregistrer</Btn>
       </form>

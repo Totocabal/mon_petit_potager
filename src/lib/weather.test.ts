@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { RAIN_MM, describe as describeCode, lastRainyDay, rainOn, rainSoon, skyOf, type Weather } from './weather';
+import { RAIN_MM, describe as describeCode, lastRainyDay, placeDetail, rainOn, rainSoon, skyOf, type Weather } from './weather';
 import { iso } from './dates';
 
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date(2026, 9, 19, 12)); });
@@ -35,5 +35,18 @@ describe('pluie', () => {
   it('rainSoon additionne aujourd’hui et demain', () => {
     expect(rainSoon(w)).toBeCloseTo(6.5);
     expect(rainSoon(undefined)).toBe(0);
+  });
+});
+
+describe('placeDetail', () => {
+  it('département ou région puis pays', () => {
+    expect(placeDetail({ admin1: 'Auvergne-Rhône-Alpes', admin2: 'Rhône', country: 'France' })).toBe('Rhône · France');
+  });
+  it('région seule quand le département est identique ou absent', () => {
+    expect(placeDetail({ admin1: 'Paris', admin2: 'Paris', country: 'France' })).toBe('Paris · France');
+    expect(placeDetail({ admin1: 'Bavière', country: 'Allemagne' })).toBe('Bavière · Allemagne');
+  });
+  it('ne plante pas sans information', () => {
+    expect(placeDetail({})).toBe('');
   });
 });

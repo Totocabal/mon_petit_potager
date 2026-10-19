@@ -7,6 +7,8 @@ export const RAIN_MM = 3;
 export type WeatherDay = { date: string; rain: number; tmax: number; tmin: number; code: number; /** probabilité de pluie (%) ; null pour les jours passés */ chance: number | null };
 export type Weather = { days: WeatherDay[]; current?: { temp: number; code: number } };
 export type Place = { name: string; lat: number; lon: number };
+/** Une suggestion de ville : le lieu, plus de quoi distinguer les homonymes (département ou région, pays). */
+export type PlaceHit = Place & { id: number; detail: string };
 
 /** Trouve une ville (Open-Meteo, sans clé). */
 export async function geocode(city: string): Promise<Place | null> {
@@ -15,6 +17,24 @@ export async function geocode(city: string): Promise<Place | null> {
   const j = await r.json();
   const p = j.results?.[0];
   return p ? { name: p.name, lat: p.latitude, lon: p.longitude } : null;
+}
+
+type GeoResult = { id?: number; name: string; latitude: number; longitude: number; admin1?: string; admin2?: string; country?: string };
+
+/** Ligne d'information sous le nom d'une ville : « Rhône · France ». */
+export function placeDetail(r: Pick<GeoResult, 'admin1' | 'admin2' | 'country'>): string {
+  const region = r.admin2 && r.admin2 !== r.admin1 ? r.admin2 : r.admin1;
+  return [region, r.country].filter(Boolean).join(' · ');
+}
+
+/** Suggestions de villes pour une saisie partielle (Open-Meteo, sans clé). Vide en dessous de 2 lettres. */
+export async function searchPlaces(query: string, signal?: AbortSignal, count = 6): Promise<PlaceHit[]> {
+  const q = query.trim();
+  if (q.length < 2) return [];
+  const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=${count}&language=fr&format=json`, { signal });
+  if (!r.ok) throw new Error('Recherche de la ville impossible');
+  const j = await r.json();
+  return ((j.results ?? []) as GeoResult[]).map((p, i) => ({ id: p.id ?? i, name: p.name, lat: p.latitude, lon: p.longitude, detail: placeDetail(p) }));
 }
 
 async function fetchWeather(lat: number, lon: number): Promise<Weather> {
