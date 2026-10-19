@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { BackHeader, Loading, Page } from '../components/ui';
 import { CellGrid, ClearArea, GroundActions, RangSheet, WaterButton } from '../components/garden';
+import { ZoneMiniMap } from '../components/ZoneMiniMap';
 import { BLOC, blocName, meters, occupancy, plantingsIn, range } from '../lib/garden';
 
 export default function BlocPage() {
@@ -28,7 +29,7 @@ export default function BlocPage() {
   return (
     <Page>
       <BackHeader kicker={zone.name + ' ›'} title={'Bloc ' + blocName(bx, by)}
-        right={<div className="grid grid-cols-2 gap-1">{nav(0, -1, 'Bloc au nord', '↑')}{nav(1, 0, 'Bloc à l’est', '→')}{nav(-1, 0, 'Bloc à l’ouest', '←')}{nav(0, 1, 'Bloc au sud', '↓')}</div>} />
+        right={<div className="flex items-center gap-2.5"><ZoneMiniMap zone={zone} grid={grid} bx={bx} by={by} /><div className="grid grid-cols-2 gap-1">{nav(0, -1, 'Bloc au nord', '↑')}{nav(1, 0, 'Bloc à l’est', '→')}{nav(-1, 0, 'Bloc à l’ouest', '←')}{nav(0, 1, 'Bloc au sud', '↓')}</div></div>} />
       <p className="text-sm font-bold text-gris">Rangs {range(y0 + 1, y1)} · cases {range(x0 + 1, x1)} · {meters((x1 - x0) * 30)} × {meters((y1 - y0) * 30)}</p>
       <CellGrid zone={zone} grid={grid} x0={x0} x1={x1} y0={y0} y1={y1} rowHeaders selectedRow={rang} onRow={setRang} />
       <p className="text-[13px] text-gris">Touchez le numéro d’un rang pour le remplir d’un coup, ou une case libre pour y planter.</p>
