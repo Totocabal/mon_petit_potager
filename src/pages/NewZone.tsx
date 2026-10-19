@@ -5,6 +5,7 @@ import { useCreateZone } from '../lib/data';
 import { BackHeader, Btn, Page, useToast } from '../components/ui';
 import { Stepper } from '../components/Stepper';
 import { CELL_CM, findSpot, nf } from '../lib/garden';
+import { clampSize, zoneLimits } from '../lib/stepper';
 import { ZONE_TYPES, type Zone, type ZoneType } from '../lib/types';
 
 const DEFAULTS: Record<ZoneType, { w: number; l: number; sheltered: boolean }> = {
@@ -26,13 +27,15 @@ export default function NewZone() {
   const [north, setNorth] = useState<Zone['north_side']>('top');
   const [sheltered, setSheltered] = useState(false);
   const big = ZONE_TYPES.find(t => t.value === type)!.big;
-  const step = big ? 150 : 30;
+  const lim = zoneLimits(big, garden.terrain_width_cm, garden.terrain_length_cm);
   const cols = Math.max(1, Math.round(w / CELL_CM)), rows = Math.max(1, Math.round(l / CELL_CM));
 
   function pickType(t: ZoneType) {
     setType(t);
     const d = DEFAULTS[t];
-    setW(d.w); setL(d.l); setSheltered(d.sheltered);
+    // tailles par défaut ramenées au pas et au terrain du type choisi : sinon les boutons + et − partent d'une valeur hors bornes
+    const l2 = zoneLimits(ZONE_TYPES.find(z => z.value === t)!.big, garden.terrain_width_cm, garden.terrain_length_cm);
+    setW(clampSize(d.w, l2.step, l2.min, l2.maxW)); setL(clampSize(d.l, l2.step, l2.min, l2.maxL)); setSheltered(d.sheltered);
     const label = ZONE_TYPES.find(z => z.value === t)!.label;
     const n = zones.filter(z => z.type === t).length + 1;
     setName(label + (t === 'carre' || n > 1 ? ' ' + n : ''));
@@ -57,8 +60,8 @@ export default function NewZone() {
         {ZONE_TYPES.map(t => <button key={t.value} aria-pressed={type === t.value} onClick={() => pickType(t.value)} className={`${seg} ${type === t.value ? 'bg-vert text-white' : ''}`}>{t.label}</button>)}
       </div>
       <div className="grid grid-cols-2 gap-2.5">
-        <Stepper label="Largeur" value={w} onChange={setW} step={step} min={30} max={big ? garden.terrain_width_cm - 100 : 360} />
-        <Stepper label="Longueur" value={l} onChange={setL} step={step} min={30} max={big ? garden.terrain_length_cm - 100 : 360} />
+        <Stepper label="Largeur" value={w} onChange={setW} step={lim.step} min={lim.min} max={lim.maxW} />
+        <Stepper label="Longueur" value={l} onChange={setL} step={lim.step} min={lim.min} max={lim.maxL} />
       </div>
       <div className="rounded-carte bg-white p-4">
         <p className="font-titre text-[22px] font-semibold text-vert">{nf(cols * rows)} cases</p>
