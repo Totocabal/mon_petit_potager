@@ -37,6 +37,16 @@ export async function buzz() {
   } catch { /* pas de vibreur */ }
 }
 
+/** Tic léger (une case de plus dans la sélection). */
+export async function tick() {
+  try {
+    if (isNative) {
+      const { Haptics, ImpactStyle } = await import('@capacitor/haptics');
+      await Haptics.impact({ style: ImpactStyle.Light });
+    } else navigator.vibrate?.(12);
+  } catch { /* pas de vibreur */ }
+}
+
 /** Réglages propres à l'app native : bouton retour d'Android, lien de connexion. */
 export async function initNative() {
   const { App } = await import('@capacitor/app');

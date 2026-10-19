@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { BackHeader, Loading, Page } from '../components/ui';
-import { CellGrid, ClearArea, DropBadge, GroundActions, RangSheet, WaterButton } from '../components/garden';
+import { CellGrid, ClearArea, DropBadge, GroundActions, RangSheet, useCellSel, WaterButton } from '../components/garden';
+import { SelectionPanel } from '../components/CellSelection';
 import { ZoneMiniMap } from '../components/ZoneMiniMap';
 import { BLOC, blocName, meters, occupancy, plantingsIn, range, thirstyIn } from '../lib/garden';
 
@@ -13,6 +14,8 @@ export default function BlocPage() {
   const zone = zones.find(z => z.id === params.zoneId);
   const grid = useMemo(() => (zone ? occupancy(zone, plantings.filter(p => p.zone_id === zone.id)) : []), [zone, plantings]);
   const [rang, setRang] = useState<number | null>(null);
+  const sel = useCellSel();
+  useEffect(() => { sel.set(new Set()); setRang(null); }, [bx, by]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) return <Loading />;
   if (!zone) return <Page><BackHeader title="Bloc introuvable" /></Page>;
@@ -33,12 +36,13 @@ export default function BlocPage() {
         right={<div className="flex items-center gap-2.5"><ZoneMiniMap zone={zone} grid={grid} bx={bx} by={by} /><div className="grid grid-cols-2 gap-1">{nav(0, -1, 'Bloc au nord', '↑')}{nav(1, 0, 'Bloc à l’est', '→')}{nav(-1, 0, 'Bloc à l’ouest', '←')}{nav(0, 1, 'Bloc au sud', '↓')}</div></div>} />
       <p className="text-sm font-bold text-gris">Rangs {range(y0 + 1, y1)} · cases {range(x0 + 1, x1)} · {meters((x1 - x0) * 30)} × {meters((y1 - y0) * 30)}</p>
       {thirsty > 0 && <p className="flex items-center gap-2 text-sm font-extrabold text-eau"><span className="relative inline-block h-[18px] w-[18px]"><DropBadge className="!-right-0 !-top-0" /></span>{thirsty} {thirsty > 1 ? 'plantations à arroser' : 'plantation à arroser'} dans ce bloc</p>}
-      <CellGrid zone={zone} grid={grid} x0={x0} x1={x1} y0={y0} y1={y1} rowHeaders selectedRow={rang} onRow={setRang} />
-      <p className="text-[13px] text-gris">Touchez le numéro d’un rang pour le remplir d’un coup, ou une case libre pour y planter.</p>
+      <CellGrid zone={zone} grid={grid} x0={x0} x1={x1} y0={y0} y1={y1} rowHeaders selectedRow={rang} onRow={setRang} sel={sel} />
+      <p className="text-[13px] text-gris">Touchez le numéro d’un rang pour le remplir d’un coup, ou une case libre pour y planter. Appui long sur une case ou un rang : sélectionner plusieurs cases (glissez pour en ajouter).</p>
       <GroundActions zone={zone} grid={grid} area={{ x0, x1, y0, y1 }} label={'le bloc ' + blocName(bx, by)} />
       <WaterButton plantings={plantingsIn(grid, x0, x1, y0, y1)} label={'le bloc ' + blocName(bx, by)} />
       <ClearArea zone={zone} grid={grid} area={{ x0, x1, y0, y1 }} label={'le bloc ' + blocName(bx, by)} />
       <Link to={`/zones/${zone.id}/generer?x=${x0}&y=${y0}&w=${x1 - x0}&h=${y1 - y0}`} className="flex min-h-12 items-center justify-center rounded-[20px] bg-vert-doux px-4 font-titre text-[17px] font-semibold text-vert">Générer un plan pour ce bloc</Link>
+      <SelectionPanel zone={zone} grid={grid} sel={sel} />
       {rang !== null && <RangSheet key={rang} zone={zone} y={rang} x0={x0} onClose={() => setRang(null)} />}
     </Page>
   );

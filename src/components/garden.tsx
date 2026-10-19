@@ -1,10 +1,11 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { useAddPlantings, useCutPlantings, useRemovePlantings, useWater } from '../lib/data';
 import { BLOC, de, footprintText, freeRects, isMulti, isReady, isSol, isThirsty, lc, meters, nf, occupancy, plantingsIn, rangPlan, remainingPieces, SPTINT, toSegments, type Grid } from '../lib/garden';
 import { cap, iso, today } from '../lib/dates';
 import { blockedCells } from '../lib/rotation';
+import { buzz, tick } from '../lib/native';
 import type { Planting, Species, Zone } from '../lib/types';
 import { Btn, Note, Picto, Sheet, Tile, useToast } from './ui';
 
@@ -41,11 +42,82 @@ export function DropBadge({ size = 18, className = '' }: { size?: number; classN
   );
 }
 
-/** Grille de cases d'une petite zone (ou d'un bloc), cliquable. */
-export function CellGrid({ zone, grid, x0 = 0, y0 = 0, x1, y1, rowHeaders = false, selectedRow, onRow }: {
-  zone: Zone; grid: Grid; x0?: number; y0?: number; x1?: number; y1?: number; rowHeaders?: boolean; selectedRow?: number | null; onRow?: (y: number) => void;
+/** Sélection de cases (clé = rang × largeur de la zone + colonne). Un appui long sur une case ou un numéro de rang la démarre ; ensuite, toucher bascule. */
+export type CellSel = { cells: Set<number>; set: Dispatch<SetStateAction<Set<number>>> };
+export const useCellSel = (): CellSel => { const [cells, set] = useState<Set<number>>(new Set()); return { cells, set }; };
+
+const HOLD_MS = 450, SLOP_PX = 10;
+
+/** Grille de cases d'une petite zone (ou d'un bloc), cliquable. Avec `sel`, un appui long sélectionne des cases (glisser pour en ajouter, numéro de rang pour tout le rang). */
+export function CellGrid({ zone, grid, x0 = 0, y0 = 0, x1, y1, rowHeaders = false, selectedRow, onRow, sel }: {
+  zone: Zone; grid: Grid; x0?: number; y0?: number; x1?: number; y1?: number; rowHeaders?: boolean; selectedRow?: number | null; onRow?: (y: number) => void; sel?: CellSel;
 }) {
   const { byId, rainFor } = useApp();
+  const wrap = useRef<HTMLDivElement>(null);
+  const press = useRef<{ x: number; y: number; timer: number; held: boolean } | null>(null);
+  const swallow = useRef(false);
+  const selecting = !!sel && sel.cells.size > 0;
+  const keysOf = (el: Element | null): number[] => {
+    const row = el?.closest('[data-row]'), rect = el?.closest('[data-rect]');
+    if (row) { const y = +row.getAttribute('data-row')!; return Array.from({ length: Math.min(zone.cols, x1 ?? zone.cols) - x0 }, (_, i) => y * zone.cols + x0 + i); }
+    if (!rect) return [];
+    const [rx, ry, rw, rh] = rect.getAttribute('data-rect')!.split(',').map(Number);
+    const out: number[] = [];
+    for (let j = ry; j < ry + rh; j++) for (let i = rx; i < rx + rw; i++) out.push(j * zone.cols + i);
+    return out;
+  };
+  // Une fois l'appui long reconnu, le doigt dessine la sélection : le défilement de la page est suspendu
+  useEffect(() => {
+    const el = wrap.current;
+    if (!el || !sel) return;
+    const stop = (e: TouchEvent) => { if (press.current?.held && e.cancelable) e.preventDefault(); };
+    el.addEventListener('touchmove', stop, { passive: false });
+    return () => el.removeEventListener('touchmove', stop);
+  }, [sel]);
+  useEffect(() => () => window.clearTimeout(press.current?.timer), []);
+  const down = (e: React.PointerEvent) => {
+    if (!sel || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    const target = e.target as Element;
+    if (!target.closest('[data-rect],[data-row]')) return;
+    const st = { x: e.clientX, y: e.clientY, held: false, timer: 0 };
+    st.timer = window.setTimeout(() => {
+      st.held = true;
+      void buzz();
+      const ks = keysOf(target);
+      sel.set(prev => new Set([...prev, ...ks]));
+    }, HOLD_MS);
+    press.current = st;
+  };
+  const move = (e: React.PointerEvent) => {
+    const st = press.current;
+    if (!st || !sel) return;
+    if (!st.held) {
+      if (Math.hypot(e.clientX - st.x, e.clientY - st.y) > SLOP_PX) { window.clearTimeout(st.timer); press.current = null; }
+      return;
+    }
+    const ks = keysOf(document.elementFromPoint(e.clientX, e.clientY));
+    if (ks.length && ks.some(k => !sel.cells.has(k))) { void tick(); sel.set(prev => new Set([...prev, ...ks])); }
+  };
+  const up = () => {
+    const st = press.current;
+    if (!st) return;
+    window.clearTimeout(st.timer);
+    if (st.held) { swallow.current = true; window.setTimeout(() => { swallow.current = false; }, 80); }
+    press.current = null;
+  };
+  // Pendant une sélection, toucher une case ou un rang la bascule au lieu d'ouvrir la fiche
+  const click = (e: React.MouseEvent) => {
+    if (!sel) return;
+    if (swallow.current) { e.preventDefault(); e.stopPropagation(); return; }
+    if (!selecting) return;
+    const ks = keysOf(e.target as Element);
+    if (!ks.length) return;
+    e.preventDefault(); e.stopPropagation();
+    sel.set(prev => { const n = new Set(prev); const all = ks.every(k => n.has(k)); ks.forEach(k => (all ? n.delete(k) : n.add(k))); return n; });
+    void tick();
+  };
+  const picked = (x: number, y: number, w = 1, h = 1) => { if (!sel) return false; for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) if (sel.cells.has(j * zone.cols + i)) return true; return false; };
+  const mark = (x: number, y: number, w = 1, h = 1) => picked(x, y, w, h) && <span aria-hidden="true" className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-2xl bg-[rgba(246,196,69,.5)] shadow-[inset_0_0_0_4px_#F6C445]"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4A3A10" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.500l4.500 4.500L19 7.500" /></svg></span>;
   const rain = rainFor(zone.id);
   const xe = x1 ?? zone.cols, ye = y1 ?? zone.rows;
   const nCols = Math.max(xe - x0, rowHeaders ? BLOC : 0);
@@ -56,7 +128,7 @@ export function CellGrid({ zone, grid, x0 = 0, y0 = 0, x1, y1, rowHeaders = fals
     if (rowHeaders) {
       const on = selectedRow === y;
       items.push(
-        <button key={'h' + y} onClick={() => onRow?.(y)} aria-label={`Remplir le rang ${y + 1}`} style={{ gridRow: y - y0 + 1, gridColumn: 1 }}
+        <button key={'h' + y} data-row={y} onClick={() => onRow?.(y)} aria-label={`Remplir le rang ${y + 1}`} style={{ gridRow: y - y0 + 1, gridColumn: 1 }}
           className={`flex h-full min-h-12 w-11 shrink-0 flex-col items-center justify-center rounded-xl font-titre text-[15px] font-semibold leading-none ${on ? 'bg-soleil text-soleil-encre' : 'bg-white text-vert'}`}>
           <span className="font-corps text-[10px] font-extrabold">rang</span>{y + 1}
         </button>
@@ -74,33 +146,37 @@ export function CellGrid({ zone, grid, x0 = 0, y0 = 0, x1, y1, rowHeaders = fals
           const w = Math.min(ux + s.span_w, xe, p.x + p.w) - x, h = Math.min(uy + s.span_h, ye, p.y + p.h) - y;
           items.push(
             <Link key={`p${x}-${y}`} to={`/plantes/${p.id}`} aria-label={`${s.name}, rang ${uy + 1}, case ${ux + 1}, sur ${footprintText(s)} cases${isReady(p, s) ? ', prête à récolter' : ''}${isThirsty(p, s, rain) ? ', à arroser' : ''}`}
-              className={`pop-in squish relative z-10 min-h-0 min-w-0 rounded-2xl bg-terre-case ${isReady(p, s) ? 'shadow-[inset_0_0_0_3px_#F6C445]' : ''}`}
+              data-rect={`${x},${y},${w},${h}`} className={`pop-in squish relative z-10 min-h-0 min-w-0 select-none rounded-2xl bg-terre-case ${isReady(p, s) ? 'shadow-[inset_0_0_0_3px_#F6C445]' : ''}`}
               style={{ gridRow: `${y - y0 + 1} / span ${h}`, gridColumn: `${col(x)} / span ${w}`, '--i': x - x0 + y - y0 } as React.CSSProperties}>
               <Picto slug={s.slug} size={64} className={`absolute inset-0 m-auto ${w >= h ? 'h-[78%] w-auto' : 'h-auto w-[78%]'} ${mood(p, s, rain)}`} />
               {isThirsty(p, s, rain) && <DropBadge />}
+              {mark(x, y, w, h)}
             </Link>
           );
         }
       } else if (p && s) {
         items.push(
           <Link key={`p${x}-${y}`} to={`/plantes/${p.id}`} aria-label={`${s.name}, rang ${y + 1}, case ${x + 1}${isReady(p, s) ? ', prête à récolter' : ''}${isThirsty(p, s, rain) ? ', à arroser' : ''}`}
-            className={`pop-in squish relative flex aspect-square min-w-0 items-center justify-center rounded-2xl ${isSol(s) ? '' : 'bg-terre-case'} ${isReady(p, s) ? 'shadow-[inset_0_0_0_3px_#F6C445]' : ''}`} style={{ ...pos, ...(isSol(s) ? { background: SPTINT[s.slug] } : {}), '--i': x - x0 + y - y0 } as React.CSSProperties}>
+            data-rect={`${x},${y},1,1`} className={`pop-in squish relative flex aspect-square min-w-0 select-none items-center justify-center rounded-2xl ${isSol(s) ? '' : 'bg-terre-case'} ${isReady(p, s) ? 'shadow-[inset_0_0_0_3px_#F6C445]' : ''}`} style={{ ...pos, ...(isSol(s) ? { background: SPTINT[s.slug] } : {}), '--i': x - x0 + y - y0 } as React.CSSProperties}>
             <Picto slug={s.slug} size={44} className={`h-[72%] w-[72%] ${mood(p, s, rain)}`} />
             {isThirsty(p, s, rain) && <DropBadge size={16} />}
+            {mark(x, y)}
           </Link>
         );
       } else {
         items.push(
           <Link key={`p${x}-${y}`} to={`/zones/${zone.id}/planter?x=${x}&y=${y}`} aria-label={`Planter rang ${y + 1}, case ${x + 1}`} style={{ ...pos, '--i': x - x0 + y - y0 } as React.CSSProperties}
-            className="pop-in squish flex aspect-square min-w-0 items-center justify-center rounded-2xl border-2 border-dashed border-[#E9C9A6] bg-terre-libre text-[#F6E3CC]">
+            data-rect={`${x},${y},1,1`} className="pop-in squish relative flex aspect-square min-w-0 select-none items-center justify-center rounded-2xl border-2 border-dashed border-[#E9C9A6] bg-terre-libre text-[#F6E3CC]">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+            {mark(x, y)}
           </Link>
         );
       }
     }
   }
   return (
-    <div className="rounded-[26px] bg-terre p-2.5 shadow-[inset_0_-6px_0_#A7724A]">
+    <div ref={wrap} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onClickCapture={click} onContextMenu={e => { if (sel) e.preventDefault(); }}
+      className="rounded-[26px] bg-terre p-2.5 shadow-[inset_0_-6px_0_#A7724A] [-webkit-touch-callout:none]">
       <div className="grid gap-1.5 p-0.5" style={{ gridTemplateColumns: `${rowHeaders ? '2.75rem ' : ''}repeat(${nCols}, minmax(0, 1fr))` }}>{items}</div>
     </div>
   );
@@ -108,7 +184,7 @@ export function CellGrid({ zone, grid, x0 = 0, y0 = 0, x1, y1, rowHeaders = fals
 
 /** « J'ai arrosé » pour un ensemble de plantations : zone, bloc ou rang. */
 /** Averse de gouttes qui traverse l'écran après un arrosage. */
-function WaterSplash() {
+export function WaterSplash() {
   return (
     <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 z-40 h-0">
       {Array.from({ length: 16 }, (_, i) => <span key={i} className="splash-drop" style={{ left: `${4 + ((i * 37) % 92)}%`, animationDelay: `${(i % 6) * 90}ms`, ['--dx' as string]: `${(i % 2 ? 1 : -1) * (6 + (i % 4) * 4)}px` }} />)}
@@ -183,7 +259,7 @@ export function GroundActions({ zone, grid, area, label }: { zone: Zone; grid: G
   );
 }
 
-const unitOf = (s: Species | undefined) => ({ w: s?.span_w ?? 1, h: s?.span_h ?? 1 });
+export const unitOf = (s: Species | undefined) => ({ w: s?.span_w ?? 1, h: s?.span_h ?? 1 });
 
 /** Retire d'un coup tout ce qui occupe une zone ou un bloc (plantes, jachère, paillage), avec confirmation. */
 export function ClearArea({ zone, grid, area, label }: { zone: Zone; grid: Grid; area?: { x0: number; x1: number; y0: number; y1: number }; label: string }) {
