@@ -12,7 +12,9 @@
     "android:debug": "npm run mobile:sync && cd android && ./gradlew assembleDebug",
     "android:open": "npm run mobile:sync && cap open android",
     "ios:open": "npm run mobile:sync && cap open ios",
-    "android:publish": "npm run android:debug && node scripts/publish-apk.mjs"
+    "android:publish": "npm run android:debug && node scripts/publish-apk.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@capacitor/android": "8.5.3",
@@ -39,6 +41,7 @@
     "postcss": "8.4.49",
     "tailwindcss": "3.4.17",
     "typescript": "5.6.3",
-    "vite": "5.4.11"
+    "vite": "5.4.11",
+    "vitest": "2.1.9"
   }
 }

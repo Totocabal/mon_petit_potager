@@ -78,6 +78,15 @@ public/pictos/  les 32 pictos SVG
 
 Les étapes prévues (météo, tâches, générateur de plan, partage, notifications) sont faites. Reste à affiner selon l'usage.
 
+## Tests
+
+```bash
+npm test          # une exécution (Vitest)
+npm run test:watch
+```
+
+Les tests couvrent la logique pure de `src/lib` : dates (changement d'heure compris), grille et plantations, découpage d'une plantation (vider un rang, un bloc, une zone), rotation des cultures, rappels, météo et générateur de plan (invariants vérifiés sur plusieurs graines). Le fuseau est fixé à Europe/Paris et l'horloge est simulée, donc les résultats sont reproductibles. Les données de test se fabriquent avec `src/test/fixtures.ts`. Une vérification (types, tests, construction) tourne aussi sur GitHub à chaque envoi (`.github/workflows/ci.yml`).
+
 ## Applications Android et iOS
 
 L'app mobile est le site emballé avec [Capacitor](https://capacitorjs.com) : un seul code pour le web, l'APK et iOS (`android/` et `ios/` sont les projets natifs, `assets/` les images sources de l'icône et de l'écran de démarrage, `capacitor.config.ts` la configuration).
