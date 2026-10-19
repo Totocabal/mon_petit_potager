@@ -47,7 +47,7 @@ export default function WeatherPage() {
     <Page>
       <BackHeader kicker={profile?.city ?? undefined} title="Prévisions météo" />
       <div className="flex items-center gap-4 rounded-[28px] bg-[#D3EAEE] px-5 py-[18px]">
-        <WeatherIcon sky={sky} />
+        <WeatherIcon sky={sky} animate />
         <div className="flex min-w-0 flex-col gap-1 leading-[normal]">
           <p className="font-titre text-[34px] font-semibold text-[#1F4D5A]">{temp}° <span className="text-base font-medium">{SKY_LABEL[sky]}</span></p>
           {today_ && <p className="text-sm text-[#2C5A66]">Aujourd’hui : {today_.tmin}° / {today_.tmax}°{today_.rain >= 0.5 ? ` · ${Math.round(today_.rain)} mm de pluie` : ''}</p>}

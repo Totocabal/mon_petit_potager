@@ -124,7 +124,7 @@ function WeatherCard({ weather, thirsty }: { weather: Weather; thirsty: number }
   const pill = rainToday >= RAIN_MM ? 'Pas d’arrosage aujourd’hui' : thirsty > 0 ? `${thirsty} à arroser aujourd’hui` : null;
   return (
     <Link to="/meteo" aria-label="Voir les prévisions météo" className="flex items-center gap-4 rounded-[28px] bg-[#D3EAEE] px-5 py-[18px]">
-      <WeatherIcon sky={sky} />
+      <WeatherIcon sky={sky} animate />
       <div className="flex min-w-0 flex-col gap-1 leading-[normal]">
         <p className="font-titre text-[28px] font-semibold text-[#1F4D5A]">{temp}° <span className="text-base font-medium">{SKY_LABEL[sky]}</span></p>
         <p className="text-sm text-[#2C5A66]">{line}</p>

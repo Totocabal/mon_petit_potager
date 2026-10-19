@@ -15,4 +15,21 @@ h1, h2, h3 { text-wrap: balance; }
 :focus-visible { outline: 3px solid #F6C445; outline-offset: 2px; }
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
+/* Icônes météo animées (WeatherIcon avec animate) ; coupées par prefers-reduced-motion */
+@keyframes wi-spin { to { transform: rotate(360deg); } }
+@keyframes wi-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+@keyframes wi-drift { 0%, 100% { transform: translateX(-2.5px); } 50% { transform: translateX(3px); } }
+@keyframes wi-drift-rev { 0%, 100% { transform: translateX(2.5px); } 50% { transform: translateX(-3px); } }
+@keyframes wi-rain { 0% { transform: translateY(-2px); opacity: 0; } 25% { opacity: 1; } 100% { transform: translateY(5px); opacity: 0; } }
+@keyframes wi-snow { 0% { transform: translate(0, -2px); opacity: 0; } 25% { opacity: 1; } 60% { transform: translate(2px, 2px); } 100% { transform: translate(-1px, 5px); opacity: 0; } }
+@keyframes wi-flash { 0%, 55%, 100% { opacity: .2; } 60%, 70% { opacity: 1; } 65% { opacity: .45; } }
+@keyframes wi-fog { 0%, 100% { transform: translateX(-3px); opacity: .6; } 50% { transform: translateX(3px); opacity: 1; } }
+.wi-anim .wi-rays { transform-origin: 40px 32px; animation: wi-spin 22s linear infinite; }
+.wi-anim .wi-sun { transform-box: fill-box; transform-origin: center; animation: wi-pulse 3.2s ease-in-out infinite; }
+.wi-anim .wi-cloud { animation: wi-drift 6s ease-in-out infinite; }
+.wi-anim .wi-cloud-back { animation: wi-drift-rev 7.5s ease-in-out infinite; }
+.wi-anim .wi-drop { animation: wi-rain 1.1s ease-in infinite; }
+.wi-anim .wi-flake { animation: wi-snow 2.4s ease-in-out infinite; }
+.wi-anim .wi-bolt { animation: wi-flash 2.6s linear infinite; }
+.wi-anim .wi-fog { animation: wi-fog 4.5s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
