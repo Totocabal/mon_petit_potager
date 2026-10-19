@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { useDeleteZone, useUpdateZone } from '../lib/data';
-import { BackHeader, Btn, Loading, Note, Page, Sheet, Tile, useToast } from '../components/ui';
+import { BackHeader, Btn, Loading, Note, Page, Select, Sheet, Tile, useToast } from '../components/ui';
 import { CellGrid, CheckMark, ClearArea, DropBadge, GroundActions, RangSheet, useCellSel, useHoldSelect, WaterButton, type CellSel } from '../components/garden';
 import { SelectionPanel } from '../components/CellSelection';
 import { Stepper } from '../components/Stepper';
@@ -56,10 +56,7 @@ export default function ZonePage() {
         {zone.cols > 8 && <div className="flex flex-col gap-2.5 rounded-carte bg-white p-4">
           <b>Remplir un rang d’un coup</b>
           <div className="flex gap-2">
-            <label htmlFor="rang" className="sr-only">Rang</label>
-            <select id="rang" value={rowPick} onChange={e => setRowPick(+e.target.value)} className="min-h-12 flex-1 rounded-2xl border-2 border-trait bg-white px-3 font-bold">
-              {Array.from({ length: zone.rows }, (_, i) => <option key={i} value={i}>Rang {i + 1}</option>)}
-            </select>
+            <div className="flex-1"><Select label="Rang" value={String(rowPick)} onChange={v => setRowPick(+v)} options={Array.from({ length: zone.rows }, (_, i) => ({ value: String(i), label: 'Rang ' + (i + 1) }))} /></div>
             <button onClick={() => setRang(rowPick)} className="min-h-12 rounded-2xl bg-vert px-4 font-titre font-semibold text-white">Choisir l’espèce</button>
           </div>
         </div>}

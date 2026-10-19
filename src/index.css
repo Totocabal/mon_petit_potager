@@ -86,4 +86,6 @@ h1, h2, h3 { text-wrap: balance; }
   54% { translate: 0 0; scale: 1.06 .94; }
 }
 .picto-hop { transform-origin: 50% 100%; animation: picto-hop 2.8s cubic-bezier(.35, 0, .4, 1) infinite; }
+@keyframes menu-in { from { opacity: 0; scale: .96; translate: 0 -6px; } to { opacity: 1; scale: 1; translate: 0 0; } }
+.menu-in { animation: menu-in .18s cubic-bezier(.2, .9, .3, 1) backwards; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }

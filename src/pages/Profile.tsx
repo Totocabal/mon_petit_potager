@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { useDeleteGarden, useMembers, useSaveProfile, useUpdateGarden } from '../lib/data';
 import { supabase } from '../lib/supabase';
-import { BottomNav, Btn, Page, useToast } from '../components/ui';
+import { BottomNav, Btn, Page, Select, useToast } from '../components/ui';
 import { Stepper } from '../components/Stepper';
 import { CELL_CM } from '../lib/garden';
 import { geocode } from '../lib/weather';
@@ -57,7 +57,7 @@ export default function ProfilePage() {
       <Link to="/inviter" className="flex min-h-14 items-center justify-between rounded-carte bg-white px-4 font-extrabold text-vert">Inviter un proche<span aria-hidden>→</span></Link>
       {gardens.length > 1 && (
         <label className="flex flex-col gap-1.5 text-sm font-extrabold">Changer de potager
-          <select value={garden.id} onChange={e => selectGarden(e.target.value)} className={input}>{gardens.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}</select>
+          <Select label="Changer de potager" value={garden.id} onChange={selectGarden} options={gardens.map(g => ({ value: g.id, label: g.name }))} />
         </label>
       )}
       <Btn variant="contour" onClick={() => supabase.auth.signOut()}>Se déconnecter</Btn>

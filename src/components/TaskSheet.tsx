@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useApp } from '../lib/app';
 import { useAddTask } from '../lib/data';
 import { addDays, iso, today } from '../lib/dates';
-import { Btn, Sheet, useToast } from './ui';
+import { Btn, Select, Sheet, useToast } from './ui';
 
 const input = 'min-h-12 rounded-2xl border-2 border-trait bg-white px-4 text-base font-bold outline-none focus:border-vert';
 
@@ -29,7 +29,7 @@ export function TaskSheet({ onClose, zoneId }: { onClose: () => void; zoneId?: s
         </div>
         <label className="flex flex-col gap-1.5 text-sm font-extrabold">Pour le<input type="date" value={due} onChange={e => setDue(e.target.value)} className={input} /></label>
         {zones.length > 0 && <label className="flex flex-col gap-1.5 text-sm font-extrabold">Zone (facultatif)
-          <select value={zone} onChange={e => setZone(e.target.value)} className={input}><option value="">Tout le potager</option>{zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}</select></label>}
+          <Select label="Zone" value={zone} onChange={setZone} options={[{ value: '', label: 'Tout le potager' }, ...zones.map(z => ({ value: z.id, label: z.name }))]} /></label>}
         {add.isError && <p className="text-sm font-bold text-alerte">{(add.error as Error).message}</p>}
         <Btn type="submit" disabled={!title.trim() || add.isPending}>Ajouter</Btn>
       </form>

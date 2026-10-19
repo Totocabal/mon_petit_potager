@@ -1,4 +1,5 @@
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { SPTINT } from '../lib/garden';
 
@@ -109,6 +110,71 @@ export function Btn({ children, variant = 'plein', className = '', ...rest }: Re
     danger: 'bg-alerte text-white'
   }[variant];
   return <button {...rest} className={`squish flex min-h-[52px] w-full items-center justify-center gap-2 rounded-[20px] px-4 font-titre text-[17px] font-semibold disabled:cursor-not-allowed disabled:opacity-45 ${v} ${className}`}>{children}</button>;
+}
+
+/** Liste déroulante aux couleurs de l'app, à la place du menu natif du téléphone. S'ouvre vers le bas, ou vers le haut s'il manque de place. */
+export function Select({ value, onChange, options, label, className = '' }: { value: string; onChange: (v: string) => void; options: { value: string; label: string }[]; label: string; className?: string }) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ left: number; width: number; top?: number; bottom?: number; maxH: number } | null>(null);
+  const btn = useRef<HTMLButtonElement>(null);
+  const list = useRef<HTMLDivElement>(null);
+  const cur = options.find(o => o.value === value);
+
+  function toggle() {
+    if (!open && btn.current) {
+      const r = btn.current.getBoundingClientRect();
+      const below = window.innerHeight - r.bottom - 14, above = r.top - 14;
+      const want = Math.min(280, options.length * 48 + 12);
+      const up = below < want && above > below;
+      setPos({ left: r.left, width: r.width, maxH: Math.max(120, Math.min(280, up ? above : below)), ...(up ? { bottom: window.innerHeight - r.top + 6 } : { top: r.bottom + 6 }) });
+    }
+    setOpen(o => !o);
+  }
+  const close = (refocus = false) => { setOpen(false); if (refocus) btn.current?.focus(); };
+
+  useEffect(() => {
+    if (!open) return;
+    list.current?.querySelector<HTMLElement>('[aria-selected="true"]')?.focus();
+    const shut = () => setOpen(false);
+    window.addEventListener('resize', shut);
+    return () => window.removeEventListener('resize', shut);
+  }, [open]);
+
+  function keys(e: React.KeyboardEvent) {
+    const items = [...(list.current?.querySelectorAll<HTMLElement>('[role="option"]') ?? [])];
+    const i = items.indexOf(document.activeElement as HTMLElement);
+    if (e.key === 'Escape') { e.preventDefault(); close(true); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); items[Math.min(items.length - 1, i + 1)]?.focus(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); items[Math.max(0, i - 1)]?.focus(); }
+    else if (e.key === 'Tab') close();
+  }
+
+  return (
+    <>
+      <button ref={btn} type="button" aria-label={label} aria-haspopup="listbox" aria-expanded={open} onClick={toggle}
+        className={`squish flex min-h-12 w-full items-center justify-between gap-2 rounded-2xl border-2 bg-white px-4 text-left text-base font-bold outline-none ${open ? 'border-vert' : 'border-trait'} focus-visible:border-vert ${className}`}>
+        <span className="min-w-0 flex-1 truncate">{cur?.label ?? '—'}</span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2E6B3F" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}><path d="M6 9l6 6 6-6" /></svg>
+      </button>
+      {open && pos && createPortal(
+        <>
+          <div className="fixed inset-0 z-[60]" onClick={() => close()} aria-hidden="true" />
+          <div ref={list} role="listbox" aria-label={label} onKeyDown={keys} className="menu-in fixed z-[61] flex flex-col gap-0.5 overflow-y-auto rounded-[20px] bg-white p-1.5 shadow-[0_12px_32px_rgba(35,64,43,.28),0_0_0_1px_#D5E3CB]"
+            style={{ left: pos.left, width: pos.width, top: pos.top, bottom: pos.bottom, maxHeight: pos.maxH }}>
+            {options.map(o => {
+              const on = o.value === value;
+              return (
+                <button key={o.value} type="button" role="option" aria-selected={on} onClick={() => { onChange(o.value); close(true); }}
+                  className={`flex min-h-12 w-full items-center justify-between gap-2 rounded-2xl px-3.5 text-left text-base outline-none focus-visible:bg-vert-doux ${on ? 'bg-vert-doux font-extrabold text-vert' : 'font-bold active:bg-fond'}`}>
+                  <span className="min-w-0 flex-1 truncate">{o.label}</span>
+                  {on && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>}
+                </button>
+              );
+            })}
+          </div>
+        </>, document.body)}
+    </>
+  );
 }
 
 export function Note({ tone, children }: { tone: 'bon' | 'mauvais' | 'neutre'; children: ReactNode }) {
