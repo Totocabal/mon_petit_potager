@@ -3,9 +3,10 @@
 @tailwind utilities;
 
 html, body, #root { height: 100%; }
+/* Le fond est sur html : un fond sur body masquerait le décor météo de l'accueil (z-index négatif) */
+html { background: #EAF2E3; }
 body {
   margin: 0;
-  background: #EAF2E3;
   color: #23402B;
   font-family: Nunito, 'Segoe UI', system-ui, sans-serif;
   -webkit-tap-highlight-color: transparent;
