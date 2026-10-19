@@ -123,13 +123,14 @@ function WeatherCard({ weather, thirsty }: { weather: Weather; thirsty: number }
   const line = rainToday >= 0.5 ? `Pluie prévue aujourd’hui (${Math.round(rainToday)} mm)` : rainTomorrow >= 0.5 ? `Pluie prévue demain (${Math.round(rainTomorrow)} mm)` : `Pas de pluie prévue · ${day.tmin}° / ${day.tmax}°`;
   const pill = rainToday >= RAIN_MM ? 'Pas d’arrosage aujourd’hui' : thirsty > 0 ? `${thirsty} à arroser aujourd’hui` : null;
   return (
-    <div className="flex items-center gap-4 rounded-[28px] bg-[#D3EAEE] px-5 py-[18px]">
+    <Link to="/meteo" aria-label="Voir les prévisions météo" className="flex items-center gap-4 rounded-[28px] bg-[#D3EAEE] px-5 py-[18px]">
       <WeatherIcon sky={sky} />
       <div className="flex min-w-0 flex-col gap-1 leading-[normal]">
         <p className="font-titre text-[28px] font-semibold text-[#1F4D5A]">{temp}° <span className="text-base font-medium">{SKY_LABEL[sky]}</span></p>
         <p className="text-sm text-[#2C5A66]">{line}</p>
         {pill && <p className="mt-1 self-start rounded-full bg-white px-3 py-[5px] text-[13px] font-extrabold text-vert">{pill}</p>}
       </div>
-    </div>
+      <span aria-hidden="true" className="ml-auto self-center pl-1 text-xl font-extrabold text-[#1F4D5A]">›</span>
+    </Link>
   );
 }

@@ -20,6 +20,7 @@ import Installer from './pages/Installer';
 import Tasks from './pages/Tasks';
 import ProfilePage from './pages/Profile';
 import Glossary from './pages/Glossary';
+import WeatherPage from './pages/Weather';
 import SpeciesSheet from './pages/SpeciesSheet';
 
 export default function App() {
@@ -61,6 +62,7 @@ function Signed({ session }: { session: NonNullable<ReturnType<typeof useSession
         <Route path="/zones/:zoneId/planter" element={<AddPlant />} />
         <Route path="/plantes/:plantingId" element={<PlantPage />} />
         <Route path="/calendrier" element={<Calendar />} />
+        <Route path="/meteo" element={<WeatherPage />} />
         <Route path="/glossaire" element={<Glossary />} />
         <Route path="/glossaire/:slug" element={<SpeciesSheet />} />
         <Route path="/inviter" element={<InvitePage />} />

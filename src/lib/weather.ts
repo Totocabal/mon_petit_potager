@@ -4,7 +4,7 @@ import { iso, parse, today } from './dates';
 /** Seuil de pluie (mm) à partir duquel une plante en pleine terre est considérée comme arrosée. */
 export const RAIN_MM = 3;
 
-export type WeatherDay = { date: string; rain: number; tmax: number; tmin: number; code: number };
+export type WeatherDay = { date: string; rain: number; tmax: number; tmin: number; code: number; /** probabilité de pluie (%) ; null pour les jours passés */ chance: number | null };
 export type Weather = { days: WeatherDay[]; current?: { temp: number; code: number } };
 export type Place = { name: string; lat: number; lon: number };
 
@@ -18,13 +18,13 @@ export async function geocode(city: string): Promise<Place | null> {
 }
 
 async function fetchWeather(lat: number, lon: number): Promise<Weather> {
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=precipitation_sum,temperature_2m_max,temperature_2m_min,weather_code&current=temperature_2m,weather_code&past_days=3&forecast_days=4&timezone=auto`;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=precipitation_sum,precipitation_probability_max,temperature_2m_max,temperature_2m_min,weather_code&current=temperature_2m,weather_code&past_days=3&forecast_days=8&timezone=auto`;
   const r = await fetch(url);
   if (!r.ok) throw new Error('Météo indisponible');
   const j = await r.json();
   const d = j.daily, c = j.current;
   return {
-    days: d.time.map((t: string, i: number) => ({ date: t, rain: d.precipitation_sum[i] ?? 0, tmax: Math.round(d.temperature_2m_max[i]), tmin: Math.round(d.temperature_2m_min[i]), code: d.weather_code[i] })),
+    days: d.time.map((t: string, i: number) => ({ date: t, rain: d.precipitation_sum[i] ?? 0, tmax: Math.round(d.temperature_2m_max[i]), tmin: Math.round(d.temperature_2m_min[i]), code: d.weather_code[i], chance: d.precipitation_probability_max?.[i] ?? null })),
     current: c ? { temp: Math.round(c.temperature_2m), code: c.weather_code } : undefined
   };
 }
