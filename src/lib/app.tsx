@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import type { Garden, Planting, Profile, Species, Zone } from './types';
-import { useCatalogue, usePlantings, useProfile, useZones } from './data';
+import { useCatalogue, usePlantingHistory, usePlantings, useProfile, useZones } from './data';
 import { isSol, type Relations } from './garden';
 import { lastRainyDay, useWeather, type Weather } from './weather';
 
@@ -16,6 +16,8 @@ export type AppData = {
   plantings: Planting[];
   /** Seulement les plantes (sans jachère ni paillage) : arrosage, récolte, comptes */
   crops: Planting[];
+  /** Plantations retirées récemment (rotation des cultures) */
+  history: Planting[];
   species: Species[];
   byId: Map<string, Species>;
   bySlug: Map<string, Species>;
@@ -38,6 +40,7 @@ export function AppProvider({ session, garden, gardens, selectGarden, children }
   const cat = useCatalogue();
   const zones = useZones(garden.id);
   const plantings = usePlantings(garden.id);
+  const history = usePlantingHistory(garden.id);
   const profile = useProfile(session.user.id);
   const weather = useWeather(profile.data?.lat, profile.data?.lon);
   const value = useMemo<AppData>(() => ({
@@ -49,6 +52,7 @@ export function AppProvider({ session, garden, gardens, selectGarden, children }
     zones: zones.data ?? [],
     plantings: plantings.data ?? [],
     crops: (plantings.data ?? []).filter(p => !isSol(cat.byId.get(p.species_id))),
+    history: history.data ?? [],
     species: cat.species,
     byId: cat.byId,
     bySlug: cat.bySlug,
@@ -56,6 +60,6 @@ export function AppProvider({ session, garden, gardens, selectGarden, children }
     weather: weather.data,
     rainFor: (zoneId: string) => (zones.data?.find(z => z.id === zoneId)?.sheltered ? null : lastRainyDay(weather.data)),
     loading: cat.loading || zones.isLoading || plantings.isLoading
-  }), [session, profile.data, garden, gardens, selectGarden, zones.data, plantings.data, cat, weather.data, zones.isLoading, plantings.isLoading]);
+  }), [session, profile.data, garden, gardens, selectGarden, zones.data, plantings.data, history.data, cat, weather.data, zones.isLoading, plantings.isLoading]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

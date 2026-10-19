@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useApp } from '../lib/app';
 import { useAddPlantings } from '../lib/data';
 import { BackHeader, Btn, Note, Page, Sheet, Tile, useToast } from '../components/ui';
+import { rotationHits, rotationMessage } from '../lib/rotation';
 import { footprintText, inSeason, isMulti, isSol, lc, neighbors, nf, occupancy, pitchCm, spacingOk, tooClose } from '../lib/garden';
 import { iso, MOIS, monthsText, today } from '../lib/dates';
 
@@ -10,7 +11,7 @@ export default function AddPlant() {
   const { zoneId } = useParams();
   const [sp] = useSearchParams();
   const x = Number(sp.get('x') ?? 0), y = Number(sp.get('y') ?? 0);
-  const { zones, plantings, species, byId, rels, garden } = useApp();
+  const { zones, plantings, species, byId, rels, garden, history } = useApp();
   const zone = zones.find(z => z.id === zoneId);
   const grid = useMemo(() => (zone ? occupancy(zone, plantings.filter(p => p.zone_id === zone.id)) : []), [zone, plantings]);
   const [q, setQ] = useState('');
@@ -30,6 +31,7 @@ export default function AddPlant() {
   const fits = !!s && x + sw <= zone.cols && y + sh <= zone.rows && (() => { for (let dy = 0; dy < sh; dy++) for (let dx = 0; dx < sw; dx++) if (grid[y + dy][x + dx]) return false; return true; })();
   const nb = s ? neighbors(grid, { x, y, w: sw, h: sh }, s.id, rels) : { good: [], bad: [] };
   const close = s && fits ? tooClose(grid, { x, y, w: sw, h: sh }, s, byId) : new Map<string, { gap: number; need: number }>();
+  const rotation = s && fits ? rotationMessage(s, rotationHits(history, byId, zone.id, { x, y, w: sw, h: sh }, s)) : '';
   const dist: string[] = [];
   if (s && !isSol(s) && !spacingOk(s)) dist.push(`Dans la grille, ${lc(s.name)} est à ${Math.round(pitchCm(s))} cm de la plante voisine du même rang ; on recommande ${s.inrow_spacing_cm} cm.`);
   close.forEach((v, id) => dist.push(`Trop près de ${lc(byId.get(id)!.name)} : ${v.gap} cm entre les plants, on recommande ${v.need} cm.`));
@@ -83,8 +85,9 @@ export default function AddPlant() {
           </>
           )}
           {!isSol(s) && <Note tone={check[0]}>{check[1]}</Note>}
+          {rotation && <Note tone="mauvais">{rotation} Vous pouvez planter quand même.</Note>}
           {dist.length > 0 && <Note tone="neutre">Attention : {dist.join(' ')}</Note>}
-          <Btn onClick={plant} disabled={!fits || nb.bad.length > 0 || add.isPending}>{add.isPending ? 'Enregistrement…' : isSol(s) ? 'Couvrir la case' : 'Planter'}</Btn>
+          <Btn onClick={plant} disabled={!fits || nb.bad.length > 0 || add.isPending}>{add.isPending ? 'Enregistrement…' : isSol(s) ? 'Couvrir la case' : rotation ? 'Planter quand même' : 'Planter'}</Btn>
           {add.isError && <p className="text-sm font-bold text-alerte">{(add.error as Error).message}</p>}
           {!isSol(s) && <Link to={`/glossaire/${s.slug}`} className="self-center text-sm font-extrabold text-vert">Voir la fiche complète →</Link>}
         </Sheet>

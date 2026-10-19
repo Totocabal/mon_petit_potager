@@ -79,8 +79,10 @@ type Attempt = { sp: (string | null)[][]; value: number; bad: number; good: numb
  * les espèces qui occupent plusieurs cases (2 × 1, 2 × 2…) sont posées d'abord, les autres remplissent le reste par bandes.
  * On teste de nombreux ordres et on garde celui avec le moins de mauvais voisins, puis le plus de bons.
  */
-export function generatePlan(opts: { zone: Pick<Zone, 'cols' | 'rows' | 'north_side'>; area: Area; existing: Grid; picks: Choice[]; rels: Relations; seed: number }): Plan {
-  const { zone, area, existing, picks, rels, seed } = opts;
+export function generatePlan(opts: { zone: Pick<Zone, 'cols' | 'rows' | 'north_side'>; area: Area; existing: Grid; picks: Choice[]; rels: Relations; seed: number;
+  /** Par espèce : cases (y * colonnes + x) à éviter, par exemple à cause de la rotation des cultures */
+  blocked?: Map<string, Set<number>> }): Plan {
+  const { zone, area, existing, picks, rels, seed, blocked } = opts;
   const r = rng(seed);
   const base: (string | null)[][] = existing.map(row => row.map(p => (p ? p.species_id : null)));
   const isFree = (x: number, y: number) => x >= area.x && x < area.x + area.w && y >= area.y && y < area.y + area.h && x < zone.cols && y < zone.rows && !existing[y][x];
@@ -114,7 +116,8 @@ export function generatePlan(opts: { zone: Pick<Zone, 'cols' | 'rows' | 'north_s
       for (const [x, y] of shuffle(cand, rr)) {
         if (n >= want) break;
         const cells = Array.from({ length: sh }, (_, dy) => Array.from({ length: sw }, (_, dx) => [x + dx, y + dy] as const)).flat();
-        if (!cells.every(([cx, cy]) => isFree(cx, cy) && sp[cy][cx] === null)) continue;
+        const bl = blocked?.get(b.species.id);
+        if (!cells.every(([cx, cy]) => isFree(cx, cy) && sp[cy][cx] === null && !bl?.has(cy * zone.cols + cx))) continue;
         for (const [cx, cy] of cells) sp[cy][cx] = b.species.id;
         placedBlocks.push({ species_id: b.species.id, x, y, w: sw, h: sh });
         n++;
@@ -126,8 +129,20 @@ export function generatePlan(opts: { zone: Pick<Zone, 'cols' | 'rows' | 'north_s
     if (small.length && rest.length) {
       const ord = order.filter(p => !isMulti(p.species));
       const q = share(rest.length, ord.map(p => p.weight));
-      let i = 0;
-      ord.forEach((p, k) => { for (let n = 0; n < q[k]; n++) { const [x, y] = rest[i++]; sp[y][x] = p.species.id; } });
+      // chaque espèce prend ses cases dans l'ordre de lecture en sautant celles qu'elle doit éviter ; elles restent pour les suivantes
+      const used = new Uint8Array(rest.length);
+      let first = 0;
+      ord.forEach((p, k) => {
+        const bl = blocked?.get(p.species.id);
+        let need = q[k];
+        for (let j = first; j < rest.length && need > 0; j++) {
+          if (used[j]) continue;
+          const [x, y] = rest[j];
+          if (bl?.has(y * zone.cols + x)) continue;
+          sp[y][x] = p.species.id; used[j] = 1; need--;
+        }
+        while (first < rest.length && used[first]) first++;
+      });
     }
     const s = score(sp, area, rels, tall, zone.north_side);
     return { a: { sp, value: s.value, bad: s.bad, good: s.good, order: order.map(p => p.species.id), dir }, blocks: placedBlocks };

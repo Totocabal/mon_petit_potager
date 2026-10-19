@@ -44,6 +44,8 @@ Le propriétaire peut retirer un membre ; un membre peut quitter le potager. Les
 - `supabase/migrations/` : schéma appliqué au projet (tables, RLS, fonctions).
 - `supabase/seed_catalogue.sql` : 32 espèces de base ; la migration 0005 en ajoute 28 (60 au total), la 0006 aligne les distances entre plants sur la grille de 30 cm (`spacing_cm` = distance réelle, `inrow_spacing_cm` / `row_spacing_cm` = distances recommandées). La 0007 remplace `span_cells` par l'empreinte d'un plant, `span_w` × `span_h` cases (1 × 1, 2 × 1, 3 × 1, 4 × 1, 2 × 2, 3 × 3…). La 0008 ajoute `kind` ('plante' ou 'sol') et les deux couvertures du sol, Jachère et Paillage : elles se posent comme une plante mais ne sont ni arrosées, ni récoltées, ni comptées comme plants. La 0009 ajoute les fiches détaillées du glossaire (`category`, `difficulty`, `description`, `sowing`, `soil`, `care`, `pests`, `harvest_tips`, profondeur et délai de levée) pour les 60 plantes.
 
+La 0012 ajoute `rotation_years` : le nombre d'années avant de replanter la même famille au même endroit (melon, tomate, chou…). L'app avertit à la plantation, saute ces cases pour « Remplir un rang » et évite ces cases dans le générateur, avec la possibilité de passer outre.
+
 Une plantation est un **rectangle de cases** d'une même espèce (`x, y, w, h`) : un rang entier de 80 cases = une seule ligne en base.
 
 ## Organisation du code
@@ -86,7 +88,7 @@ Identifiant : `fr.monpetitpotager.app`. Après toute modification du code web : 
 
 1. **Lien de connexion qui rouvre l'app** : dans Supabase, *Authentication → URL Configuration → Redirect URLs*, ajoutez `fr.monpetitpotager.app://**`. Sans cela, le lien de l'e-mail ouvre le site dans le navigateur au lieu de l'app. Aucun changement du modèle d'e-mail n'est nécessaire.
 2. **Adresse du site** : renseignez `VITE_SITE_URL` (voir `.env.example`) avec l'adresse publique du site, utilisée pour les liens d'invitation. Sans elle, les liens créés dans l'app sont inutilisables.
-3. **Notifications** : les rappels d'arrosage (notifications web) ne fonctionnent pas encore dans l'app, seulement sur le site. Les notifications natives (Firebase pour Android, Apple pour iOS) sont à ajouter.
+3. **Notifications** : dans l'app, les rappels (arrosage, récolte, tâches) sont des notifications locales programmées sur le téléphone pour les 7 prochains jours, à l'heure choisie dans *Alertes d'arrosage*, et recalculées à chaque ouverture de l'app (`src/lib/reminders.ts`). Elles s'arrêtent si l'app n'est pas ouverte pendant une semaine. Le site garde ses notifications web envoyées par le serveur. Des notifications push natives (Firebase pour Android, Apple pour iOS) restent possibles plus tard.
 
 ### Android (APK)
 

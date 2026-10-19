@@ -4,6 +4,7 @@ import { useApp } from '../lib/app';
 import { useAddPlantings, useCutPlantings, useRemovePlantings, useWater } from '../lib/data';
 import { BLOC, de, footprintText, freeRects, isMulti, isReady, isSol, lc, meters, nf, occupancy, plantingsIn, rangPlan, remainingPieces, SPTINT, toSegments, type Grid } from '../lib/garden';
 import { cap, iso, today } from '../lib/dates';
+import { blockedCells } from '../lib/rotation';
 import type { Planting, Species, Zone } from '../lib/types';
 import { Btn, Note, Picto, Sheet, Tile, useToast } from './ui';
 
@@ -187,10 +188,11 @@ export function ClearArea({ zone, grid, area, label }: { zone: Zone; grid: Grid;
 
 /** Feuille « Remplir le rang » : sur un bloc ou toute la zone. */
 export function RangSheet({ zone, y, x0, onClose }: { zone: Zone; y: number; x0: number; onClose: () => void }) {
-  const { plantings, rels, byId, species, garden } = useApp();
+  const { plantings, rels, byId, species, garden, history } = useApp();
   const toast = useToast();
   const add = useAddPlantings();
   const clear = useCutPlantings();
+  const [ignoreRot, setIgnoreRot] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const big = zone.cols > BLOC;
   const [scope, setScope] = useState<'bloc' | 'zone'>(big && x0 >= 0 ? 'bloc' : 'zone');
@@ -199,9 +201,13 @@ export function RangSheet({ zone, y, x0, onClose }: { zone: Zone; y: number; x0:
   const s: Species | undefined = sp ? byId.get(sp) : undefined;
   const xa = scope === 'bloc' ? x0 : 0, xb = scope === 'bloc' ? Math.min(zone.cols, x0 + BLOC) : zone.cols;
   const plan = s ? rangPlan(grid, y, xa, xb, s.id, rels) : null;
-  const n = plan?.ok.length ?? 0;
+  // Rotation des cultures : les cases où la même famille a été cultivée récemment sont sautées, sauf si on choisit de passer outre
+  const blocked = useMemo(() => (s ? blockedCells(history, byId, zone, s) : new Set<number>()), [s, history, byId, zone]);
+  const rotSkipped = plan ? plan.ok.filter(x => blocked.has(y * zone.cols + x)) : [];
+  const okCells = plan ? (ignoreRot ? plan.ok : plan.ok.filter(x => !blocked.has(y * zone.cols + x))) : [];
+  const n = okCells.length;
   const msg: [ 'bon' | 'mauvais' | 'neutre', string ] = !plan ? ['neutre', 'Choisissez une espèce.']
-    : !n ? ['mauvais', plan.busy === xb - xa ? 'Ce rang est déjà entièrement planté.' : 'Aucune case possible : mauvais voisinage avec ' + plan.bad.map(i => lc(byId.get(i)!.name)).join(', ') + '.']
+    : !n ? ['mauvais', plan.busy === xb - xa ? 'Ce rang est déjà entièrement planté.' : rotSkipped.length && !ignoreRot ? 'Aucune case : la rotation des cultures évite ce rang. Cochez la case ci-dessous pour planter quand même.' : 'Aucune case possible : mauvais voisinage avec ' + plan.bad.map(i => lc(byId.get(i)!.name)).join(', ') + '.']
     : plan.bad.length ? ['neutre', plan.badCells + ' case(s) sautée(s) : trop près de ' + plan.bad.map(i => lc(byId.get(i)!.name)).join(', ') + '.']
     : plan.good.length ? ['bon', 'Bon voisinage avec ' + plan.good.map(i => lc(byId.get(i)!.name)).join(', ') + '.']
     : ['neutre', plan.busy ? plan.busy + ' case(s) déjà plantée(s), laissée(s) telles quelles.' : 'Voisines neutres : rien à signaler.'];
@@ -217,7 +223,7 @@ export function RangSheet({ zone, y, x0, onClose }: { zone: Zone; y: number; x0:
 
   async function plant() {
     if (!s || !plan || !n) return;
-    await add.mutateAsync(toSegments(plan.ok).map(seg => ({ garden_id: garden.id, zone_id: zone.id, species_id: s.id, x: seg.x, y, w: seg.w, h: 1, sown_at: iso(today()) })));
+    await add.mutateAsync(toSegments(okCells).map(seg => ({ garden_id: garden.id, zone_id: zone.id, species_id: s.id, x: seg.x, y, w: seg.w, h: 1, sown_at: iso(today()) })));
     toast(isSol(s) ? `Rang ${y + 1} : ${n} case${n > 1 ? 's' : ''} en ${lc(s.name)}` : `Rang ${y + 1} : ${n} cases ${de(lc(s.name))} · ${nf(n * s.plants_per_cell)} plants`);
     onClose();
   }
@@ -236,6 +242,12 @@ export function RangSheet({ zone, y, x0, onClose }: { zone: Zone; y: number; x0:
       <WaterButton plantings={inRow} label={`le rang ${y + 1}`} onDone={onClose} />
       <SpeciesStrip value={sp} onChange={setSp} onlySingleCell />
       <Note tone={msg[0]}>{msg[1]}</Note>
+      {rotSkipped.length > 0 && (
+        <label className="flex items-start gap-2.5 rounded-2xl bg-[#F3EDE1] px-3 py-2.5 text-[13px] font-bold text-soleil-encre">
+          <input type="checkbox" checked={ignoreRot} onChange={e => setIgnoreRot(e.target.checked)} className="mt-0.5 h-5 w-5 shrink-0 accent-[#2E6B3F]" />
+          <span>{ignoreRot ? 'Rotation ignorée : ' : 'Rotation des cultures : '}{rotSkipped.length} case{rotSkipped.length > 1 ? 's' : ''} où la même famille a été cultivée récemment {ignoreRot ? 'seront plantées quand même.' : 'sont sautées.'} <u>Ignorer la rotation</u></span>
+        </label>
+      )}
       {s && (
         <div className="flex items-baseline justify-between">
           <b className="font-titre text-[19px] font-semibold">{isSol(s) ? `${n} case${n > 1 ? 's' : ''} en ${lc(s.name)}` : `${nf(n * s.plants_per_cell)} plants ${de(lc(s.name))}`}</b>

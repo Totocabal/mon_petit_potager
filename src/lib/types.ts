@@ -33,6 +33,8 @@ export type Species = {
   care: string | null;
   pests: string | null;
   harvest_tips: string | null;
+  /** Années avant de replanter la même famille au même endroit ; null = pas de contrainte */
+  rotation_years: number | null;
 };
 
 export type SpeciesCategory = 'legume-fruit' | 'racine' | 'bulbe' | 'feuille' | 'chou' | 'tige' | 'legumineuse' | 'aromatique' | 'fleur' | 'petit-fruit' | 'sol';

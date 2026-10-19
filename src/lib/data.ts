@@ -5,7 +5,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import type { AlertSettings, Companion, Garden, Invite, Member, Planting, Profile, Species, Task, Zone } from './types';
 import { buildRelations } from './garden';
-import { iso, today } from './dates';
+import { addDays, iso, today } from './dates';
 
 function check<T>(res: { data: T | null; error: { message: string } | null }): T {
   if (res.error) throw new Error(res.error.message);
@@ -169,6 +169,18 @@ export function useWater() {
     onSuccess: (gid) => qc.invalidateQueries({ queryKey: ['plantings', gid] })
   });
 }
+/** Plantations retirées des 6 dernières années : sert à la rotation des cultures. */
+export function usePlantingHistory(gardenId: string | undefined) {
+  return useQuery({
+    queryKey: ['plantings', gardenId, 'history'],
+    enabled: !!gardenId,
+    queryFn: async () => {
+      const since = iso(addDays(today(), -366 * 6));
+      return check(await supabase.from('plantings').select('*').eq('garden_id', gardenId!).not('removed_at', 'is', null).gte('removed_at', since)) as Planting[];
+    }
+  });
+}
+
 /** Retire plusieurs plantations d'un coup (elles gardent leur historique). */
 export function useRemovePlantings() {
   const qc = useQueryClient();

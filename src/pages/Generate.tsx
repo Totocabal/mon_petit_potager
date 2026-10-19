@@ -5,12 +5,13 @@ import { useAddPlantings } from '../lib/data';
 import { BackHeader, Btn, Loading, Note, Page, Tile, useToast } from '../components/ui';
 import { footprintText, inSeason, isMulti, isSol, lc, nf, occupancy, plantCount, SPCOLOR } from '../lib/garden';
 import { generatePlan, type Area } from '../lib/generator';
+import { blockedCells } from '../lib/rotation';
 import { MOIS, today } from '../lib/dates';
 
 export default function Generate() {
   const { zoneId } = useParams();
   const [sp] = useSearchParams();
-  const { zones, plantings, species, byId, rels, garden, loading } = useApp();
+  const { zones, plantings, species, byId, rels, garden, loading, history } = useApp();
   const zone = zones.find(z => z.id === zoneId);
   const add = useAddPlantings();
   const nav = useNavigate();
@@ -19,6 +20,7 @@ export default function Generate() {
   const [weights, setWeights] = useState<Record<string, number>>({});
   const [seed, setSeed] = useState<number | null>(null);
   const [filter, setFilter] = useState<'saison' | 'toutes'>('saison');
+  const [ignoreRot, setIgnoreRot] = useState(false);
 
   const area: Area | null = zone ? {
     x: Number(sp.get('x') ?? 0), y: Number(sp.get('y') ?? 0),
@@ -27,9 +29,29 @@ export default function Generate() {
   const grid = useMemo(() => (zone ? occupancy(zone, plantings.filter(p => p.zone_id === zone.id)) : []), [zone, plantings]);
   const picks = useMemo(() => Object.entries(weights).map(([id, weight]) => ({ species: byId.get(id)!, weight })).filter(p => p.species), [weights, byId]);
 
-  const plan = useMemo(() => (zone && area && seed !== null ? generatePlan({ zone, area, existing: grid, picks, rels, seed }) : null),
+  // Rotation des cultures : par espèce, les cases où la même famille a été cultivée récemment
+  const blocked = useMemo(() => {
+    const m = new Map<string, Set<number>>();
+    if (!zone || ignoreRot) return m;
+    for (const p of picks) { const b = blockedCells(history, byId, zone, p.species); if (b.size) m.set(p.species.id, b); }
+    return m;
+  }, [zone, picks, history, byId, ignoreRot]);
+  // cases libres de la zone générée qu'une espèce choisie évite à cause de la rotation
+  const avoided = useMemo(() => {
+    if (!zone || !blocked.size) return [] as { name: string; n: number }[];
+    const out: { name: string; n: number }[] = [];
+    for (const p of picks) {
+      const b = blocked.get(p.species.id); if (!b) continue;
+      let n = 0;
+      for (const k of b) { const x = k % zone.cols, y = Math.floor(k / zone.cols); if (!grid[y]?.[x]) n++; }
+      if (n) out.push({ name: p.species.name, n });
+    }
+    return out;
+  }, [zone, picks, blocked, grid]);
+
+  const plan = useMemo(() => (zone && area && seed !== null ? generatePlan({ zone, area, existing: grid, picks, rels, seed, blocked }) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [zone, grid, picks, rels, seed, sp]);
+    [zone, grid, picks, rels, seed, sp, blocked]);
 
   if (loading) return <Loading />;
   if (!zone || !area) return <Page><BackHeader title="Zone introuvable" /></Page>;
@@ -115,6 +137,13 @@ export default function Generate() {
         })}
       </div>
       <p className="text-[13px] text-gris">Le nombre sous chaque plante règle sa part : 2 prend deux fois plus de place que 1.</p>
+      {avoided.length > 0 && (
+        <Note tone="neutre">Rotation des cultures : {avoided.map(a => `${lc(a.name)} évitera ${a.n} case${a.n > 1 ? 's' : ''}`).join(', ')} (même famille cultivée récemment).</Note>
+      )}
+      <label className="flex items-start gap-2.5 rounded-2xl bg-white px-3 py-2.5 text-sm font-bold">
+        <input type="checkbox" checked={ignoreRot} onChange={e => setIgnoreRot(e.target.checked)} className="mt-0.5 h-5 w-5 shrink-0 accent-[#2E6B3F]" />
+        <span>Ignorer la rotation des cultures<span className="block text-xs font-medium text-gris">Autorise une plante à revenir sur une case où sa famille a été cultivée ces dernières années.</span></span>
+      </label>
       <Btn disabled={!picks.length || !freeCount} onClick={() => setSeed(Math.floor(Math.random() * 1e9))}>{picks.length ? `Générer avec ${picks.length} plante${picks.length > 1 ? 's' : ''}` : 'Choisissez au moins une plante'}</Btn>
     </Page>
   );

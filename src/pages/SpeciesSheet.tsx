@@ -80,7 +80,7 @@ export default function SpeciesSheet() {
       <Block title="Entretien">{s.care}</Block>
       <Block title="Ravageurs et maladies">{s.pests}</Block>
       <Block title="Récolte et conservation">{s.harvest_tips}</Block>
-      {!s.perennial && <Block title="Rotation">{`Famille des ${s.family}. Évitez de replanter une plante de la même famille au même endroit avant 3 à 4 ans, pour limiter maladies et épuisement du sol.`}</Block>}
+      {s.rotation_years != null && <Block title="Rotation">{`Famille des ${s.family}. Ne replantez pas une plante de cette famille au même endroit avant ${s.rotation_years} ans, pour limiter maladies et épuisement du sol. L’application vous prévient et évite ces cases quand elle génère un plan.`}</Block>}
       {s.notes && <p className="rounded-2xl bg-soleil-doux px-3 py-2.5 text-sm font-bold text-soleil-encre">{s.notes}</p>}
 
       {(neighbours.good.length > 0 || neighbours.bad.length > 0) && (
