@@ -6,10 +6,10 @@ export function Picto({ slug, size = 40, className = '' }: { slug: string; size?
   return <img src={`/pictos/${slug}.svg`} alt="" width={size} height={size} className={className} draggable={false} />;
 }
 
-export function Tile({ slug, w = 48, h = 48, size = 40, round = 15 }: { slug: string; w?: number; h?: number; size?: number; round?: number }) {
+export function Tile({ slug, w = 48, h = 48, size = 40, round = 15, hop = false }: { slug: string; w?: number; h?: number; size?: number; round?: number; hop?: boolean }) {
   return (
     <span className="flex shrink-0 items-center justify-center" style={{ width: w, height: h, borderRadius: round, background: SPTINT[slug] ?? '#E1EFD6' }}>
-      <Picto slug={slug} size={size} />
+      <Picto slug={slug} size={size} className={hop ? 'picto-hop' : ''} />
     </span>
   );
 }

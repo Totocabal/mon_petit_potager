@@ -76,4 +76,14 @@ h1, h2, h3 { text-wrap: balance; }
 .squish { transition: scale .15s cubic-bezier(.3, 1.5, .5, 1); }
 .squish:active { scale: .92; }
 .splash-drop { position: absolute; top: 0; width: 14px; height: 18px; border-radius: 50% 50% 50% 50% / 62% 62% 38% 38%; background: #3F7DA0; opacity: 0; animation: splash-fall 1.3s ease-in both; }
+/* Le légume de la fiche saute : accroupi, bond, étirement en l'air, petit écrasement à l'atterrissage, puis une pause */
+@keyframes picto-hop {
+  0%, 62%, 100% { translate: 0 0; scale: 1 1; }
+  8% { translate: 0 0; scale: 1.14 .84; }
+  22% { translate: 0 -17px; scale: .92 1.1; }
+  36% { translate: 0 0; scale: 1.16 .82; }
+  46% { translate: 0 -6px; scale: .98 1.03; }
+  54% { translate: 0 0; scale: 1.06 .94; }
+}
+.picto-hop { transform-origin: 50% 100%; animation: picto-hop 2.8s cubic-bezier(.35, 0, .4, 1) infinite; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }

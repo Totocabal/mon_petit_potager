@@ -1,4 +1,5 @@
-import { Route, Routes, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Route, Routes, useLocation, useNavigationType } from 'react-router-dom';
 import { useCurrentGarden, useSession } from './lib/data';
 import { AppProvider } from './lib/app';
 import { Loading, SideNav } from './components/ui';
@@ -43,6 +44,14 @@ function LoggedOut() {
 }
 const safeGet = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
 
+/** Chaque nouvelle page s'ouvre en haut ; le retour arrière garde la position du navigateur. */
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  const type = useNavigationType();
+  useEffect(() => { if (type !== 'POP') window.scrollTo(0, 0); }, [pathname, type]);
+  return null;
+}
+
 function Signed({ session }: { session: NonNullable<ReturnType<typeof useSession>> }) {
   const { loading, garden, gardens, select } = useCurrentGarden();
   const { pathname } = useLocation();
@@ -52,6 +61,7 @@ function Signed({ session }: { session: NonNullable<ReturnType<typeof useSession
   if (!garden) return <Onboarding onCreated={select} />;
   return (
     <AppProvider session={session} garden={garden} gardens={gardens} selectGarden={select}>
+      <ScrollToTop />
       <SideNav />
       {isNative && <ReminderSync />}
       <div className="min-h-full lg:pl-[284px]">

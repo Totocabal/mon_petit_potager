@@ -49,7 +49,7 @@ export default function SpeciesSheet() {
     <Page>
       <BackHeader kicker={categoryLabel(s.category)} title={s.name} />
       <div className="flex items-center gap-4">
-        <Tile slug={s.slug} w={104} h={104} size={84} round={28} />
+        <Tile slug={s.slug} w={104} h={104} size={84} round={28} hop />
         <div className="flex min-w-0 flex-col gap-2">
           <div className="flex flex-wrap gap-1.5">
             {s.difficulty && <Badge>{DIFFICULTY_LABEL[s.difficulty]}</Badge>}
