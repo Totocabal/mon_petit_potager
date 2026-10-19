@@ -4,6 +4,7 @@ import { useCurrentGarden, useSession } from './lib/data';
 import { AppProvider } from './lib/app';
 import { Loading, SideNav } from './components/ui';
 import { ReminderSync } from './components/ReminderSync';
+import { OfflineSync } from './components/OfflineSync';
 import { isNative } from './lib/native';
 import Login from './pages/Login';
 import Onboarding from './pages/Onboarding';
@@ -62,6 +63,7 @@ function Signed({ session }: { session: NonNullable<ReturnType<typeof useSession
   return (
     <AppProvider session={session} garden={garden} gardens={gardens} selectGarden={select}>
       <ScrollToTop />
+      <OfflineSync />
       <SideNav />
       {isNative && <ReminderSync />}
       <div className="min-h-full lg:pl-[284px]">

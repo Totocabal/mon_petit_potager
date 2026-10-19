@@ -21,3 +21,25 @@ self.addEventListener('notificationclick', e => {
     return self.clients.openWindow(url);
   }));
 });
+
+/* Hors ligne (site web) : l'app reste ouverte sans réseau. Les pages passent d'abord par le réseau, les fichiers de l'app sont gardés. */
+const SHELL = 'potager-shell-v1';
+self.addEventListener('activate', e => e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith('potager-') && k !== SHELL).map(k => caches.delete(k))))));
+
+self.addEventListener('fetch', e => {
+  const req = e.request;
+  const url = new URL(req.url);
+  // Seulement les fichiers du site, jamais l'API ni le serveur de développement
+  if (req.method !== 'GET' || url.origin !== self.location.origin || url.hostname === 'localhost' || url.pathname === '/sw.js') return;
+  if (req.mode === 'navigate') {
+    e.respondWith(fetch(req).then(res => { const copy = res.clone(); caches.open(SHELL).then(c => c.put('/', copy)); return res; }).catch(() => caches.match('/').then(r => r || Response.error())));
+    return;
+  }
+  e.respondWith(caches.open(SHELL).then(async cache => {
+    const hit = await cache.match(req);
+    const net = fetch(req).then(res => { if (res.ok) cache.put(req, res.clone()); return res; });
+    // Fichiers à empreinte (/assets/…) : jamais modifiés, on sert la copie ; le reste est rafraîchi en arrière-plan
+    if (hit) { if (!url.pathname.startsWith('/assets/')) net.catch(() => {}); return hit; }
+    return net;
+  }));
+});

@@ -1,0 +1,24 @@
+name: Garder Supabase éveillé
+
+# Un projet Supabase gratuit est mis en pause après 7 jours sans activité : on l'interroge tous les 3 jours.
+# L'adresse et la clé « publishable » sont publiques (elles sont déjà dans l'app) ; la lecture passe par les règles RLS habituelles.
+# Si le projet est déjà en pause ou injoignable, l'étape échoue et GitHub prévient par e-mail.
+on:
+  schedule:
+    - cron: '17 6 */3 * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Interroger l'API Supabase
+        env:
+          SUPABASE_URL: https://kfdusbzchhbzshznlvmb.supabase.co
+          SUPABASE_KEY: sb_publishable_U55qFsU1Lcc6mz0lFqUuWQ_6CzjGBbQ
+        run: |
+          status=$(curl -sS -o /dev/null -w '%{http_code}' --retry 3 --retry-delay 10 --max-time 30 \
+            -H "apikey: $SUPABASE_KEY" -H "Authorization: Bearer $SUPABASE_KEY" \
+            "$SUPABASE_URL/rest/v1/species?select=id&limit=1")
+          echo "Réponse HTTP : $status"
+          test "$status" = "200"

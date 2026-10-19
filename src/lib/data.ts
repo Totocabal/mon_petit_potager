@@ -5,18 +5,38 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import type { AlertSettings, Companion, Garden, Invite, Member, Planting, Profile, Species, Task, Zone } from './types';
 import { buildRelations } from './garden';
+import { applyPending, isNetworkError, type PlantingRow } from './outbox';
+import { outbox, submit } from './offline';
 import { addDays, iso, today } from './dates';
 
 function check<T>(res: { data: T | null; error: { message: string } | null }): T {
-  if (res.error) throw new Error(res.error.message);
+  if (res.error) throw new Error(isNetworkError(res.error.message) ? 'Pas de connexion : réessayez une fois en ligne.' : res.error.message);
   return res.data as T;
+}
+
+/**
+ * Hors ligne avec un jeton expiré, Supabase ne peut pas le renouveler et ne rend aucune session : on reprend celle gardée sur l'appareil
+ * pour continuer à consulter ses données. Les envois reprendront au retour du réseau (le jeton se renouvelle alors tout seul).
+ */
+function offlineSession(): Session | null {
+  if (typeof navigator === 'undefined' || navigator.onLine !== false) return null;
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && /^sb-.+-auth-token$/.test(k)) {
+        const s = JSON.parse(localStorage.getItem(k) ?? 'null');
+        if (s?.user && s.access_token) return s as Session;
+      }
+    }
+  } catch { /* stockage illisible */ }
+  return null;
 }
 
 /* ---------- session ---------- */
 export function useSession() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    supabase.auth.getSession().then(({ data }) => setSession(data.session ?? offlineSession()));
     const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
     return () => data.subscription.unsubscribe();
   }, []);
@@ -142,7 +162,8 @@ export function usePlantings(gardenId: string | undefined) {
   return useQuery({
     queryKey: ['plantings', gardenId],
     enabled: !!gardenId,
-    queryFn: async () => check(await supabase.from('plantings').select('*').eq('garden_id', gardenId!).is('removed_at', null)) as Planting[]
+    // Les modifications faites hors ligne et pas encore envoyées restent visibles par-dessus ce que renvoie le serveur
+    queryFn: async () => applyPending(check(await supabase.from('plantings').select('*').eq('garden_id', gardenId!).is('removed_at', null)) as Planting[], outbox.pending(), gardenId!)
   });
 }
 export type NewPlanting = Pick<Planting, 'garden_id' | 'zone_id' | 'species_id' | 'x' | 'y' | 'w' | 'h'> & { sown_at?: string };
@@ -150,23 +171,20 @@ export function useAddPlantings() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (rows: NewPlanting[]) => {
+      if (!rows.length) return;
       const t = iso(today());
-      check(await supabase.from('plantings').insert(rows.map(r => ({ sown_at: t, last_watered_at: t, ...r }))));
-      return rows[0]?.garden_id;
-    },
-    onSuccess: (gid) => qc.invalidateQueries({ queryKey: ['plantings', gid] })
+      const full: PlantingRow[] = rows.map(r => ({ id: crypto.randomUUID(), sown_at: t, last_watered_at: t, water_every_days: null, alerts_enabled: true, removed_at: null, ...r }));
+      await submit(qc, { kind: 'add', garden_id: rows[0].garden_id, rows: full });
+    }
   });
 }
 export function useWater() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (ps: Planting[]) => {
-      const t = iso(today());
-      check(await supabase.from('watering_logs').insert(ps.map(p => ({ garden_id: p.garden_id, planting_id: p.id, source: 'manuel' }))));
-      check(await supabase.from('plantings').update({ last_watered_at: t }).in('id', ps.map(p => p.id)));
-      return ps[0]?.garden_id;
-    },
-    onSuccess: (gid) => qc.invalidateQueries({ queryKey: ['plantings', gid] })
+      if (!ps.length) return;
+      await submit(qc, { kind: 'water', garden_id: ps[0].garden_id, ids: ps.map(p => p.id), logIds: ps.map(() => crypto.randomUUID()), day: iso(today()) });
+    }
   });
 }
 /** Plantations retirées des 6 dernières années : sert à la rotation des cultures. */
@@ -186,10 +204,9 @@ export function useRemovePlantings() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (ps: Planting[]) => {
-      check(await supabase.from('plantings').update({ removed_at: new Date().toISOString() }).in('id', ps.map(p => p.id)));
-      return ps[0]?.garden_id;
-    },
-    onSuccess: (gid) => qc.invalidateQueries({ queryKey: ['plantings', gid] })
+      if (!ps.length) return;
+      await submit(qc, { kind: 'remove', garden_id: ps[0].garden_id, ids: ps.map(p => p.id), at: new Date().toISOString() });
+    }
   });
 }
 export function useUpdatePlanting() {
@@ -208,18 +225,15 @@ export function useCutPlantings() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (cuts: { p: Planting; keep: { x: number; y: number; w: number; h: number }[] }[]) => {
-      const now = new Date().toISOString();
-      for (const { p, keep } of cuts) {
-        const [first, ...rest] = keep;
-        check(await supabase.from('plantings').update(first ?? { removed_at: now }).eq('id', p.id));
-        if (rest.length) {
-          const { id: _id, created_at: _c, ...base } = p;
-          check(await supabase.from('plantings').insert(rest.map(r => ({ ...base, ...r }))));
-        }
-      }
-      return cuts[0]?.p.garden_id;
-    },
-    onSuccess: (gid) => qc.invalidateQueries({ queryKey: ['plantings', gid] })
+      if (!cuts.length) return;
+      await submit(qc, {
+        kind: 'cut', garden_id: cuts[0].p.garden_id, at: new Date().toISOString(),
+        cuts: cuts.map(({ p, keep }) => {
+          const { id, created_at: _c, x: _x, y: _y, w: _w, h: _h, ...base } = p;
+          return { id, keep, newIds: keep.slice(1).map(() => crypto.randomUUID()), base };
+        })
+      });
+    }
   });
 }
 
