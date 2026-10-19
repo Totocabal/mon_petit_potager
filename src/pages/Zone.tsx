@@ -2,12 +2,13 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { useDeleteZone, useUpdateZone } from '../lib/data';
-import { BackHeader, Btn, Loading, Page, Sheet, Tile, useToast } from '../components/ui';
+import { BackHeader, Btn, Loading, Note, Page, Sheet, Tile, useToast } from '../components/ui';
 import { CellGrid, CheckMark, ClearArea, DropBadge, GroundActions, RangSheet, useCellSel, useHoldSelect, WaterButton, type CellSel } from '../components/garden';
 import { SelectionPanel } from '../components/CellSelection';
-import { BLOC, blocInfo, blocKeys, blocName, CELL_CM, isBig, isSol, isThirsty, meters, nf, occupancy, SPCOLOR, thirstyIn, zoneGround } from '../lib/garden';
+import { Stepper } from '../components/Stepper';
+import { BLOC, blocInfo, blocKeys, blocName, CELL_CM, isBig, isSol, isThirsty, meters, nf, occupancy, SPCOLOR, thirstyIn, resizeBounds, zoneFits, zoneGround } from '../lib/garden';
 import type { Grid } from '../lib/garden';
-import type { Zone } from '../lib/types';
+import { ZONE_TYPES, type Planting, type Zone } from '../lib/types';
 
 export default function ZonePage() {
   const { zoneId } = useParams();
@@ -20,6 +21,7 @@ export default function ZonePage() {
   const sel = useCellSel();
   const [rowPick, setRowPick] = useState(0);
   const [renaming, setRenaming] = useState(false);
+  const [resizing, setResizing] = useState(false);
 
   if (loading) return <Loading />;
   if (!zone) return <Page><BackHeader title="Zone introuvable" /></Page>;
@@ -31,9 +33,14 @@ export default function ZonePage() {
   const head = (
     <>
       <BackHeader kicker={garden.name + ' ›'} title={zone.name}
-        right={<button onClick={() => setRenaming(true)} aria-label="Renommer la zone" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-vert shadow-sm">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="M13 7l4 4" /></svg>
-        </button>} />
+        right={<div className="flex gap-2">
+          <button onClick={() => setResizing(true)} aria-label="Modifier la taille de la zone" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-vert shadow-sm">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7" /></svg>
+          </button>
+          <button onClick={() => setRenaming(true)} aria-label="Renommer la zone" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-vert shadow-sm">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="M13 7l4 4" /></svg>
+          </button>
+        </div>} />
       <p className="text-sm font-bold text-gris">{meters(zone.cols * CELL_CM)} × {meters(zone.rows * CELL_CM)} · {nf(total)} cases · {Math.round((planted / total) * 100)} % planté{zone.sheltered ? ' · sous abri' : ''}{ground ? ' · ' + (ground === 'jachere' ? 'en jachère' : 'paillée') : ''}</p>
       {thirsty > 0 && <p className="flex items-center gap-2 text-sm font-extrabold text-eau"><span className="relative inline-block h-[18px] w-[18px]"><DropBadge className="!-right-0 !-top-0" /></span>{thirsty} {thirsty > 1 ? 'plantations à arroser' : 'plantation à arroser'}</p>}
     </>
@@ -64,6 +71,7 @@ export default function ZonePage() {
         <ClearArea zone={zone} grid={grid} label={'la zone ' + zone.name} />
         <DeleteZone zone={zone} plants={ps.length} />
         {renaming && <RenameZone zone={zone} onClose={() => setRenaming(false)} />}
+      {resizing && <ResizeZone zone={zone} plantings={ps} onClose={() => setResizing(false)} />}
       </Page>
     );
   }
@@ -89,6 +97,7 @@ export default function ZonePage() {
       <ClearArea zone={zone} grid={grid} label={'la zone ' + zone.name} />
       <DeleteZone zone={zone} plants={ps.length} />
       {renaming && <RenameZone zone={zone} onClose={() => setRenaming(false)} />}
+      {resizing && <ResizeZone zone={zone} plantings={ps} onClose={() => setResizing(false)} />}
     </Page>
   );
 }
@@ -124,6 +133,41 @@ function BlocMosaic({ zone, grid, sel }: { zone: Zone; grid: Grid; sel: CellSel 
     <div ref={hold.ref} {...hold.props} className="rounded-[22px] bg-terre p-2 shadow-[inset_0_-5px_0_#A7724A] [-webkit-touch-callout:none]">
       <div className="grid gap-[2px]" style={{ gridTemplateColumns: `repeat(${bc}, minmax(0, 1fr))` }}>{tiles}</div>
     </div>
+  );
+}
+
+/** Changer la taille d'une zone existante : elle s'agrandit vers l'est et le sud, sans passer sous ce qui est planté ni sur une autre zone. */
+function ResizeZone({ zone, plantings, onClose }: { zone: Zone; plantings: Planting[]; onClose: () => void }) {
+  const { zones, garden } = useApp();
+  const update = useUpdateZone();
+  const toast = useToast();
+  const big = ZONE_TYPES.find(t => t.value === zone.type)?.big ?? isBig(zone);
+  const [cols, setCols] = useState(zone.cols);
+  const [rows, setRows] = useState(zone.rows);
+  const terrain = { w: garden.terrain_width_cm, h: garden.terrain_length_cm };
+  const b = resizeBounds(zones, zone, plantings, terrain, big, cols, rows);
+  const same = cols === zone.cols && rows === zone.rows;
+  const fits = zoneFits(zones, { ...zone, cols, rows }, zone.x_cm, zone.y_cm, terrain);
+  const locked = b.minCols > b.step || b.minRows > b.step;
+
+  async function save() {
+    if (same || !fits) return onClose();
+    await update.mutateAsync({ z: zone, patch: { cols, rows } });
+    toast(`${zone.name} : ${meters(cols * CELL_CM)} × ${meters(rows * CELL_CM)}`);
+    onClose();
+  }
+
+  return (
+    <Sheet title="Taille de la zone" onClose={onClose}>
+      <div className="grid grid-cols-2 gap-2.5">
+        <Stepper label="Largeur" value={cols * CELL_CM} onChange={v => setCols(Math.round(v / CELL_CM))} step={b.step * CELL_CM} min={b.minCols * CELL_CM} max={b.maxCols * CELL_CM} />
+        <Stepper label="Longueur" value={rows * CELL_CM} onChange={v => setRows(Math.round(v / CELL_CM))} step={b.step * CELL_CM} min={b.minRows * CELL_CM} max={b.maxRows * CELL_CM} />
+      </div>
+      <Note tone={fits ? 'neutre' : 'mauvais'}>{fits ? `${nf(cols * rows)} cases · ${meters(cols * CELL_CM)} × ${meters(rows * CELL_CM)}. La zone s’agrandit vers l’est et le sud.` : 'Cette taille sort du terrain ou touche une autre zone.'}</Note>
+      {locked && <p className="text-[13px] text-gris">Pas plus petit que ce qui est planté : il faut d’abord vider les cases (jusqu’à {meters(b.minCols * CELL_CM)} × {meters(b.minRows * CELL_CM)}).</p>}
+      <Btn onClick={save} disabled={same || !fits || update.isPending}>{update.isPending ? 'Enregistrement…' : 'Enregistrer'}</Btn>
+      {update.isError && <p className="text-sm font-bold text-alerte">{(update.error as Error).message}</p>}
+    </Sheet>
   );
 }
 

@@ -19,6 +19,22 @@ export function zoneFits(zones: Zone[], z: Zone, x: number, y: number, terrain: 
   });
 }
 
+/**
+ * Tailles possibles d'une zone déjà créée, en cases : on agrandit vers l'est et le sud (l'angle nord-ouest ne bouge pas).
+ * Plus petit : jamais en dessous de ce qui est planté. Plus grand : jusqu'au bord du terrain ou d'une autre zone ; 12 cases au plus pour une petite zone.
+ * Le pas est de 5 cases (un bloc) pour parcelle et serre, d'une case sinon.
+ */
+export function resizeBounds(zones: Zone[], z: Zone, plantings: Pick<Planting, 'x' | 'y' | 'w' | 'h'>[], terrain: { w: number; h: number }, big: boolean, cols = z.cols, rows = z.rows) {
+  const step = big ? 5 : 1;
+  const up = (v: number) => Math.max(step, Math.ceil(v / step) * step);
+  const minCols = up(Math.max(0, ...plantings.map(p => p.x + p.w))), minRows = up(Math.max(0, ...plantings.map(p => p.y + p.h)));
+  const cap = big ? Infinity : 12;
+  const grow = (from: number, fits: (n: number) => boolean) => { let best = from; for (let n = from; n <= cap && fits(n); n += step) best = n; return best; };
+  const maxCols = grow(minCols, n => zoneFits(zones, { ...z, cols: n, rows }, z.x_cm, z.y_cm, terrain));
+  const maxRows = grow(minRows, n => zoneFits(zones, { ...z, cols, rows: n }, z.x_cm, z.y_cm, terrain));
+  return { step, minCols, minRows, maxCols: Math.max(maxCols, minCols, z.cols), maxRows: Math.max(maxRows, minRows, z.rows) };
+}
+
 /** Une zone est « grande » au-delà de 12 × 12 cases : on la parcourt en blocs de 5 × 5. */
 export const isBig = (z: Pick<Zone, 'cols' | 'rows'>) => z.cols > 12 || z.rows > 12;
 

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  ageDays, blocInfo, isThirsty, thirstyIn, blocName, buildRelations, colLabel, de, everyDays, findSpot, footprintText, freeRects, inSeason, isBig, isMulti, isReady, isSol,
+  ageDays, blocInfo, isThirsty, thirstyIn, resizeBounds, blocName, buildRelations, colLabel, de, everyDays, findSpot, footprintText, freeRects, inSeason, isBig, isMulti, isReady, isSol,
   lc, nextWater, needsWater, neighbors, occupancy, pitchCm, placeText, plantCount, plantingsIn, rangPlan, range, rel, remainingPieces, spacingOk,
   stage, toSegments, tooClose, zoneFits, zoneGround, zoneSize
 } from './garden';
@@ -232,6 +232,40 @@ describe('arrosage, récolte, stade', () => {
     expect(stage(planting({ sown_at: '2026-06-01' }), s)).toBe(3);
     expect(stage(planting(), species({ days_to_harvest: null }))).toBe(2);
     expect(ageDays(planting({ sown_at: '2026-10-09' }))).toBe(10);
+  });
+});
+
+describe('resizeBounds', () => {
+  const terrain = { w: 900, h: 600 }; // 30 × 20 cases
+  const small = zone({ id: 'a', cols: 4, rows: 3, x_cm: 0, y_cm: 0 });
+  it('un petit carré peut grandir jusqu’à 12 cases, pas plus', () => {
+    const b = resizeBounds([small], small, [], terrain, false);
+    expect([b.step, b.minCols, b.minRows, b.maxCols, b.maxRows]).toEqual([1, 1, 1, 12, 12]);
+  });
+  it('ne descend jamais sous ce qui est planté', () => {
+    const b = resizeBounds([small], small, [{ x: 2, y: 1, w: 2, h: 1 }], terrain, false);
+    expect([b.minCols, b.minRows]).toEqual([4, 2]);
+  });
+  it('s’arrête au bord du terrain', () => {
+    const big = zone({ id: 'b', cols: 10, rows: 5, x_cm: 0, y_cm: 0 });
+    const b = resizeBounds([big], big, [], terrain, true);
+    expect([b.step, b.maxCols, b.maxRows]).toEqual([5, 30, 20]);
+    const edge = zone({ id: 'c', cols: 10, rows: 5, x_cm: 450, y_cm: 300 }); // x : 15 cases, y : 10 cases
+    const e = resizeBounds([edge], edge, [], terrain, true);
+    expect([e.maxCols, e.maxRows]).toEqual([15, 10]);
+  });
+  it('s’arrête devant une autre zone', () => {
+    const a = zone({ id: 'a', cols: 5, rows: 5, x_cm: 0, y_cm: 0 });
+    const b = zone({ id: 'b', cols: 5, rows: 5, x_cm: 300, y_cm: 0 }); // commence à la case 10
+    const r = resizeBounds([a, b], a, [], terrain, true);
+    expect(r.maxCols).toBe(10);
+    expect(r.maxRows).toBe(20);
+  });
+  it('tient compte de l’autre dimension choisie', () => {
+    const a = zone({ id: 'a', cols: 5, rows: 5, x_cm: 0, y_cm: 0 });
+    const b = zone({ id: 'b', cols: 5, rows: 5, x_cm: 300, y_cm: 300 }); // sous-zone en bas à droite
+    expect(resizeBounds([a, b], a, [], terrain, true, 5, 5).maxCols).toBe(30);
+    expect(resizeBounds([a, b], a, [], terrain, true, 5, 15).maxCols).toBe(10);
   });
 });
 
