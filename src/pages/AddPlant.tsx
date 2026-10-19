@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { useAddPlantings } from '../lib/data';
 import { BackHeader, Btn, Note, Page, Sheet, Tile, useToast } from '../components/ui';
@@ -86,6 +86,7 @@ export default function AddPlant() {
           {dist.length > 0 && <Note tone="neutre">Attention : {dist.join(' ')}</Note>}
           <Btn onClick={plant} disabled={!fits || nb.bad.length > 0 || add.isPending}>{add.isPending ? 'Enregistrement…' : isSol(s) ? 'Couvrir la case' : 'Planter'}</Btn>
           {add.isError && <p className="text-sm font-bold text-alerte">{(add.error as Error).message}</p>}
+          {!isSol(s) && <Link to={`/glossaire/${s.slug}`} className="self-center text-sm font-extrabold text-vert">Voir la fiche complète →</Link>}
         </Sheet>
       )}
     </Page>

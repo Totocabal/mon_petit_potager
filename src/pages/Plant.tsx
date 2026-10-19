@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { useUpdatePlanting, useWater } from '../lib/data';
 import { BackHeader, Btn, Page, Tile, useToast } from '../components/ui';
@@ -90,6 +90,7 @@ export default function PlantPage() {
         {!nb.good.length && !nb.bad.length && <p className="text-sm text-gris">Pas de voisine qui l’aide ou la gêne.</p>}
         {s.notes && <p className="rounded-2xl bg-soleil-doux px-3 py-2.5 text-sm font-bold text-soleil-encre">{s.notes}</p>}
       </div>
+      <Link to={`/glossaire/${s.slug}`} className="flex min-h-14 items-center justify-between rounded-carte bg-white px-4 font-extrabold text-vert">Fiche complète : {lc(s.name)}<span aria-hidden>→</span></Link>
       {ready && <Btn variant="doux" onClick={() => remove(true)} disabled={update.isPending}>Récolte terminée, libérer les cases</Btn>}
       {confirm ? (
         <div className="flex flex-col gap-2.5 rounded-[20px] bg-alerte-doux p-4 text-[#6B2418]">

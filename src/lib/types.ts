@@ -22,7 +22,20 @@ export type Species = {
   notes: string | null;
   /** 'sol' : jachère, paillage… (ni arrosé, ni récolté, ni compté comme plant) */
   kind: 'plante' | 'sol';
+  /** Fiche détaillée (glossaire) */
+  category: SpeciesCategory | null;
+  difficulty: 'facile' | 'moyen' | 'exigeant' | null;
+  sow_depth_cm: number | null;
+  germination_days: number | null;
+  description: string | null;
+  sowing: string | null;
+  soil: string | null;
+  care: string | null;
+  pests: string | null;
+  harvest_tips: string | null;
 };
+
+export type SpeciesCategory = 'legume-fruit' | 'racine' | 'bulbe' | 'feuille' | 'chou' | 'tige' | 'legumineuse' | 'aromatique' | 'fleur' | 'petit-fruit' | 'sol';
 
 export type Companion = {
   species_a: string;
