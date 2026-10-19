@@ -75,3 +75,43 @@ public/pictos/  les 32 pictos SVG
 ## Étapes suivantes
 
 Les étapes prévues (météo, tâches, générateur de plan, partage, notifications) sont faites. Reste à affiner selon l'usage.
+
+## Applications Android et iOS
+
+L'app mobile est le site emballé avec [Capacitor](https://capacitorjs.com) : un seul code pour le web, l'APK et iOS (`android/` et `ios/` sont les projets natifs, `assets/` les images sources de l'icône et de l'écran de démarrage, `capacitor.config.ts` la configuration).
+
+Identifiant : `fr.monpetitpotager.app`. Après toute modification du code web : `npm run mobile:sync`.
+
+### Réglages à faire une fois
+
+1. **Connexion par code** : dans Supabase, *Authentication → Email Templates → Magic Link*, ajoutez le code au message, par exemple `Votre code : {{ .Token }}`. L'app native se connecte avec ce code (le lien d'e-mail ouvrirait le navigateur).
+2. **Adresse du site** : renseignez `VITE_SITE_URL` (voir `.env.example`) avec l'adresse publique du site, utilisée pour les liens d'invitation. Sans elle, les liens créés dans l'app sont inutilisables.
+3. **Notifications** : les rappels d'arrosage (notifications web) ne fonctionnent pas encore dans l'app, seulement sur le site. Les notifications natives (Firebase pour Android, Apple pour iOS) sont à ajouter.
+
+### Android (APK)
+
+Prérequis : Android Studio et un JDK 21 (`brew install openjdk@21`). Gradle ne fonctionne pas encore avec Java 25 et 26.
+
+```bash
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
+export ANDROID_HOME=$HOME/Library/Android/sdk
+npm run android:debug
+```
+
+L'APK de test est dans `android/app/build/outputs/apk/debug/app-debug.apk`. Il s'installe en le copiant sur le téléphone (autoriser les sources inconnues) ou avec `adb install -r`.
+
+Pour publier sur Google Play, il faut un APK/AAB **signé** : créez une clé (`keytool -genkey -v -keystore potager.jks -alias potager -keyalg RSA -keysize 2048 -validity 10000`), gardez-la précieusement hors du dépôt, puis *Build → Generate Signed Bundle* dans Android Studio (`npm run android:open`).
+
+### iOS
+
+Prérequis : un Mac avec **Xcode** (App Store). Le projet utilise Swift Package Manager : pas besoin de CocoaPods.
+
+```bash
+npm run ios:open
+```
+
+Dans Xcode : choisissez votre équipe (*Signing & Capabilities*), puis lancez sur un simulateur ou un iPhone. Pour l'installer sur un iPhone de façon durable, publier sur TestFlight ou l'App Store, il faut un compte Apple Developer payant.
+
+### Icône et écran de démarrage
+
+Les images sources sont dans `assets/`. Pour les régénérer après modification : `npx @capacitor/assets generate --android --ios` (outil à installer à la demande, il n'est pas dans les dépendances).

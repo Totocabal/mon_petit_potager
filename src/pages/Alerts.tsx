@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { useAlertSettings, useSaveAlertSettings, useSetSpeciesAlerts } from '../lib/data';
 import { BackHeader, Btn, Note, Page, Tile, useToast } from '../components/ui';
+import { isNative } from '../lib/native';
 import { currentSubscription, disablePush, enablePush, needsInstall, pushSupported, sendTestPush, VAPID_PUBLIC } from '../lib/push';
 import { everyDays, lc, nextWater } from '../lib/garden';
 import { whenText } from '../lib/dates';
@@ -66,8 +67,9 @@ export default function Alerts() {
       <BackHeader title="Alertes d’arrosage" kicker="On vous prévient quand vos plantes ont soif" />
 
       {install && <Note tone="neutre">Sur iPhone, les alertes demandent d’ajouter l’app à l’écran d’accueil. <Link to="/installer" className="font-extrabold underline">Voir comment faire</Link></Note>}
-      {!install && !supported && <Note tone="neutre">Ce navigateur ne gère pas les notifications. Essayez avec Chrome, Edge, Firefox ou Safari récent.</Note>}
-      {!VAPID_PUBLIC && <Note tone="mauvais">Les notifications ne sont pas encore configurées : la clé VITE_VAPID_PUBLIC_KEY manque.</Note>}
+      {isNative && <Note tone="neutre">Les rappels d’arrosage ne sont pas encore disponibles dans l’app : ils fonctionnent sur le site web.</Note>}
+      {!install && !supported && !isNative && <Note tone="neutre">Ce navigateur ne gère pas les notifications. Essayez avec Chrome, Edge, Firefox ou Safari récent.</Note>}
+      {!VAPID_PUBLIC && !isNative && <Note tone="mauvais">Les notifications ne sont pas encore configurées : la clé VITE_VAPID_PUBLIC_KEY manque.</Note>}
 
       <div className="rounded-[24px] bg-white px-[18px] py-1">
         <div className="flex min-h-[58px] items-center gap-3 border-b border-dashed border-trait">
@@ -124,7 +126,7 @@ export default function Alerts() {
 
       {active && <Btn variant="doux" onClick={test} disabled={busy}>Envoyer une notification de test</Btn>}
       {error && <p className="text-sm font-bold text-alerte">{error}</p>}
-      <Link to="/installer" className="text-center text-sm font-extrabold text-vert">Installer l’app sur l’écran d’accueil</Link>
+      {!isNative && <Link to="/installer" className="text-center text-sm font-extrabold text-vert">Installer l’app sur l’écran d’accueil</Link>}
     </Page>
   );
 }

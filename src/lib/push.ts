@@ -1,12 +1,13 @@
 import { supabase } from './supabase';
+import { isNative } from './native';
 
 export const VAPID_PUBLIC = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
 
-export const pushSupported = () => typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+export const pushSupported = () => !isNative && typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 export const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 export const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
 /** Sur iPhone, les notifications n'existent que si l'app est ajoutée à l'écran d'accueil. */
-export const needsInstall = () => isIOS() && !isStandalone();
+export const needsInstall = () => !isNative && isIOS() && !isStandalone();
 
 export async function registerWorker() {
   if (!('serviceWorker' in navigator)) return null;

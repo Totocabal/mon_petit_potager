@@ -1,3 +1,4 @@
+import { siteUrl } from './native';
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Session } from '@supabase/supabase-js';
@@ -282,7 +283,7 @@ export function useRemoveMember(gardenId: string) {
   });
 }
 
-export const inviteUrl = (token: string) => `${window.location.origin}/invitation/${token}`;
+export const inviteUrl = (token: string) => `${siteUrl}/invitation/${token}`;
 /** Envoie à la personne un lien de connexion qui la mène directement à l'invitation. */
 export async function sendInviteEmail(email: string, token: string) {
   const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: inviteUrl(token) } });

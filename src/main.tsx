@@ -6,8 +6,10 @@ import App from './App';
 import { ToastProvider } from './components/ui';
 import './index.css';
 import { registerWorker } from './lib/push';
+import { initNative, isNative } from './lib/native';
 
-registerWorker();
+// Le service worker ne sert qu'au site web (notifications web) ; l'app native a son propre fonctionnement
+if (isNative) initNative(); else registerWorker();
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, retry: 1 } } });
 
