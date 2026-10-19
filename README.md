@@ -100,6 +100,8 @@ npm run android:debug
 
 L'APK de test est dans `android/app/build/outputs/apk/debug/app-debug.apk`. Il s'installe en le copiant sur le téléphone (autoriser les sources inconnues) ou avec `adb install -r`.
 
+**Lien de téléchargement** : `npm run android:publish` construit l'APK puis l'envoie dans le bucket public `apk` de Supabase et affiche le lien (`https://<projet>.supabase.co/storage/v1/object/public/apk/mon-petit-potager-debug.apk`, toujours le même, remplacé à chaque envoi). Il faut mettre la clé secrète du projet dans `.env.local` sous le nom `SUPABASE_SECRET_KEY` (*Project Settings → API Keys*) : elle ne doit jamais être commitée ni partagée. N'importe qui ayant le lien peut télécharger l'APK ; seule la clé secrète permet d'écrire dans le bucket.
+
 Pour publier sur Google Play, il faut un APK/AAB **signé** : créez une clé (`keytool -genkey -v -keystore potager.jks -alias potager -keyalg RSA -keysize 2048 -validity 10000`), gardez-la précieusement hors du dépôt, puis *Build → Generate Signed Bundle* dans Android Studio (`npm run android:open`).
 
 ### iOS
