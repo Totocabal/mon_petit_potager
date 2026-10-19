@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  ageDays, blocInfo, blocName, buildRelations, colLabel, de, everyDays, findSpot, footprintText, freeRects, inSeason, isBig, isMulti, isReady, isSol,
+  ageDays, blocInfo, isThirsty, thirstyIn, blocName, buildRelations, colLabel, de, everyDays, findSpot, footprintText, freeRects, inSeason, isBig, isMulti, isReady, isSol,
   lc, nextWater, needsWater, neighbors, occupancy, pitchCm, placeText, plantCount, plantingsIn, rangPlan, range, rel, remainingPieces, spacingOk,
   stage, toSegments, tooClose, zoneFits, zoneGround, zoneSize
 } from './garden';
@@ -232,6 +232,33 @@ describe('arrosage, récolte, stade', () => {
     expect(stage(planting({ sown_at: '2026-06-01' }), s)).toBe(3);
     expect(stage(planting(), species({ days_to_harvest: null }))).toBe(2);
     expect(ageDays(planting({ sown_at: '2026-10-09' }))).toBe(10);
+  });
+});
+
+describe('isThirsty et thirstyIn', () => {
+  const s = species({ id: 's', water_every_days: 3 });
+  const sol = species({ id: 'j', kind: 'sol' });
+  const dry = planting({ last_watered_at: '2026-10-10' }); // prévu le 13 : en retard
+  it('une plante dont l’arrosage est dû est à arroser', () => {
+    expect(isThirsty(dry, s)).toBe(true);
+    expect(isThirsty(planting({ last_watered_at: '2026-10-18' }), s)).toBe(false);
+  });
+  it('pas pour un sol, une espèce inconnue ou des alertes coupées', () => {
+    expect(isThirsty(dry, sol)).toBe(false);
+    expect(isThirsty(dry, undefined)).toBe(false);
+    expect(isThirsty({ ...dry, alerts_enabled: false }, s)).toBe(false);
+  });
+  it('la pluie récente compte comme un arrosage', () => {
+    expect(isThirsty(dry, s, parse('2026-10-18'))).toBe(false);
+    expect(isThirsty(dry, s, parse('2026-10-11'))).toBe(true);
+  });
+  it('thirstyIn ne garde que les plantations à arroser du rectangle', () => {
+    const z = zone({ cols: 6, rows: 2 });
+    const ps = [planting({ id: 'soif', x: 0, y: 0, w: 2, h: 1, last_watered_at: '2026-10-10' }), planting({ id: 'ok', x: 3, y: 0, w: 1, h: 1, last_watered_at: '2026-10-18' }), planting({ id: 'loin', x: 5, y: 1, w: 1, h: 1, last_watered_at: '2026-10-10' })];
+    const g = occupancy(z, ps);
+    expect(thirstyIn(g, 0, 6, 0, 2, byId(s)).map(p => p.id).sort()).toEqual(['loin', 'soif']);
+    expect(thirstyIn(g, 0, 3, 0, 2, byId(s)).map(p => p.id)).toEqual(['soif']);
+    expect(thirstyIn(g, 3, 5, 0, 2, byId(s))).toEqual([]);
   });
 });
 

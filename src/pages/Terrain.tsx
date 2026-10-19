@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { useUpdateZone } from '../lib/data';
 import { BottomNav, Loading, Page, Picto, useToast } from '../components/ui';
+import { DropBadge } from '../components/garden';
 import { buzz } from '../lib/native';
-import { CELL_CM, isReady, isSol, meters, nf, plantCount, SPCOLOR, zoneFits, zoneGround, zoneSize } from '../lib/garden';
+import { CELL_CM, isReady, isSol, isThirsty, meters, nf, plantCount, SPCOLOR, zoneFits, zoneGround, zoneSize } from '../lib/garden';
 import type { Zone } from '../lib/types';
 
 const SNAP_CM = 10;
@@ -13,7 +14,7 @@ const PRESS_SLOP_PX = 10;
 type Drag = { id: string; sx: number; sy: number; ox: number; oy: number; x: number; y: number; scale: number; ok: boolean };
 
 export default function Terrain() {
-  const { garden, zones, plantings, byId, loading } = useApp();
+  const { garden, zones, plantings, byId, loading, rainFor } = useApp();
   const T = { w: garden.terrain_width_cm, h: garden.terrain_length_cm };
   const updateZone = useUpdateZone();
   const toast = useToast();
@@ -112,8 +113,10 @@ export default function Terrain() {
     ps.forEach(p => by.set(p.species_id, (by.get(p.species_id) ?? 0) + p.w * p.h));
     const top = [...by.entries()].sort((a, b) => b[1] - a[1]).map(e => e[0]);
     const ready = ps.some(p => { const s = byId.get(p.species_id); return s ? isReady(p, s) : false; });
-    return [z.id, { used, planted, total: z.cols * z.rows, top, ready, ground: zoneGround(z, ps, byId) }];
-  })), [zones, plantings, byId]);
+    const rain = rainFor(z.id);
+    const thirsty = ps.filter(p => isThirsty(p, byId.get(p.species_id), rain)).length;
+    return [z.id, { used, planted, total: z.cols * z.rows, top, ready, thirsty, ground: zoneGround(z, ps, byId) }];
+  })), [zones, plantings, byId, rainFor]);
 
   if (loading) return <Loading />;
   const totalPlants = plantings.reduce((t, p) => { const s = byId.get(p.species_id); return t + (s ? plantCount(p, s) : 0); }, 0);
@@ -144,6 +147,7 @@ export default function Terrain() {
             <>
               {st.ground ? <span className="absolute inset-[18%] flex items-center justify-center rounded-sm" style={{ background: SPCOLOR[st.ground] }}><Picto slug={st.ground} size={40} className="max-h-full max-w-full" /></span>
                 : dom && st.used / st.total > 0.15 && <span className="absolute inset-[22%] rounded-sm" style={{ background: SPCOLOR[dom.slug] }} />}
+              {st.thirsty > 0 && <DropBadge size={14} className="!right-0.5 !top-0.5" />}
               {editing && <span className="absolute inset-x-0 top-0 truncate bg-black/35 px-1 text-[10px] font-extrabold leading-4 text-white">{z.name}</span>}
             </>
           );
@@ -153,7 +157,7 @@ export default function Terrain() {
               className={`absolute touch-none select-none overflow-hidden rounded-md bg-terre ${dragging ? 'z-10 cursor-grabbing' : 'cursor-grab'} ${dragging && !drag.ok ? 'opacity-80' : ''}`}
               style={style}>{inner}</div>
           ) : (
-            <Link key={z.id} to={`/zones/${z.id}`} aria-label={z.name} draggable={false}
+            <Link key={z.id} to={`/zones/${z.id}`} aria-label={st.thirsty ? `${z.name}, à arroser` : z.name} draggable={false}
               onPointerDown={e => onPressDown(e, z)} onPointerMove={e => onPressMove(e, z)} onPointerUp={() => onPressEnd(z)} onPointerCancel={() => { cancelPress(); setDrag(null); }}
               onContextMenu={e => e.preventDefault()} onClick={e => { if (longPressed.current) { e.preventDefault(); longPressed.current = false; } }}
               className={`absolute select-none overflow-hidden rounded-md bg-terre [-webkit-touch-callout:none] ${dragging ? 'z-10' : ''} ${dragging && !drag.ok ? 'opacity-80' : ''}`} style={style}>{inner}</Link>
@@ -172,6 +176,7 @@ export default function Terrain() {
               <span className="flex min-w-0 flex-1 flex-col">
                 <b className="font-extrabold">{z.name}</b>
                 <span className="text-xs text-gris">{meters(z.cols * CELL_CM)} × {meters(z.rows * CELL_CM)} · {nf(st.total)} cases · {Math.round((st.planted / st.total) * 100)} % planté{z.sheltered ? ' · sous abri' : ''}{st.ground ? ' · ' + (st.ground === 'jachere' ? 'en jachère' : 'paillée') : ''}</span>
+                {st.thirsty > 0 && <span className="text-xs font-extrabold text-eau">{st.thirsty} à arroser</span>}
               </span>
               <span className="flex gap-0.5">{st.top.slice(0, 3).map(id => <Picto key={id} slug={byId.get(id)?.slug ?? 'salade'} size={24} />)}</span>
             </Link>

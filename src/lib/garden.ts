@@ -161,6 +161,14 @@ export function nextWater(p: Planting, s: Species, rain: Date | null = null): Da
 }
 export const needsWater = (p: Planting, s: Species, now = today(), rain: Date | null = null) => diffDays(nextWater(p, s, rain), now) <= 0;
 
+/** À arroser : une plante (jamais un sol) dont les alertes sont actives et dont l'arrosage est dû. Même règle que « Aujourd'hui au jardin ». */
+export const isThirsty = (p: Planting, s: Species | undefined, rain: Date | null = null, now = today()) => !!s && !isSol(s) && p.alerts_enabled && needsWater(p, s, now, rain);
+
+/** Plantations à arroser dans le rectangle [x0, x1) × [y0, y1) d'une grille. */
+export function thirstyIn(grid: Grid, x0: number, x1: number, y0: number, y1: number, bySpecies: Map<string, Species>, rain: Date | null = null): Planting[] {
+  return plantingsIn(grid, x0, x1, y0, y1).filter(p => isThirsty(p, bySpecies.get(p.species_id), rain));
+}
+
 /** Stade affiché sur la frise : 0 semis, 1 plantation, 2 croissance/fleurs, 3 récolte. */
 export function stage(p: Planting, s: Species): number {
   if (isReady(p, s)) return 3;

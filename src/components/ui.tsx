@@ -72,7 +72,7 @@ export function BottomNav() {
   return (
     <nav aria-label="Navigation principale" className="lg:hidden fixed bottom-[calc(14px+env(safe-area-inset-bottom))] left-1/2 z-20 flex h-[72px] w-[min(408px,calc(100%-24px))] -translate-x-1/2 items-center justify-around rounded-[28px] bg-white px-2 shadow-[0_8px_24px_rgba(46,107,63,0.16)]">
       {tabs.map(t => (
-        <NavLink key={t.to} to={t.to} end={t.to === '/'} className={({ isActive }) => `flex min-w-[62px] flex-col items-center gap-0.5 rounded-[20px] py-2 text-xs ${isActive ? 'bg-vert-doux font-extrabold text-vert' : 'font-bold text-gris'}`}>
+        <NavLink key={t.to} to={t.to} end={t.to === '/'} className={({ isActive }) => `flex min-w-[62px] flex-col items-center gap-0.5 rounded-[20px] py-2 text-xs ${isActive ? 'nav-hop bg-vert-doux font-extrabold text-vert' : 'font-bold text-gris'}`}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={t.d} /></svg>
           {t.label}
         </NavLink>
@@ -82,14 +82,14 @@ export function BottomNav() {
 }
 
 export function Page({ children, nav = false, wide = false }: { children: ReactNode; nav?: boolean; wide?: boolean }) {
-  return <main className={`relative mx-auto flex min-h-full max-w-[440px] flex-col gap-4 overflow-x-clip px-4 pt-5 lg:gap-5 lg:px-8 lg:pb-12 lg:pt-8 ${wide ? 'lg:max-w-[1180px]' : 'lg:max-w-[760px]'} ${nav ? 'pb-32' : 'pb-40'}`}>{children}</main>;
+  return <main className={`rise-in relative mx-auto flex min-h-full max-w-[440px] flex-col gap-4 overflow-x-clip px-4 pt-5 lg:gap-5 lg:px-8 lg:pb-12 lg:pt-8 ${wide ? 'lg:max-w-[1180px]' : 'lg:max-w-[760px]'} ${nav ? 'pb-32' : 'pb-40'}`}>{children}</main>;
 }
 
 export function Sheet({ children, onClose, title }: { children: ReactNode; onClose: () => void; title: string }) {
   return (
     <>
       <div className="h-80" aria-hidden="true" />
-      <div role="dialog" aria-label={title} className="fixed bottom-0 left-1/2 z-30 flex max-h-[70%] w-[min(440px,100%)] -translate-x-1/2 flex-col lg:left-[calc(50%+142px)] lg:w-[min(520px,calc(100%-332px))] gap-3 overflow-y-auto rounded-t-[30px] bg-white px-5 pb-[calc(20px+env(safe-area-inset-bottom))] pt-5 shadow-[0_-10px_28px_rgba(46,107,63,0.16)]">
+      <div role="dialog" aria-label={title} className="sheet-up fixed bottom-0 left-1/2 z-30 flex max-h-[70%] w-[min(440px,100%)] -translate-x-1/2 flex-col lg:left-[calc(50%+142px)] lg:w-[min(520px,calc(100%-332px))] gap-3 overflow-y-auto rounded-t-[30px] bg-white px-5 pb-[calc(20px+env(safe-area-inset-bottom))] pt-5 shadow-[0_-10px_28px_rgba(46,107,63,0.16)]">
         <div className="flex items-baseline justify-between gap-3">
           <h2 className="font-titre text-[22px] font-semibold text-vert">{title}</h2>
           <button onClick={onClose} className="min-h-11 px-1 font-extrabold text-vert">Fermer</button>
@@ -108,7 +108,7 @@ export function Btn({ children, variant = 'plein', className = '', ...rest }: Re
     eau: 'bg-eau text-white',
     danger: 'bg-alerte text-white'
   }[variant];
-  return <button {...rest} className={`flex min-h-[52px] w-full items-center justify-center gap-2 rounded-[20px] px-4 font-titre text-[17px] font-semibold disabled:cursor-not-allowed disabled:opacity-45 ${v} ${className}`}>{children}</button>;
+  return <button {...rest} className={`squish flex min-h-[52px] w-full items-center justify-center gap-2 rounded-[20px] px-4 font-titre text-[17px] font-semibold disabled:cursor-not-allowed disabled:opacity-45 ${v} ${className}`}>{children}</button>;
 }
 
 export function Note({ tone, children }: { tone: 'bon' | 'mauvais' | 'neutre'; children: ReactNode }) {
@@ -130,7 +130,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastCtx.Provider value={show}>
       {children}
-      {msg && <div role="status" className="fixed left-1/2 top-[calc(16px+env(safe-area-inset-top))] z-50 max-w-[calc(100%-32px)] -translate-x-1/2 rounded-2xl bg-encre px-4 py-3 text-sm font-bold text-white shadow-lg">{msg}</div>}
+      {msg && <div role="status" className="toast-in fixed left-1/2 top-[calc(16px+env(safe-area-inset-top))] z-50 max-w-[calc(100%-32px)] -translate-x-1/2 rounded-2xl bg-encre px-4 py-3 text-sm font-bold text-white shadow-lg">{msg}</div>}
     </ToastCtx.Provider>
   );
 }

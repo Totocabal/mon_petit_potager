@@ -3,13 +3,13 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { useDeleteZone, useUpdateZone } from '../lib/data';
 import { BackHeader, Btn, Loading, Page, Sheet, Tile, useToast } from '../components/ui';
-import { CellGrid, ClearArea, GroundActions, RangSheet, WaterButton } from '../components/garden';
-import { BLOC, blocInfo, blocName, CELL_CM, isBig, isSol, meters, nf, occupancy, SPCOLOR, zoneGround } from '../lib/garden';
+import { CellGrid, ClearArea, DropBadge, GroundActions, RangSheet, WaterButton } from '../components/garden';
+import { BLOC, blocInfo, blocName, CELL_CM, isBig, isSol, isThirsty, meters, nf, occupancy, SPCOLOR, thirstyIn, zoneGround } from '../lib/garden';
 import type { Zone } from '../lib/types';
 
 export default function ZonePage() {
   const { zoneId } = useParams();
-  const { zones, plantings, byId, garden, loading } = useApp();
+  const { zones, plantings, byId, garden, loading, rainFor } = useApp();
   const zone = zones.find(z => z.id === zoneId);
   const ps = useMemo(() => plantings.filter(p => p.zone_id === zoneId), [plantings, zoneId]);
   const grid = useMemo(() => (zone ? occupancy(zone, ps) : []), [zone, ps]);
@@ -22,6 +22,8 @@ export default function ZonePage() {
   if (!zone) return <Page><BackHeader title="Zone introuvable" /></Page>;
 
   const used = ps.reduce((t, p) => t + p.w * p.h, 0), total = zone.cols * zone.rows;
+  const rain = rainFor(zone.id);
+  const thirsty = ps.filter(p => isThirsty(p, byId.get(p.species_id), rain)).length;
   const planted = ps.reduce((t, p) => t + (isSol(byId.get(p.species_id)) ? 0 : p.w * p.h), 0);
   const head = (
     <>
@@ -30,6 +32,7 @@ export default function ZonePage() {
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="M13 7l4 4" /></svg>
         </button>} />
       <p className="text-sm font-bold text-gris">{meters(zone.cols * CELL_CM)} × {meters(zone.rows * CELL_CM)} · {nf(total)} cases · {Math.round((planted / total) * 100)} % planté{zone.sheltered ? ' · sous abri' : ''}{ground ? ' · ' + (ground === 'jachere' ? 'en jachère' : 'paillée') : ''}</p>
+      {thirsty > 0 && <p className="flex items-center gap-2 text-sm font-extrabold text-eau"><span className="relative inline-block h-[18px] w-[18px]"><DropBadge className="!-right-0 !-top-0" /></span>{thirsty} {thirsty > 1 ? 'plantations à arroser' : 'plantation à arroser'}</p>}
     </>
   );
 
@@ -65,10 +68,12 @@ export default function ZonePage() {
   for (let by = 0; by < br; by++) for (let bx = 0; bx < bc; bx++) {
     const b = blocInfo(zone, grid, bx, by, byId);
     const s = b.dom ? byId.get(b.dom) : null;
+    const dry = thirstyIn(grid, bx * BLOC, (bx + 1) * BLOC, by * BLOC, (by + 1) * BLOC, byId, rain).length;
     tiles.push(
-      <Link key={bx + '-' + by} to={`/zones/${zone.id}/blocs/${bx}/${by}`} aria-label={`Bloc ${blocName(bx, by)} : ${s ? s.name : 'libre'}${b.ready ? ', à récolter' : ''}`}
+      <Link key={bx + '-' + by} to={`/zones/${zone.id}/blocs/${bx}/${by}`} aria-label={`Bloc ${blocName(bx, by)} : ${s ? s.name : 'libre'}${b.ready ? ', à récolter' : ''}${dry ? ', à arroser' : ''}`}
         className="relative aspect-square rounded-[4px]" style={{ background: s ? SPCOLOR[s.slug] : '#6A432C', boxShadow: b.ready ? 'inset 0 0 0 2px #F6C445' : 'none' }}>
         {s && b.free > 0 && <span className="absolute bottom-0 right-0 h-[40%] w-[40%] rounded-tl-[3px] bg-terre-libre" />}
+        {dry > 0 && <DropBadge size={14} className="!-right-[3px] !-top-[3px]" />}
       </Link>
     );
   }
@@ -88,7 +93,7 @@ export default function ZonePage() {
         })}
         <span className="inline-flex items-center gap-1.5 rounded-full bg-white py-1 pl-2 pr-3 text-sm font-bold"><span className="h-4 w-4 rounded bg-terre-libre" />Libre · {nf(total - used)}</span>
       </div>
-      <p className="text-[13px] text-gris">Touchez un bloc pour voir ses cases. Contour jaune : à récolter. Coin brun : cases libres dans le bloc.</p>
+      <p className="text-[13px] text-gris">Touchez un bloc pour voir ses cases. Contour jaune : à récolter. Goutte bleue : à arroser. Coin brun : cases libres dans le bloc.</p>
       <GroundActions zone={zone} grid={grid} label={'la zone ' + zone.name} />
       <WaterButton plantings={ps} label={'la zone ' + zone.name} />
       <ClearArea zone={zone} grid={grid} label={'la zone ' + zone.name} />

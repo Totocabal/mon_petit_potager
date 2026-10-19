@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { useAddPlantings, useCutPlantings, useRemovePlantings, useWater } from '../lib/data';
-import { BLOC, de, footprintText, freeRects, isMulti, isReady, isSol, lc, meters, nf, occupancy, plantingsIn, rangPlan, remainingPieces, SPTINT, toSegments, type Grid } from '../lib/garden';
+import { BLOC, de, footprintText, freeRects, isMulti, isReady, isSol, isThirsty, lc, meters, nf, occupancy, plantingsIn, rangPlan, remainingPieces, SPTINT, toSegments, type Grid } from '../lib/garden';
 import { cap, iso, today } from '../lib/dates';
 import { blockedCells } from '../lib/rotation';
 import type { Planting, Species, Zone } from '../lib/types';
@@ -29,11 +29,24 @@ export function SpeciesStrip({ value, onChange, onlySingleCell = false }: { valu
   );
 }
 
+/** Humeur d'une plante sur la carte : elle se balance quand elle a soif, brille quand elle est prête à récolter. */
+const mood = (p: Planting, s: Species, rain: Date | null) => (isThirsty(p, s, rain) ? 'thirsty-sway' : isReady(p, s) ? 'ready-glow' : '');
+
+/** Pastille « à arroser » : une goutte blanche sur fond bleu, posée au coin d'une case, d'un bloc ou d'une zone. */
+export function DropBadge({ size = 18, className = '' }: { size?: number; className?: string }) {
+  return (
+    <span aria-hidden="true" className={`drop-bob pointer-events-none absolute -right-1 -top-1 z-20 flex items-center justify-center rounded-full bg-eau text-white shadow-[0_0_0_2px_#FFFFFF] ${className}`} style={{ width: size, height: size }}>
+      <svg width={Math.round(size * 0.62)} height={Math.round(size * 0.62)} viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5c3.4 4.2 6.5 7.6 6.5 11.7a6.5 6.5 0 0 1-13 0C5.5 10.100 8.600 6.700 12 2.500z" /></svg>
+    </span>
+  );
+}
+
 /** Grille de cases d'une petite zone (ou d'un bloc), cliquable. */
 export function CellGrid({ zone, grid, x0 = 0, y0 = 0, x1, y1, rowHeaders = false, selectedRow, onRow }: {
   zone: Zone; grid: Grid; x0?: number; y0?: number; x1?: number; y1?: number; rowHeaders?: boolean; selectedRow?: number | null; onRow?: (y: number) => void;
 }) {
-  const { byId } = useApp();
+  const { byId, rainFor } = useApp();
+  const rain = rainFor(zone.id);
   const xe = x1 ?? zone.cols, ye = y1 ?? zone.rows;
   const nCols = Math.max(xe - x0, rowHeaders ? BLOC : 0);
   const items: ReactNode[] = [];
@@ -60,24 +73,26 @@ export function CellGrid({ zone, grid, x0 = 0, y0 = 0, x1, y1, rowHeaders = fals
         if (x === Math.max(ux, x0) && y === Math.max(uy, y0)) {
           const w = Math.min(ux + s.span_w, xe, p.x + p.w) - x, h = Math.min(uy + s.span_h, ye, p.y + p.h) - y;
           items.push(
-            <Link key={`p${x}-${y}`} to={`/plantes/${p.id}`} aria-label={`${s.name}, rang ${uy + 1}, case ${ux + 1}, sur ${footprintText(s)} cases${isReady(p, s) ? ', prête à récolter' : ''}`}
-              className={`relative z-10 min-h-0 min-w-0 overflow-hidden rounded-2xl bg-terre-case ${isReady(p, s) ? 'shadow-[inset_0_0_0_3px_#F6C445]' : ''}`}
-              style={{ gridRow: `${y - y0 + 1} / span ${h}`, gridColumn: `${col(x)} / span ${w}` }}>
-              <Picto slug={s.slug} size={64} className={`absolute inset-0 m-auto ${w >= h ? 'h-[78%] w-auto' : 'h-auto w-[78%]'}`} />
+            <Link key={`p${x}-${y}`} to={`/plantes/${p.id}`} aria-label={`${s.name}, rang ${uy + 1}, case ${ux + 1}, sur ${footprintText(s)} cases${isReady(p, s) ? ', prête à récolter' : ''}${isThirsty(p, s, rain) ? ', à arroser' : ''}`}
+              className={`pop-in squish relative z-10 min-h-0 min-w-0 rounded-2xl bg-terre-case ${isReady(p, s) ? 'shadow-[inset_0_0_0_3px_#F6C445]' : ''}`}
+              style={{ gridRow: `${y - y0 + 1} / span ${h}`, gridColumn: `${col(x)} / span ${w}`, '--i': x - x0 + y - y0 } as React.CSSProperties}>
+              <Picto slug={s.slug} size={64} className={`absolute inset-0 m-auto ${w >= h ? 'h-[78%] w-auto' : 'h-auto w-[78%]'} ${mood(p, s, rain)}`} />
+              {isThirsty(p, s, rain) && <DropBadge />}
             </Link>
           );
         }
       } else if (p && s) {
         items.push(
-          <Link key={`p${x}-${y}`} to={`/plantes/${p.id}`} aria-label={`${s.name}, rang ${y + 1}, case ${x + 1}${isReady(p, s) ? ', prête à récolter' : ''}`}
-            className={`flex aspect-square min-w-0 items-center justify-center rounded-2xl ${isSol(s) ? '' : 'bg-terre-case'} ${isReady(p, s) ? 'shadow-[inset_0_0_0_3px_#F6C445]' : ''}`} style={isSol(s) ? { ...pos, background: SPTINT[s.slug] } : pos}>
-            <Picto slug={s.slug} size={44} className="h-[72%] w-[72%]" />
+          <Link key={`p${x}-${y}`} to={`/plantes/${p.id}`} aria-label={`${s.name}, rang ${y + 1}, case ${x + 1}${isReady(p, s) ? ', prête à récolter' : ''}${isThirsty(p, s, rain) ? ', à arroser' : ''}`}
+            className={`pop-in squish relative flex aspect-square min-w-0 items-center justify-center rounded-2xl ${isSol(s) ? '' : 'bg-terre-case'} ${isReady(p, s) ? 'shadow-[inset_0_0_0_3px_#F6C445]' : ''}`} style={{ ...pos, ...(isSol(s) ? { background: SPTINT[s.slug] } : {}), '--i': x - x0 + y - y0 } as React.CSSProperties}>
+            <Picto slug={s.slug} size={44} className={`h-[72%] w-[72%] ${mood(p, s, rain)}`} />
+            {isThirsty(p, s, rain) && <DropBadge size={16} />}
           </Link>
         );
       } else {
         items.push(
-          <Link key={`p${x}-${y}`} to={`/zones/${zone.id}/planter?x=${x}&y=${y}`} aria-label={`Planter rang ${y + 1}, case ${x + 1}`} style={pos}
-            className="flex aspect-square min-w-0 items-center justify-center rounded-2xl border-2 border-dashed border-[#E9C9A6] bg-terre-libre text-[#F6E3CC]">
+          <Link key={`p${x}-${y}`} to={`/zones/${zone.id}/planter?x=${x}&y=${y}`} aria-label={`Planter rang ${y + 1}, case ${x + 1}`} style={{ ...pos, '--i': x - x0 + y - y0 } as React.CSSProperties}
+            className="pop-in squish flex aspect-square min-w-0 items-center justify-center rounded-2xl border-2 border-dashed border-[#E9C9A6] bg-terre-libre text-[#F6E3CC]">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
           </Link>
         );
@@ -92,22 +107,35 @@ export function CellGrid({ zone, grid, x0 = 0, y0 = 0, x1, y1, rowHeaders = fals
 }
 
 /** « J'ai arrosé » pour un ensemble de plantations : zone, bloc ou rang. */
+/** Averse de gouttes qui traverse l'écran après un arrosage. */
+function WaterSplash() {
+  return (
+    <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 z-40 h-0">
+      {Array.from({ length: 16 }, (_, i) => <span key={i} className="splash-drop" style={{ left: `${4 + ((i * 37) % 92)}%`, animationDelay: `${(i % 6) * 90}ms`, ['--dx' as string]: `${(i % 2 ? 1 : -1) * (6 + (i % 4) * 4)}px` }} />)}
+    </div>
+  );
+}
+
 export function WaterButton({ plantings, label, onDone }: { plantings: Planting[]; label: string; onDone?: () => void }) {
   const water = useWater();
   const toast = useToast();
   const { byId } = useApp();
+  const [splash, setSplash] = useState(false);
   plantings = plantings.filter(p => !isSol(byId.get(p.species_id)));
   const n = plantings.length;
   if (!n) return null;
   async function go() {
     await water.mutateAsync(plantings);
     toast(`Arrosage noté : ${label}`);
+    setSplash(true);
+    window.setTimeout(() => setSplash(false), 1700);
     onDone?.();
   }
   return (
     <div className="flex flex-col gap-1.5">
       <Btn variant="eau" onClick={go} disabled={water.isPending}>{water.isPending ? 'Enregistrement…' : `J’ai arrosé ${label} · ${n} plantation${n > 1 ? 's' : ''}`}</Btn>
       {water.isError && <p className="text-sm font-bold text-alerte">{(water.error as Error).message}</p>}
+      {splash && <WaterSplash />}
     </div>
   );
 }
