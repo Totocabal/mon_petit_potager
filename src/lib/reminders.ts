@@ -28,21 +28,19 @@ export function planReminders(o: {
     const day = addDays(start, i), key = iso(day);
     const parts: string[] = [];
 
-    const rainToday = o.skipIfRain && rainyDays.includes(key);
-    if (!rainToday) {
-      const water = new Set<string>();
-      for (const p of o.crops) {
-        const s = o.byId.get(p.species_id);
-        if (!s || !p.alerts_enabled) continue;
-        let last = parse(p.last_watered_at ?? p.sown_at);
-        if (o.skipIfRain && !sheltered.has(p.zone_id)) {
-          const rain = rainyDays.filter(d => d <= key).pop();
-          if (rain && parse(rain) > last) last = parse(rain);
-        }
-        if (addDays(last, everyDays(p, s)) <= day) water.add(s.name);
+    // la pluie compte comme un arrosage pour les zones à l'air libre ; une zone sous abri est à arroser même s'il pleut
+    const water = new Set<string>();
+    for (const p of o.crops) {
+      const s = o.byId.get(p.species_id);
+      if (!s || !p.alerts_enabled) continue;
+      let last = parse(p.last_watered_at ?? p.sown_at);
+      if (o.skipIfRain && !sheltered.has(p.zone_id)) {
+        const rain = rainyDays.filter(d => d <= key).pop();
+        if (rain && parse(rain) > last) last = parse(rain);
       }
-      if (water.size) parts.push('À arroser : ' + list([...water]));
+      if (addDays(last, everyDays(p, s)) <= day) water.add(s.name);
     }
+    if (water.size) parts.push('À arroser : ' + list([...water]));
 
     const harvest = new Set<string>();
     for (const p of o.crops) { const s = o.byId.get(p.species_id); if (s && isReady(p, s, day)) harvest.add(s.name); }
