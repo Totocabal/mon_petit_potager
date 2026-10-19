@@ -14,11 +14,40 @@ function tip(d: WeatherDay): { text: string; tone: 'eau' | 'froid' | 'chaud' } |
 }
 const TONE = { eau: 'bg-[#D3EAEE] text-[#1F4D5A]', froid: 'bg-[#E3E9F6] text-[#2A3A6B]', chaud: 'bg-soleil-doux text-soleil-encre' };
 
-function dayLabel(date: string, t: string, tomorrow: string) {
+const shortDate = (date: string) => parse(date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+function dayName(date: string, t: string, tomorrow: string) {
   if (date === t) return 'Aujourd’hui';
   if (date === tomorrow) return 'Demain';
-  return cap(parse(date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'short' }));
+  return cap(parse(date).toLocaleDateString('fr-FR', { weekday: 'long' }));
 }
+
+const Drop = ({ size = 15 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3c3.2 4 6 7.2 6 11a6 6 0 0 1-12 0c0-3.8 2.8-7 6-11z" /></svg>
+);
+
+/** Pictogramme du ciel sur une tuile bleu ciel (plus sombre pour l'orage, dont le nuage est pâle) : il ressort sur le fond blanc et tous les jours s'alignent. */
+const SkyTile = ({ sky }: { sky: ReturnType<typeof skyOf> }) => (
+  <span className="flex h-[72px] w-[72px] items-center justify-center rounded-[22px]" style={{ background: sky === 'orage' ? '#9DB3BB' : '#D3EAEE' }}><WeatherIcon sky={sky} size={66} /></span>
+);
+
+/** « 6 mm · 100 % » : pluie attendue et probabilité. */
+function RainLine({ d }: { d: WeatherDay }) {
+  const wet = d.rain >= 0.5;
+  return (
+    <span className={`flex items-center gap-1.5 text-[13px] font-bold tabular-nums ${d.rain >= RAIN_MM ? 'text-eau' : 'text-gris'}`}>
+      <Drop />
+      {wet ? `${Math.round(d.rain)} mm` : 'Pas de pluie'}
+      {d.chance != null && d.chance >= 20 && <span className="font-semibold text-gris">· {d.chance} %</span>}
+    </span>
+  );
+}
+
+const Stat = ({ label, value }: { label: string; value: string }) => (
+  <div className="flex flex-col items-center gap-0.5 rounded-2xl bg-white/70 px-2 py-2.5">
+    <span className="text-xs font-bold text-[#2C5A66]">{label}</span>
+    <b className="font-titre text-xl font-semibold text-[#1F4D5A]">{value}</b>
+  </div>
+);
 
 /** Prévisions sur 7 jours, ouvertes depuis la carte météo de l'accueil. */
 export default function WeatherPage() {
@@ -46,45 +75,63 @@ export default function WeatherPage() {
   return (
     <Page>
       <BackHeader kicker={profile?.city ?? undefined} title="Prévisions météo" />
-      <div className="flex items-center gap-4 rounded-[28px] bg-[#D3EAEE] px-5 py-[18px]">
-        <WeatherIcon sky={sky} animate />
-        <div className="flex min-w-0 flex-col gap-1 leading-[normal]">
-          <p className="font-titre text-[34px] font-semibold text-[#1F4D5A]">{temp}° <span className="text-base font-medium">{SKY_LABEL[sky]}</span></p>
-          {today_ && <p className="text-sm text-[#2C5A66]">Aujourd’hui : {today_.tmin}° / {today_.tmax}°{today_.rain >= 0.5 ? ` · ${Math.round(today_.rain)} mm de pluie` : ''}</p>}
-          <p className="text-sm font-bold text-[#2C5A66]">{rainWeek >= 1 ? `${rainWeek} mm de pluie attendus cette semaine` : 'Pas de pluie attendue cette semaine'}</p>
-        </div>
-      </div>
 
-      <section aria-labelledby="h-prev" className="flex flex-col rounded-carte bg-white px-4 py-1">
+      <section aria-label="Maintenant" className="flex flex-col gap-4 rounded-[28px] bg-[#D3EAEE] p-5">
+        <div className="flex items-center gap-5">
+          <WeatherIcon sky={sky} size={104} animate />
+          <div className="flex min-w-0 flex-col leading-none">
+            <p className="font-titre text-[54px] font-semibold text-[#1F4D5A]">{temp}°</p>
+            <p className="mt-1.5 text-lg font-bold text-[#2C5A66]">{cap(SKY_LABEL[sky])}</p>
+          </div>
+        </div>
+        {today_ && (
+          <div className="grid grid-cols-3 gap-2">
+            <Stat label="Mini" value={`${today_.tmin}°`} />
+            <Stat label="Maxi" value={`${today_.tmax}°`} />
+            <Stat label="Pluie" value={today_.rain >= 0.5 ? `${Math.round(today_.rain)} mm` : '0 mm'} />
+          </div>
+        )}
+        <p className="text-sm font-bold text-[#2C5A66]">{rainWeek >= 1 ? `${rainWeek} mm de pluie attendus cette semaine` : 'Pas de pluie attendue cette semaine'}</p>
+      </section>
+
+      <section aria-labelledby="h-prev" className="rounded-carte bg-white px-4 py-1">
         <h2 id="h-prev" className="sr-only">Les 7 prochains jours</h2>
-        {week.map(d => {
-          const k = skyOf(d.code), a = tip(d);
-          return (
-            <div key={d.date} className="flex flex-col gap-1.5 border-b border-dashed border-trait py-3 last:border-0">
-              <div className="flex items-center gap-3">
-                <WeatherIcon sky={k} size={46} />
-                <div className="flex min-w-0 flex-1 flex-col">
-                  <b className="font-extrabold">{dayLabel(d.date, t, tomorrow)}</b>
-                  <span className="text-[13px] text-gris">{SKY_LABEL[k]}{d.rain >= 0.5 ? ` · ${Math.round(d.rain)} mm` : ''}{d.chance != null && d.chance >= 20 ? ` · ${d.chance} % de pluie` : ''}</span>
+        <ul>
+          {week.map(d => {
+            const a = tip(d);
+            return (
+              <li key={d.date} className="grid grid-cols-[72px_minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2.5 border-b border-dashed border-trait py-3.5 last:border-0">
+                <SkyTile sky={skyOf(d.code)} />
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <b className="text-[17px] font-extrabold leading-tight">{dayName(d.date, t, tomorrow)}</b>
+                  <span className="text-[13px] text-gris">{shortDate(d.date)} · {SKY_LABEL[skyOf(d.code)]}</span>
+                  <RainLine d={d} />
                 </div>
-                <span className="font-titre text-lg font-semibold">{d.tmax}° <span className="text-sm font-medium text-gris">{d.tmin}°</span></span>
-              </div>
-              {a && <p className={`self-start rounded-full px-3 py-1 text-[13px] font-extrabold ${TONE[a.tone]}`}>{a.text}</p>}
-            </div>
-          );
-        })}
+                <div className="flex flex-col items-end leading-tight">
+                  <span className="font-titre text-2xl font-semibold">{d.tmax}°</span>
+                  <span className="text-sm font-bold text-gris">{d.tmin}°</span>
+                </div>
+                {a && <p className={`col-span-2 col-start-2 justify-self-start rounded-full px-3 py-1 text-[13px] font-extrabold ${TONE[a.tone]}`}>{a.text}</p>}
+              </li>
+            );
+          })}
+        </ul>
       </section>
 
       {past.length > 0 && (
-        <section aria-labelledby="h-past" className="flex flex-col gap-2 rounded-carte bg-white p-4">
+        <section aria-labelledby="h-past" className="flex flex-col gap-1 rounded-carte bg-white p-4">
           <h2 id="h-past" className="font-titre text-lg font-semibold">Derniers jours</h2>
-          <p className="text-[13px] text-gris">La pluie comptée comme arrosage à partir de {RAIN_MM} mm.</p>
-          {past.map(d => (
-            <div key={d.date} className="flex items-center justify-between text-sm">
-              <span className="font-bold">{dayLabel(d.date, t, tomorrow)}</span>
-              <span className={d.rain >= RAIN_MM ? 'font-extrabold text-eau' : 'text-gris'}>{d.rain >= 0.5 ? `${Math.round(d.rain)} mm` : 'pas de pluie'}{d.rain >= RAIN_MM ? ' · arrosage compté' : ''}</span>
-            </div>
-          ))}
+          <p className="mb-1 text-[13px] text-gris">Une pluie de {RAIN_MM} mm ou plus compte comme un arrosage.</p>
+          <ul>
+            {past.map(d => (
+              <li key={d.date} className="flex min-h-11 items-center justify-between gap-3 border-b border-dashed border-trait last:border-0">
+                <span className="font-bold">{dayName(d.date, t, tomorrow)} <span className="font-semibold text-gris">· {shortDate(d.date)}</span></span>
+                <span className={`flex items-center gap-1.5 text-sm font-bold tabular-nums ${d.rain >= RAIN_MM ? 'text-eau' : 'text-gris'}`}>
+                  <Drop size={14} />{d.rain >= 0.5 ? `${Math.round(d.rain)} mm` : 'Pas de pluie'}{d.rain >= RAIN_MM && <span className="font-semibold">· arrosage compté</span>}
+                </span>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
       <p className="text-center text-xs text-gris">Données Open-Meteo, mises à jour toutes les 30 minutes.</p>
