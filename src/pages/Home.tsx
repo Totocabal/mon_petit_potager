@@ -4,7 +4,8 @@ import { useApp } from '../lib/app';
 import { useTasks, useToggleTask, useWater } from '../lib/data';
 import { TaskSheet } from '../components/TaskSheet';
 import { BottomNav, Loading, Page, Tile, useToast } from '../components/ui';
-import { ageDays, isReady, lc, needsWater } from '../lib/garden';
+import { DropBadge } from '../components/garden';
+import { ageDays, isReady, isThirsty, lc, needsWater, nf, plantCount } from '../lib/garden';
 import { addDays, longDate, today, iso, parse, diffDays, whenText } from '../lib/dates';
 import { RAIN_MM, rainOn, SKY_LABEL, skyOf, type Weather } from '../lib/weather';
 import { WeatherIcon } from '../components/WeatherIcon';
@@ -32,11 +33,28 @@ export default function Home() {
     return { harvest: [...harvest.values()], thirsty: [...thirsty.values()] };
   }, [crops, byId, rainFor]);
 
+  // « Mes plantes » : une carte par espèce et par zone (et non par plantation), celles qui demandent un geste d'abord
+  const mine = useMemo(() => {
+    const by = new Map<string, Planting[]>();
+    for (const p of crops) if (byId.has(p.species_id)) by.set(p.species_id + '|' + p.zone_id, [...(by.get(p.species_id + '|' + p.zone_id) ?? []), p]);
+    return [...by.values()].map(ps => {
+      const s = byId.get(ps[0].species_id)!;
+      const rain = rainFor(ps[0].zone_id);
+      return {
+        key: ps[0].species_id + '|' + ps[0].zone_id, s, zoneId: ps[0].zone_id, ps,
+        plants: ps.reduce((t, p) => t + plantCount(p, s), 0),
+        thirsty: ps.filter(p => isThirsty(p, s, rain)).length,
+        ready: ps.some(p => isReady(p, s)),
+        age: Math.min(...ps.map(p => ageDays(p)))
+      };
+    }).sort((a, b) => Number(b.thirsty > 0) - Number(a.thirsty > 0) || Number(b.ready) - Number(a.ready) || a.age - b.age);
+  }, [crops, byId, rainFor]);
+
   if (loading) return <Loading />;
   const zoneName = (id: string) => zones.find(z => z.id === id)?.name ?? '';
   const todayDay = weather?.days.find(d => d.date === iso(today()));
   const todaySky = weather ? skyOf(weather.current?.code ?? todayDay?.code ?? 0) : null;
-  const recent = crops.slice().sort((a, b) => ageDays(a) - ageDays(b)).slice(0, 10);
+  const recent = mine.slice(0, 12);
 
   return (
     <Page nav wide>
@@ -99,16 +117,17 @@ export default function Home() {
       <div className="flex items-baseline justify-between"><h2 className="font-titre text-xl font-semibold">Mes plantes</h2><Link to="/potager" className="font-extrabold text-vert">Tout voir</Link></div>
       {recent.length ? (
         <div className="no-scrollbar -mr-4 flex gap-3 overflow-x-auto pb-1 lg:mr-0 lg:grid lg:grid-cols-[repeat(auto-fill,minmax(130px,1fr))] lg:gap-3.5 lg:overflow-visible lg:pb-0">
-          {recent.map(p => {
-            const s = byId.get(p.species_id)!;
-            return (
-              <Link key={p.id} to={`/plantes/${p.id}`} className="flex w-[108px] shrink-0 flex-col items-center gap-1 rounded-carte bg-white p-2.5 lg:w-auto lg:bg-fond lg:px-2.5 lg:py-3.5">
-                <Tile slug={s.slug} w={88} h={72} size={58} round={18} />
-                <b className="text-center text-sm font-extrabold">{s.name}</b>
-                <span className="text-xs text-gris">Jour {ageDays(p)}</span>
-              </Link>
-            );
-          })}
+          {recent.map(g => (
+            <Link key={g.key} to={g.ps.length === 1 ? `/plantes/${g.ps[0].id}` : `/zones/${g.zoneId}`}
+              aria-label={`${g.s.name}, ${zoneName(g.zoneId)}, ${nf(g.plants)} plant${g.plants > 1 ? 's' : ''}${g.thirsty ? ', à arroser' : ''}${g.ready ? ', à récolter' : ''}`}
+              className={`squish relative flex w-[124px] shrink-0 flex-col items-center gap-0.5 rounded-carte bg-white p-2.5 lg:w-auto lg:bg-fond lg:px-2.5 lg:py-3.5 ${g.ready ? 'shadow-[inset_0_0_0_3px_#F6C445]' : ''}`}>
+              <span className="relative"><Tile slug={g.s.slug} w={88} h={72} size={58} round={18} />{g.thirsty > 0 && <DropBadge size={20} className="!-right-1.5 !-top-1.5" />}</span>
+              <b className="mt-1 text-center text-sm font-extrabold leading-tight">{g.s.name}</b>
+              <span className="max-w-full truncate rounded-full bg-vert-doux px-2 py-0.5 text-[11px] font-extrabold text-vert">{zoneName(g.zoneId)}</span>
+              <span className="text-xs font-bold text-gris">{nf(g.plants)} plant{g.plants > 1 ? 's' : ''}</span>
+              <span className="text-center text-[11px] leading-tight text-gris">{g.thirsty ? <b className="text-eau">à arroser</b> : g.ready ? <b className="text-[#8A6A00]">à récolter</b> : g.ps.length > 1 ? `${g.ps.length} emplacements` : `Jour ${g.age}`}</span>
+            </Link>
+          ))}
         </div>
       ) : (
         <Link to="/potager" className="rounded-carte bg-white p-4 font-bold text-vert">Commencez par créer une zone et y planter quelque chose →</Link>
