@@ -82,6 +82,23 @@ export function tooClose(g: Grid, r: { x: number; y: number; w: number; h: numbe
   return out;
 }
 
+/** Ce qui reste d'une plantation après avoir libéré le rectangle [x0, x1) × [y0, y1).
+ *  Un plant qui occupe plusieurs cases est retiré en entier dès qu'il est touché. */
+export function remainingPieces(p: Pick<Planting, 'x' | 'y' | 'w' | 'h'>, r: { x0: number; x1: number; y0: number; y1: number }, unit = { w: 1, h: 1 }): { x: number; y: number; w: number; h: number }[] {
+  let ax0 = Math.max(p.x, r.x0), ax1 = Math.min(p.x + p.w, r.x1), ay0 = Math.max(p.y, r.y0), ay1 = Math.min(p.y + p.h, r.y1);
+  if (ax0 >= ax1 || ay0 >= ay1) return [{ x: p.x, y: p.y, w: p.w, h: p.h }];
+  ax0 = p.x + Math.floor((ax0 - p.x) / unit.w) * unit.w;
+  ax1 = Math.min(p.x + p.w, p.x + Math.ceil((ax1 - p.x) / unit.w) * unit.w);
+  ay0 = p.y + Math.floor((ay0 - p.y) / unit.h) * unit.h;
+  ay1 = Math.min(p.y + p.h, p.y + Math.ceil((ay1 - p.y) / unit.h) * unit.h);
+  return [
+    { x: p.x, y: p.y, w: p.w, h: ay0 - p.y },
+    { x: p.x, y: ay1, w: p.w, h: p.y + p.h - ay1 },
+    { x: p.x, y: ay0, w: ax0 - p.x, h: ay1 - ay0 },
+    { x: ax1, y: ay0, w: p.x + p.w - ax1, h: ay1 - ay0 }
+  ].filter(q => q.w > 0 && q.h > 0);
+}
+
 /** Rectangles couvrant les cases libres de [x0, x1) × [y0, y1) : segments par rang, puis rangs identiques fusionnés. */
 export function freeRects(grid: Grid, x0: number, x1: number, y0: number, y1: number): { x: number; y: number; w: number; h: number }[] {
   const out: { x: number; y: number; w: number; h: number }[] = [];

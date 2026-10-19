@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { useDeleteZone, useUpdateZone } from '../lib/data';
 import { BackHeader, Btn, Loading, Page, Sheet, Tile, useToast } from '../components/ui';
-import { CellGrid, GroundActions, RangSheet, WaterButton } from '../components/garden';
+import { CellGrid, ClearArea, GroundActions, RangSheet, WaterButton } from '../components/garden';
 import { BLOC, blocInfo, blocName, CELL_CM, isBig, isSol, meters, nf, occupancy, SPCOLOR, zoneGround } from '../lib/garden';
 import type { Zone } from '../lib/types';
 
@@ -53,6 +53,7 @@ export default function ZonePage() {
         {rang !== null && <RangSheet zone={zone} y={rang} x0={-1} onClose={() => setRang(null)} />}
         <GroundActions zone={zone} grid={grid} label={'la zone ' + zone.name} />
         <WaterButton plantings={ps} label={'la zone ' + zone.name} />
+        <ClearArea zone={zone} grid={grid} label={'la zone ' + zone.name} />
         <DeleteZone zone={zone} plants={ps.length} />
         {renaming && <RenameZone zone={zone} onClose={() => setRenaming(false)} />}
       </Page>
@@ -90,6 +91,7 @@ export default function ZonePage() {
       <p className="text-[13px] text-gris">Touchez un bloc pour voir ses cases. Contour jaune : à récolter. Coin brun : cases libres dans le bloc.</p>
       <GroundActions zone={zone} grid={grid} label={'la zone ' + zone.name} />
       <WaterButton plantings={ps} label={'la zone ' + zone.name} />
+      <ClearArea zone={zone} grid={grid} label={'la zone ' + zone.name} />
       <DeleteZone zone={zone} plants={ps.length} />
       {renaming && <RenameZone zone={zone} onClose={() => setRenaming(false)} />}
     </Page>

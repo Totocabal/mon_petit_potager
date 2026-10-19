@@ -190,29 +190,21 @@ export function useUpdatePlanting() {
   });
 }
 
-/** Libère les cases [xa, xb) du rang y : les plantations entièrement dedans sont retirées,
- *  celles qui débordent sont rognées (et découpées si besoin) en gardant leur historique. */
-export function useClearRow() {
+/** Applique des découpes : chaque plantation garde les morceaux indiqués (aucun = retirée), avec son historique. */
+export function useCutPlantings() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ ps, y, xa, xb }: { ps: Planting[]; y: number; xa: number; xb: number }) => {
+    mutationFn: async (cuts: { p: Planting; keep: { x: number; y: number; w: number; h: number }[] }[]) => {
       const now = new Date().toISOString();
-      for (const p of ps) {
-        if (y < p.y || y >= p.y + p.h || xb <= p.x || xa >= p.x + p.w) continue;
-        const pieces = [
-          { x: p.x, y: p.y, w: p.w, h: y - p.y },
-          { x: p.x, y: y + 1, w: p.w, h: p.y + p.h - y - 1 },
-          { x: p.x, y, w: xa - p.x, h: 1 },
-          { x: xb, y, w: p.x + p.w - xb, h: 1 }
-        ].filter(r => r.w > 0 && r.h > 0);
-        const [keep, ...rest] = pieces;
-        check(await supabase.from('plantings').update(keep ?? { removed_at: now }).eq('id', p.id));
+      for (const { p, keep } of cuts) {
+        const [first, ...rest] = keep;
+        check(await supabase.from('plantings').update(first ?? { removed_at: now }).eq('id', p.id));
         if (rest.length) {
           const { id: _id, created_at: _c, ...base } = p;
           check(await supabase.from('plantings').insert(rest.map(r => ({ ...base, ...r }))));
         }
       }
-      return ps[0]?.garden_id;
+      return cuts[0]?.p.garden_id;
     },
     onSuccess: (gid) => qc.invalidateQueries({ queryKey: ['plantings', gid] })
   });

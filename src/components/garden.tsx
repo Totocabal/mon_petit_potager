@@ -1,8 +1,8 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../lib/app';
-import { useAddPlantings, useClearRow, useRemovePlantings, useWater } from '../lib/data';
-import { BLOC, de, footprintText, freeRects, isMulti, isReady, isSol, lc, meters, nf, occupancy, plantingsIn, rangPlan, SPTINT, toSegments, type Grid } from '../lib/garden';
+import { useAddPlantings, useCutPlantings, useRemovePlantings, useWater } from '../lib/data';
+import { BLOC, de, footprintText, freeRects, isMulti, isReady, isSol, lc, meters, nf, occupancy, plantingsIn, rangPlan, remainingPieces, SPTINT, toSegments, type Grid } from '../lib/garden';
 import { cap, iso, today } from '../lib/dates';
 import type { Planting, Species, Zone } from '../lib/types';
 import { Btn, Note, Picto, Sheet, Tile, useToast } from './ui';
@@ -154,12 +154,43 @@ export function GroundActions({ zone, grid, area, label }: { zone: Zone; grid: G
   );
 }
 
+const unitOf = (s: Species | undefined) => ({ w: s?.span_w ?? 1, h: s?.span_h ?? 1 });
+
+/** Retire d'un coup tout ce qui occupe une zone ou un bloc (plantes, jachère, paillage), avec confirmation. */
+export function ClearArea({ zone, grid, area, label }: { zone: Zone; grid: Grid; area?: { x0: number; x1: number; y0: number; y1: number }; label: string }) {
+  const { byId } = useApp();
+  const toast = useToast();
+  const cut = useCutPlantings();
+  const [confirm, setConfirm] = useState(false);
+  const a = area ?? { x0: 0, x1: zone.cols, y0: 0, y1: zone.rows };
+  const ps = plantingsIn(grid, a.x0, a.x1, a.y0, a.y1);
+  const busy = grid.slice(a.y0, a.y1).reduce((t, row) => t + row.slice(a.x0, a.x1).filter(Boolean).length, 0);
+  if (!busy) return null;
+
+  async function clearAll() {
+    await cut.mutateAsync(ps.map(p => ({ p, keep: remainingPieces(p, a, unitOf(byId.get(p.species_id))) })));
+    toast(`${cap(label)} vidé · ${busy} case${busy > 1 ? 's' : ''} libérée${busy > 1 ? 's' : ''}`);
+    setConfirm(false);
+  }
+
+  return confirm ? (
+    <div className="flex flex-col gap-2.5 rounded-[20px] bg-alerte-doux p-4 text-[#6B2418]">
+      <p className="font-extrabold">Vider {label} ?</p>
+      <p className="text-sm">Les plantes, la jachère et le paillage de {busy} case{busy > 1 ? 's' : ''} seront retirés. Les cases redeviennent libres.</p>
+      <div className="flex gap-2"><Btn variant="danger" onClick={clearAll} disabled={cut.isPending}>{cut.isPending ? 'Suppression…' : 'Tout retirer'}</Btn><Btn variant="contour" onClick={() => setConfirm(false)}>Annuler</Btn></div>
+      {cut.isError && <p className="text-sm font-bold">{(cut.error as Error).message}</p>}
+    </div>
+  ) : (
+    <button onClick={() => setConfirm(true)} className="min-h-11 self-center font-extrabold text-alerte">Vider {label} · {busy} case{busy > 1 ? 's' : ''} occupée{busy > 1 ? 's' : ''}</button>
+  );
+}
+
 /** Feuille « Remplir le rang » : sur un bloc ou toute la zone. */
 export function RangSheet({ zone, y, x0, onClose }: { zone: Zone; y: number; x0: number; onClose: () => void }) {
   const { plantings, rels, byId, species, garden } = useApp();
   const toast = useToast();
   const add = useAddPlantings();
-  const clear = useClearRow();
+  const clear = useCutPlantings();
   const [confirmClear, setConfirmClear] = useState(false);
   const big = zone.cols > BLOC;
   const [scope, setScope] = useState<'bloc' | 'zone'>(big && x0 >= 0 ? 'bloc' : 'zone');
@@ -179,7 +210,7 @@ export function RangSheet({ zone, y, x0, onClose }: { zone: Zone; y: number; x0:
   const busy = grid[y].slice(xa, xb).filter(Boolean).length;
 
   async function clearRow() {
-    await clear.mutateAsync({ ps: inRow, y, xa, xb });
+    await clear.mutateAsync(inRow.map(p => ({ p, keep: remainingPieces(p, { x0: xa, x1: xb, y0: y, y1: y + 1 }, unitOf(byId.get(p.species_id))) })));
     toast(`Rang ${y + 1} vidé · ${busy} case${busy > 1 ? 's' : ''} libérée${busy > 1 ? 's' : ''}`);
     onClose();
   }
