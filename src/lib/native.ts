@@ -24,6 +24,16 @@ async function handleAuthUrl(url: string | undefined) {
   } catch { /* lien expiré ou déjà utilisé : l'écran de connexion reste affiché */ }
 }
 
+/** Petite vibration (appui long, validation) : retour haptique natif, ou vibreur du navigateur. */
+export async function buzz() {
+  try {
+    if (isNative) {
+      const { Haptics, ImpactStyle } = await import('@capacitor/haptics');
+      await Haptics.impact({ style: ImpactStyle.Medium });
+    } else navigator.vibrate?.(35);
+  } catch { /* pas de vibreur */ }
+}
+
 /** Réglages propres à l'app native : bouton retour d'Android, lien de connexion. */
 export async function initNative() {
   const { App } = await import('@capacitor/app');

@@ -8,6 +8,7 @@ import { ageDays, isReady, lc, needsWater } from '../lib/garden';
 import { addDays, longDate, today, iso, parse, diffDays, whenText } from '../lib/dates';
 import { RAIN_MM, rainOn, SKY_LABEL, skyOf, type Weather } from '../lib/weather';
 import { WeatherIcon } from '../components/WeatherIcon';
+import { WeatherBackdrop } from '../components/WeatherBackdrop';
 import type { Planting } from '../lib/types';
 
 export default function Home() {
@@ -33,14 +34,23 @@ export default function Home() {
 
   if (loading) return <Loading />;
   const zoneName = (id: string) => zones.find(z => z.id === id)?.name ?? '';
+  const todayDay = weather?.days.find(d => d.date === iso(today()));
+  const todaySky = weather ? skyOf(weather.current?.code ?? todayDay?.code ?? 0) : null;
   const recent = crops.slice().sort((a, b) => ageDays(a) - ageDays(b)).slice(0, 10);
 
   return (
     <Page nav wide>
-      <div className="pt-6 lg:pt-0">
-        <p className="font-bold text-gris">{longDate(today())}</p>
-        <h1 className="mt-1 font-titre text-[31px] font-semibold text-vert">Bonjour{profile?.first_name ? ' ' + profile.first_name : ''} !</h1>
-        <p className="font-bold text-gris">{garden.name}</p>
+      <WeatherBackdrop sky={todaySky} />
+      <div className="flex items-start justify-between gap-3 pt-6 lg:pt-0">
+        <div className="min-w-0">
+          <p className="font-bold text-gris">{longDate(today())}</p>
+          <h1 className="mt-1 font-titre text-[31px] font-semibold text-vert">Bonjour{profile?.first_name ? ' ' + profile.first_name : ''} !</h1>
+          <p className="font-bold text-gris">{garden.name}</p>
+        </div>
+        <Link to="/alertes" aria-label={groups.thirsty.length ? `Alertes d’arrosage : ${groups.thirsty.length} à arroser` : 'Alertes d’arrosage'} className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-white text-vert shadow-[0_4px_12px_rgba(46,107,63,0.12)]">
+          <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z" /><path d="M10 21h4" /></svg>
+          {groups.thirsty.length > 0 && <span className="absolute right-2.5 top-2.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-[#E2553F]" />}
+        </Link>
       </div>
 
       <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] lg:items-start lg:gap-6">

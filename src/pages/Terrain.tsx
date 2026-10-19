@@ -3,10 +3,13 @@ import { Link } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { useUpdateZone } from '../lib/data';
 import { BottomNav, Loading, Page, Picto, useToast } from '../components/ui';
+import { buzz } from '../lib/native';
 import { CELL_CM, isReady, isSol, meters, nf, plantCount, SPCOLOR, zoneFits, zoneGround, zoneSize } from '../lib/garden';
 import type { Zone } from '../lib/types';
 
 const SNAP_CM = 10;
+const LONG_PRESS_MS = 450;
+const PRESS_SLOP_PX = 10;
 type Drag = { id: string; sx: number; sy: number; ox: number; oy: number; x: number; y: number; scale: number; ok: boolean };
 
 export default function Terrain() {
@@ -28,6 +31,13 @@ export default function Terrain() {
       return Object.keys(next).length === Object.keys(prev).length ? prev : next;
     });
   }, [zones]);
+  // Pendant le déplacement au doigt, la page ne doit pas défiler
+  useEffect(() => {
+    if (!drag) return;
+    const stop = (e: TouchEvent) => e.preventDefault();
+    window.addEventListener('touchmove', stop, { passive: false });
+    return () => window.removeEventListener('touchmove', stop);
+  }, [drag !== null]); // eslint-disable-line react-hooks/exhaustive-deps
   const rest = (z: Zone) => saved[z.id] ?? { x: z.x_cm, y: z.y_cm };
   const at = (z: Zone) => (drag?.id === z.id ? { x: drag.x, y: drag.y } : rest(z));
 
@@ -44,6 +54,35 @@ export default function Terrain() {
     const cur = at(z);
     setDrag({ id: z.id, sx: e.clientX, sy: e.clientY, ox: cur.x, oy: cur.y, x: cur.x, y: cur.y, scale: T.w / mapRef.current.getBoundingClientRect().width, ok: true });
   }
+  // Appui long sur une zone (hors mode Organiser) : vibration, puis la zone se déplace sous le doigt
+  const press = useRef<{ timer: number; sx: number; sy: number; x: number; y: number } | null>(null);
+  const longPressed = useRef(false);
+  const cancelPress = () => { if (press.current) { clearTimeout(press.current.timer); press.current = null; } };
+  function onPressDown(e: React.PointerEvent<HTMLElement>, z: Zone) {
+    if (editing || !mapRef.current) return;
+    longPressed.current = false;
+    cancelPress();
+    const target = e.currentTarget, id = e.pointerId;
+    const p = { sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY, timer: 0 };
+    p.timer = window.setTimeout(() => {
+      press.current = null;
+      longPressed.current = true;
+      void buzz();
+      try { target.setPointerCapture(id); } catch { /* pointeur déjà relâché */ }
+      const cur = rest(z);
+      setDrag({ id: z.id, sx: p.x, sy: p.y, ox: cur.x, oy: cur.y, x: cur.x, y: cur.y, scale: T.w / mapRef.current!.getBoundingClientRect().width, ok: true });
+    }, LONG_PRESS_MS);
+    press.current = p;
+  }
+  function onPressMove(e: React.PointerEvent<HTMLElement>, z: Zone) {
+    const p = press.current;
+    if (p) {
+      p.x = e.clientX; p.y = e.clientY;
+      if (Math.hypot(p.x - p.sx, p.y - p.sy) > PRESS_SLOP_PX) cancelPress(); // le doigt fait défiler la page
+    } else onMove(e, z);
+  }
+  function onPressEnd(z: Zone) { cancelPress(); onUp(z); }
+
   function onMove(e: React.PointerEvent, z: Zone) {
     const drag = dragRef.current;
     if (!drag || drag.id !== z.id) return;
@@ -89,6 +128,7 @@ export default function Terrain() {
         </div>
         {zones.length > 0 && <button aria-pressed={editing} onClick={() => { setEditing(e => !e); setDrag(null); }} className={`mt-1 min-h-11 shrink-0 rounded-2xl px-4 font-extrabold ${editing ? 'bg-vert text-white' : 'bg-white text-vert'}`}>{editing ? 'Terminé' : 'Organiser'}</button>}
       </div>
+      {!editing && zones.length > 0 && <p className="-mt-2 text-xs text-gris">Astuce : appuyez longuement sur une zone pour la déplacer.</p>}
       {editing && <p className="-mt-2 text-sm font-bold text-gris">Glissez une zone pour la déplacer. Au clavier : touchez une zone puis les flèches (30 cm par appui).</p>}
 
       <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:items-start lg:gap-6">
@@ -113,7 +153,10 @@ export default function Terrain() {
               className={`absolute touch-none select-none overflow-hidden rounded-md bg-terre ${dragging ? 'z-10 cursor-grabbing' : 'cursor-grab'} ${dragging && !drag.ok ? 'opacity-80' : ''}`}
               style={style}>{inner}</div>
           ) : (
-            <Link key={z.id} to={`/zones/${z.id}`} aria-label={z.name} className="absolute overflow-hidden rounded-md bg-terre" style={style}>{inner}</Link>
+            <Link key={z.id} to={`/zones/${z.id}`} aria-label={z.name} draggable={false}
+              onPointerDown={e => onPressDown(e, z)} onPointerMove={e => onPressMove(e, z)} onPointerUp={() => onPressEnd(z)} onPointerCancel={() => { cancelPress(); setDrag(null); }}
+              onContextMenu={e => e.preventDefault()} onClick={e => { if (longPressed.current) { e.preventDefault(); longPressed.current = false; } }}
+              className={`absolute select-none overflow-hidden rounded-md bg-terre [-webkit-touch-callout:none] ${dragging ? 'z-10' : ''} ${dragging && !drag.ok ? 'opacity-80' : ''}`} style={style}>{inner}</Link>
           );
         })}
         <span className="absolute right-2.5 top-2.5 flex h-7 w-7 items-center justify-center rounded-full bg-white font-titre text-[13px] font-semibold">N</span>

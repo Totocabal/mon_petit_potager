@@ -25,7 +25,7 @@ import SpeciesSheet from './pages/SpeciesSheet';
 
 export default function App() {
   const session = useSession();
-  if (session === undefined) return <Loading />;
+  if (session === undefined) return <Loading full />;
   if (!session) return <LoggedOut />;
   return <Signed session={session} />;
 }
@@ -46,7 +46,7 @@ function Signed({ session }: { session: NonNullable<ReturnType<typeof useSession
   const { pathname } = useLocation();
   const pending = INVITE_PATH.exec(pathname)?.[1] ?? safeGet(INVITE_KEY);
   if (pending) return <AcceptInvite token={pending} onJoined={select} />;
-  if (loading) return <Loading />;
+  if (loading) return <Loading full />;
   if (!garden) return <Onboarding onCreated={select} />;
   return (
     <AppProvider session={session} garden={garden} gardens={gardens} selectGarden={select}>

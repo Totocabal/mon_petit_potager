@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#EAF2E3" />
     <title>Mon petit potager</title>
+    <style>
+      html, body { margin: 0; background: #EAF2E3; }
+      .boot { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; font: 600 18px/1.2 Fredoka, 'Trebuchet MS', system-ui, sans-serif; color: #2E6B3F; }
+      .boot img { display: block; transform-origin: 50% 100%; animation: boot-hop .95s cubic-bezier(.35, 0, .4, 1) infinite; }
+      .boot i { display: block; width: 58px; height: 10px; margin: 6px auto 0; border-radius: 50%; background: #23402B; animation: boot-shadow .95s cubic-bezier(.35, 0, .4, 1) infinite; }
+      @keyframes boot-hop { 0%, 100% { transform: translateY(0) scale(1.07, .93); } 50% { transform: translateY(-28px) scale(.97, 1.03); } }
+      @keyframes boot-shadow { 0%, 100% { transform: scale(1); opacity: .26; } 50% { transform: scale(.55); opacity: .1; } }
+      @media (prefers-reduced-motion: reduce) { .boot img, .boot i { animation: none; } }
+    </style>
     <link rel="icon" type="image/svg+xml" href="/pictos/tomate.svg" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
@@ -15,7 +24,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><div class="boot" role="status"><div style="padding-top:32px"><img src="/pictos/tomate.svg" alt="" width="88" height="88" /><i></i></div>Chargement…</div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

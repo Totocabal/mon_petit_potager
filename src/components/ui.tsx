@@ -82,7 +82,7 @@ export function BottomNav() {
 }
 
 export function Page({ children, nav = false, wide = false }: { children: ReactNode; nav?: boolean; wide?: boolean }) {
-  return <main className={`mx-auto flex min-h-full max-w-[440px] flex-col gap-4 overflow-x-clip px-4 pt-5 lg:gap-5 lg:px-8 lg:pb-12 lg:pt-8 ${wide ? 'lg:max-w-[1180px]' : 'lg:max-w-[760px]'} ${nav ? 'pb-32' : 'pb-40'}`}>{children}</main>;
+  return <main className={`relative mx-auto flex min-h-full max-w-[440px] flex-col gap-4 overflow-x-clip px-4 pt-5 lg:gap-5 lg:px-8 lg:pb-12 lg:pt-8 ${wide ? 'lg:max-w-[1180px]' : 'lg:max-w-[760px]'} ${nav ? 'pb-32' : 'pb-40'}`}>{children}</main>;
 }
 
 export function Sheet({ children, onClose, title }: { children: ReactNode; onClose: () => void; title: string }) {
@@ -135,6 +135,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function Loading({ label = 'Chargement…' }: { label?: string }) {
-  return <div className="flex min-h-[60vh] items-center justify-center font-bold text-gris">{label}</div>;
+export function Loading({ label = 'Chargement…', full = false }: { label?: string; full?: boolean }) {
+  return (
+    <div role="status" aria-live="polite" className={`flex flex-col items-center justify-center gap-4 ${full ? 'min-h-[100dvh]' : 'min-h-[60vh]'}`}>
+      <div className="pt-8">
+        <img src="/pictos/tomate.svg" alt="" width={88} height={88} className="loader-tomato" draggable={false} />
+        <span className="loader-shadow" aria-hidden="true" />
+      </div>
+      <p className="font-titre text-lg font-semibold text-vert">{label.replace(/…$/, '')}<span className="loader-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p>
+    </div>
+  );
 }
