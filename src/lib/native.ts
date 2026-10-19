@@ -21,6 +21,9 @@ async function handleAuthUrl(url: string | undefined) {
   try {
     if (access && refresh) await supabase.auth.setSession({ access_token: access, refresh_token: refresh });
     else if (code) await supabase.auth.exchangeCodeForSession(code);
+    // Connexion Google : referme la page du navigateur restée ouverte
+    const { Browser } = await import('@capacitor/browser');
+    await Browser.close().catch(() => undefined);
   } catch { /* lien expiré ou déjà utilisé : l'écran de connexion reste affiché */ }
 }
 

@@ -126,4 +126,4 @@ Sur le site web, le bouton « Continuer avec Google » passe par Supabase. Régl
 2. Supabase (*Authentication → Providers → Google*) : activer le fournisseur et y saisir l'identifiant client et le secret.
 3. Supabase (*Authentication → URL Configuration*) : ajouter l'adresse du site dans les *Redirect URLs*.
 
-Le bouton n'est pas encore proposé dans l'app Android et iOS : cela demande une connexion Google native (identifiants Android et iOS dédiés).
+Dans l'app Android et iOS, le bouton ouvre Google dans le navigateur du téléphone, puis le lien de retour `fr.monpetitpotager.app://` rouvre l'app : il faut donc `fr.monpetitpotager.app://**` dans les *Redirect URLs* de Supabase. Aucun identifiant Android ou iOS n'est nécessaire.
