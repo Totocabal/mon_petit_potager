@@ -30,7 +30,7 @@ export default function SpeciesSheet() {
   }, [s, species, rels]);
 
   if (loading) return null;
-  if (!s || isSol(s)) return <Page><BackHeader title="Plante introuvable" /><Link to="/glossaire" className="font-extrabold text-vert">Retour au glossaire →</Link></Page>;
+  if (!s || isSol(s)) return <Page><BackHeader title="Plante introuvable" /><Link to="/almanach?vue=toutes" className="font-extrabold text-vert">Retour aux plantes →</Link></Page>;
 
   const mine = crops.filter(p => p.species_id === s.id);
   const varieties = varietiesOf(s.id);
@@ -99,7 +99,7 @@ export default function SpeciesSheet() {
       <div className="rounded-carte bg-vert-doux p-4 text-sm font-bold text-vert-fonce">
         {mine.length ? `Dans votre potager : ${mine.length} plantation${mine.length > 1 ? 's' : ''} (${where.join(', ')}).` : `Vous n’en cultivez pas encore : ${lc(s.name)} se plante depuis la page d’une zone.`}
       </div>
-      <Link to="/glossaire" className="self-center py-2 font-extrabold text-vert">← Tout le glossaire</Link>
+      <Link to="/almanach?vue=toutes" className="self-center py-2 font-extrabold text-vert">← Toutes les plantes</Link>
     </Page>
   );
 }

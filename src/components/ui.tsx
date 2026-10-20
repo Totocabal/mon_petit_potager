@@ -34,9 +34,8 @@ export function BackHeader({ title, kicker, right }: { title: string; kicker?: s
 const tabs = [
   { to: '/', label: 'Accueil', d: 'M3 11l9-7 9 7M5 10v10h14V10M10 20v-5h4v5' },
   { to: '/potager', label: 'Potager', d: 'M12 20v-8M12 12c0-4-3-6-7-6 0 4 3 6 7 6zM12 10c0-3 2-5 6-5 0 3-2 5-6 5zM5 20h14' },
-  { to: '/almanach', label: 'Almanach', d: 'M4 8a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3zM8 3v4M16 3v4M4 10h16' },
-  { to: '/mon-calendrier', label: 'Mon Calendrier', d: 'M4 8a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3zM8 3v4M16 3v4M8 14l3 3 5-5' },
-  { to: '/glossaire', label: 'Glossaire', d: 'M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3zM5 17a3 3 0 0 1 3-3h11M9 8h6' },
+  { to: '/mon-calendrier', label: 'Calendrier', d: 'M4 8a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3zM8 3v4M16 3v4M8 14l3 3 5-5' },
+  { to: '/almanach', label: 'Plantes', d: 'M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3zM5 17a3 3 0 0 1 3-3h11M9 8h6' },
   { to: '/profil', label: 'Profil', d: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 20c1.5-4 4.5-6 8-6s6.5 2 8 6' }
 ];
 const sideTabs = [
@@ -44,9 +43,8 @@ const sideTabs = [
   { ...tabs[1], label: 'Mon potager' },
   tabs[2],
   tabs[3],
-  tabs[4],
   { to: '/alertes', label: 'Alertes d’arrosage', d: 'M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 21h4' },
-  tabs[5]
+  tabs[4]
 ];
 
 /** Navigation latérale, affichée à la place de la barre du bas sur grand écran. */
