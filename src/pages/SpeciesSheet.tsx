@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { BackHeader, Page, Tile } from '../components/ui';
@@ -78,7 +78,7 @@ export default function SpeciesSheet() {
       <Block title="Semis et plantation">{s.sowing}</Block>
       <Block title="Sol et exposition">{s.soil}</Block>
       <Block title="Entretien">{s.care}</Block>
-      <Pests pests={s.pests} treatment={s.pests_treatment} />
+      <Pests key={s.id} pests={s.pests} treatment={s.pests_treatment} />
       <Block title="Récolte et conservation">{s.harvest_tips}</Block>
       {s.rotation_years != null && <Block title="Rotation">{`Famille des ${s.family}. Ne replantez pas une plante de cette famille au même endroit avant ${s.rotation_years} ans, pour limiter maladies et épuisement du sol. L’application vous prévient et évite ces cases quand elle génère un plan.`}</Block>}
       {s.notes && <p className="rounded-2xl bg-soleil-doux px-3 py-2.5 text-sm font-bold text-soleil-encre">{s.notes}</p>}
@@ -110,20 +110,159 @@ export const treatmentItems = (text: string): { label: string | null; body: stri
     return i > 0 && i < 40 ? { label: part.slice(0, i), body: part.slice(i + 3) } : { label: null, body: part };
   });
 
-function Pests({ pests, treatment }: { pests: string | null; treatment: string | null }) {
+const SYMPTOMS: Record<string, string> = {
+  'Acariens': 'Feuillage piqueté de jaune qui bronze par temps chaud, fines toiles sous les feuilles',
+  'Aleurodes': 'Nuage de minuscules mouches blanches qui s’envolent dès qu’on touche les feuilles',
+  'Altises': 'Feuilles criblées de nombreux petits trous ronds, petits insectes noirs sauteurs',
+  'Altises et mouche du chou': 'Feuilles criblées de petits trous ronds ou jeunes plants qui flétrissent',
+  'Botrytis': 'Duvet grisâtre et pourriture molle sur les fruits ou les feuilles',
+  'Bruches': 'Petits trous ronds bien nets dans les graines récoltées ou les cosses',
+  'Cercosporiose': 'Petites taches rondes grises bordées de rouge ou de brun sur les feuilles',
+  'Chancre': 'Taches brun-roux à noires au collet et sur le haut de la racine',
+  'Chenilles (piéride, noctuelle)': 'Feuilles dévorées, chenilles vertes ou grises et petits œufs sous les feuilles',
+  'Cochenilles': 'Petits boucliers bruns ou amas cotonneux collés sur les tiges',
+  'Corbeaux': 'Graines déterrées et jeunes plantules arrachées juste après le semis',
+  'Criocère': 'Petits coléoptères rouge et noir et larves grises qui dévorent les tiges',
+  'Doryphores': 'Insectes rayés jaune et noir ou larves rouge orangé qui dévorent les feuilles',
+  'Drageons': 'Rejets qui repoussent à distance du pied et envahissent les cultures voisines',
+  'Hernie': 'Plant qui flétrit au soleil, racines gonflées de renflements difformes',
+  'Limaces': 'Feuilles ou jeunes pousses trouées la nuit, avec traces de bave brillantes',
+  'Limaces sur les jeunes plants': 'Jeunes plants grignotés ou coupés la nuit, traces de bave au sol',
+  'Limaces sur les jeunes pousses': 'Jeunes pousses trouées ou rongées au ras du sol au printemps',
+  'Mildiou': 'Taches brunes sur les feuilles et les tiges, fruits qui brunissent par temps humide',
+  'Mineuse': 'Plages claires ou galeries sinueuses creusées dans l’épaisseur des feuilles',
+  'Montée à graines': 'La plante file en hauteur et fleurit prématurément, feuilles plus coriaces',
+  'Mouche': 'Turions déformés ou tiges qui jaunissent et sèchent (galeries à l’intérieur)',
+  'Mouche de l\'oignon': 'Feuilles centrales qui jaunissent et ramollissent, asticots dans le bulbe',
+  'Mouche de la carotte': 'Galeries brunes dans la racine, feuillage qui rougit puis jaunit',
+  'Mouche du chou': 'Jeunes plants qui flétrissent et prennent une teinte gris-bleuté (larves aux racines)',
+  'Mouche du céleri': 'Taches claires boursouflées (galeries) dans l’épaisseur des feuilles',
+  'Mouche mineuse': 'Fûts fendus et déformés, stries de piqûres alignées sur les feuilles',
+  'Noctuelles': 'Grosses chenilles grises ou vertes qui rongent feuilles, collet ou fruits la nuit',
+  'Nématodes': 'Croissance ralentie, racines fourchues, déformées ou porteuses de petites galles',
+  'Oiseaux': 'Graines déterrées, jeunes pousses pincées ou fruits picorés à maturité',
+  'Oïdium': 'Feutrage blanc poudreux (comme de la farine) sur les feuilles et les tiges',
+  'Piéride': 'Feuilles dévorées par des chenilles vertes, petits œufs jaunes sous les feuilles',
+  'Pourriture': 'Collet ou base des tiges qui noircit et ramollit en sol trop humide',
+  'Pourriture apicale': 'Tache noire et sèche au sommet (au bout) du fruit (« cul noir »)',
+  'Pourriture blanche': 'Feutrage blanc cotonneux au collet et sur le bulbe, feuilles qui jaunissent',
+  'Pourriture des racines': 'Feuillage qui jaunit et dépérit alors que la terre reste humide',
+  'Pourriture du collet': 'Base du bulbe molle et brunâtre en fin de culture ou au stockage',
+  'Pourriture grise': 'Duvet grisâtre et fruits qui ramollissent par temps humide',
+  'Pucerons': 'Colonies de petits insectes sous les feuilles et sur les tiges, feuilles recroquevillées ou collantes',
+  'Pucerons cendrés': 'Colonies d’insectes gris farineux qui enroulent et déforment les feuilles',
+  'Pucerons noirs': 'Amas de petits insectes noirs au sommet des tiges et sous les jeunes feuilles',
+  'Pucerons verts': 'Petits insectes verts groupés sur les jeunes pousses et les boutons floraux',
+  'Pyrale': 'Tiges percées qui cassent ou épis rongés par une chenille claire',
+  'Rouille': 'Petites pustules ou taches orangées à brunes sur les feuilles',
+  'Rouille et septoriose': 'Taches orangées ou brunes qui dessèchent progressivement le feuillage',
+  'Taupins': 'Jeunes plants qui flétrissent ou tubercules percés de petites galeries rondes',
+  'Teigne': 'Galeries dans les feuilles puis au cœur du fût, petites chenilles vert pâle',
+  'Tenthrède': 'Fausses-chenilles vertes mouchetées de noir qui dévorent le bord des feuilles',
+  'Tordeuse': 'Cosses contenant de petites chenilles jaunâtres et des grains rongés',
+  'Ver du framboisier': 'Petits vers blanc crème à l’intérieur des fruits mûrs',
+};
+
+export const symptomFor = (label: string): string => SYMPTOMS[label] ?? label;
+
+export function Pests({ pests, treatment }: { pests: string | null; treatment: string | null }) {
+  const [selected, setSelected] = useState<number[]>([]);
+  const [showAll, setShowAll] = useState(false);
+
   if (!treatment) return <Block title="Ravageurs et maladies">{pests}</Block>;
+
+  const items = treatmentItems(treatment);
+  const labeled = items.map((t, i) => ({ ...t, index: i, symptom: t.label ? symptomFor(t.label) : null })).filter((t): t is { label: string; body: string; index: number; symptom: string } => t.label !== null);
+  const extras = items.filter(t => t.label === null);
+
+  function toggleSymptom(idx: number) {
+    setShowAll(false);
+    setSelected(cur => (cur.includes(idx) ? cur.filter(x => x !== idx) : [...cur, idx]));
+  }
+
+  function toggleAll() {
+    if (showAll) {
+      setShowAll(false);
+    } else {
+      setSelected([]);
+      setShowAll(true);
+    }
+  }
+
+  const visible = showAll ? labeled : labeled.filter(t => selected.includes(t.index));
+
   return (
-    <section className="flex flex-col gap-2.5 rounded-carte bg-white p-4">
-      <h2 className="font-titre text-lg font-semibold">Ravageurs et maladies</h2>
-      <ul className="flex flex-col gap-2">
-        {treatmentItems(treatment).map((t, i) => (
-          <li key={i} className="flex flex-col gap-0.5 rounded-2xl bg-vert-doux/60 px-3 py-2">
-            {t.label && <b className="text-[13px] font-extrabold text-vert">{t.label}</b>}
-            <span className="text-[15px] leading-snug">{t.body}</span>
-          </li>
-        ))}
-      </ul>
-      <p className="text-xs text-gris">Le préventif passe avant tout : aérer, pailler, arroser au pied. Lisez la notice de chaque produit et traitez le soir, hors floraison.</p>
+    <section className="flex flex-col gap-3 rounded-carte bg-white p-4">
+      <div className="flex items-baseline justify-between gap-2">
+        <h2 className="font-titre text-lg font-semibold">Ravageurs et maladies</h2>
+        <button
+          type="button"
+          onClick={toggleAll}
+          className="text-xs font-extrabold text-vert underline-offset-2 hover:underline"
+        >
+          {showAll ? 'Masquer tout' : `Tout voir (${labeled.length})`}
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <p className="text-xs font-extrabold text-gris">Quels symptômes observez-vous ?</p>
+        <div className="flex flex-col gap-1.5" role="group" aria-label="Symptômes observés">
+          {labeled.map(t => {
+            const on = selected.includes(t.index);
+            return (
+              <button
+                key={t.index}
+                type="button"
+                aria-pressed={on}
+                onClick={() => toggleSymptom(t.index)}
+                className={`squish flex items-start gap-2.5 rounded-2xl border-2 px-3 py-2.5 text-left text-[14px] font-bold leading-snug transition-colors ${
+                  on ? 'border-vert bg-vert-doux text-vert-fonce' : 'border-trait bg-fond/60 text-encre hover:border-vert/40'
+                }`}
+              >
+                <span
+                  aria-hidden="true"
+                  className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 text-xs ${
+                    on ? 'border-vert bg-vert text-white' : 'border-gris/50 bg-white'
+                  }`}
+                >
+                  {on && '✓'}
+                </span>
+                <span className="flex-1">{t.symptom}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {visible.length > 0 && (
+        <div className="flex flex-col gap-2 pt-1">
+          <p className="text-xs font-extrabold text-vert">
+            {showAll
+              ? 'Tous les ravageurs, maladies et traitements'
+              : visible.length === 1
+                ? 'Diagnostic et traitement'
+                : `Diagnostics identifiés (${visible.length})`}
+          </p>
+          <ul className="flex flex-col gap-2">
+            {visible.map(t => (
+              <li key={t.index} className="flex flex-col gap-1 rounded-2xl bg-vert-doux/70 px-3.5 py-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <b className="text-[14px] font-extrabold text-vert">{t.label}</b>
+                  {!showAll && <span className="rounded-full bg-vert px-2 py-0.5 text-[11px] font-extrabold text-white">Identifié</span>}
+                </div>
+                {showAll && <span className="text-xs font-bold text-gris">Symptôme : {t.symptom.charAt(0).toLowerCase() + t.symptom.slice(1)}.</span>}
+                <span className="text-[15px] leading-snug"><b className="font-extrabold text-vert-fonce">Traitement : </b>{t.body}</span>
+              </li>
+            ))}
+            {extras.map((e, i) => (
+              <li key={'extra-' + i} className="rounded-2xl bg-vert-doux/40 px-3.5 py-2 text-[14px] font-bold text-vert-fonce">
+                {e.body}
+              </li>
+            ))}
+          </ul>
+          <p className="text-xs text-gris">Le préventif passe avant tout : aérer, pailler, arroser au pied. Lisez la notice de chaque produit et traitez le soir, hors floraison.</p>
+        </div>
+      )}
     </section>
   );
 }

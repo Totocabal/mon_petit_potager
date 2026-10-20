@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { useUpdatePlanting, useWater } from '../lib/data';
 import { BackHeader, Btn, Page, Tile, useToast } from '../components/ui';
+import { Pests } from './SpeciesSheet';
 import { ageDays, everyDays, isReady, isSol, lc, needsWater, neighbors, nextWater, nf, occupancy, placeText, plantCount, stage, stageNames } from '../lib/garden';
 import { cap, fmt, iso, monthsText, parse, today, whenText } from '../lib/dates';
 
@@ -90,6 +91,7 @@ export default function PlantPage() {
         {!nb.good.length && !nb.bad.length && <p className="text-sm text-gris">Pas de voisine qui l’aide ou la gêne.</p>}
         {s.notes && <p className="rounded-2xl bg-soleil-doux px-3 py-2.5 text-sm font-bold text-soleil-encre">{s.notes}</p>}
       </div>
+      <Pests key={s.id} pests={s.pests} treatment={s.pests_treatment} />
       <Link to={`/glossaire/${s.slug}`} className="flex min-h-14 items-center justify-between rounded-carte bg-white px-4 font-extrabold text-vert">Fiche complète : {lc(s.name)}<span aria-hidden>→</span></Link>
       {ready && <Btn variant="doux" onClick={() => remove(true)} disabled={update.isPending}>Récolte terminée, libérer les cases</Btn>}
       {confirm ? (
