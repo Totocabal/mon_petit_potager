@@ -6,13 +6,13 @@ import { freeRects, isSol, lc, plantingsIn, remainingPieces, type Grid } from '.
 import { cap, iso, today } from '../lib/dates';
 import { CELL_CM, meters, nf } from '../lib/garden';
 import type { Zone } from '../lib/types';
-import { Btn, Sheet, Tile, useToast } from './ui';
+import { Btn, Icon, Sheet, Tile, useToast, type IconName } from './ui';
 import { unitOf } from './garden';
 
-function Row({ icon, title, sub, danger = false, to, onClick }: { icon: ReactNode; title: string; sub?: string; danger?: boolean; to?: string; onClick?: () => void }) {
+function Row({ icon, title, sub, danger = false, to, onClick }: { icon: IconName; title: string; sub?: string; danger?: boolean; to?: string; onClick?: () => void }) {
   const inner = (
     <>
-      <span aria-hidden="true" className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] text-xl ${danger ? 'bg-alerte-doux' : 'bg-vert-doux'}`}>{icon}</span>
+      <span aria-hidden="true" className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] ${danger ? 'bg-alerte-doux text-alerte' : 'bg-vert-doux text-vert'}`}><Icon name={icon} /></span>
       <span className="flex min-w-0 flex-1 flex-col"><b className={`font-extrabold ${danger ? 'text-alerte' : ''}`}>{title}</b>{sub && <span className="text-[13px] leading-snug text-gris">{sub}</span>}</span>
       <span aria-hidden="true" className="text-2xl font-bold text-[#9AA79C]">›</span>
     </>
@@ -73,7 +73,7 @@ export function ZoneMenu({ zone, grid, onClose, onRename, onResize }: { zone: Zo
     return (
       <Sheet title={vider ? 'Vider la zone ?' : 'Supprimer la zone ?'} onClose={() => setConfirm(null)} reserveSpace={false}>
         <div className="flex flex-col items-center gap-2 text-center">
-          <span aria-hidden="true" className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-alerte-doux text-3xl">{vider ? '🧹' : '🗑️'}</span>
+          <span aria-hidden="true" className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-alerte-doux text-alerte"><Icon name={vider ? 'broom' : 'trash'} size={30} /></span>
           {vider ? (
             <>
               <p>Les <b>{nf(busyCells)} case{busyCells > 1 ? 's' : ''} occupée{busyCells > 1 ? 's' : ''}</b> sont libérées{names.length ? ' : ' + names.map(lc).join(', ') : ''}.</p>
@@ -99,7 +99,7 @@ export function ZoneMenu({ zone, grid, onClose, onRename, onResize }: { zone: Zo
       {free > 0 && (
         <>
           <Label>Planter</Label>
-          <Row icon="✨" title="Générer un plan automatique" sub={`Propose des plantes compatibles pour les ${nf(free)} case${free > 1 ? 's' : ''} libre${free > 1 ? 's' : ''}`} to={`/zones/${zone.id}/generer`} />
+          <Row icon="sparkles" title="Générer un plan automatique" sub={`Propose des plantes compatibles pour les ${nf(free)} case${free > 1 ? 's' : ''} libre${free > 1 ? 's' : ''}`} to={`/zones/${zone.id}/generer`} />
           <Label>Couvrir les cases libres</Label>
           <div className="grid grid-cols-2 gap-2.5">
             {([['jachere', 'Jachère', 'Laisser reposer'], ['paillage', 'Paillage', 'Protéger le sol']] as const).map(([slug, name, hint]) => (
@@ -110,13 +110,13 @@ export function ZoneMenu({ zone, grid, onClose, onRename, onResize }: { zone: Zo
           </div>
         </>
       )}
-      {covers.length > 0 && (<><Label>Sol</Label><Row icon="🌱" title="Remettre en culture" sub="Retire la jachère et le paillage" onClick={uncover} /></>)}
+      {covers.length > 0 && (<><Label>Sol</Label><Row icon="sprout" title="Remettre en culture" sub="Retire la jachère et le paillage" onClick={uncover} /></>)}
       <Label>La zone</Label>
-      <Row icon="✏️" title="Renommer" onClick={onRename} />
-      <Row icon="📐" title="Modifier la taille" sub="Agrandir vers l’est et le sud" onClick={onResize} />
+      <Row icon="pencil" title="Renommer" onClick={onRename} />
+      <Row icon="resize" title="Modifier la taille" sub="Agrandir vers l’est et le sud" onClick={onResize} />
       <Label danger>Zone de danger</Label>
-      {busyCells > 0 && <Row danger icon="🧹" title="Vider la zone" sub={`Libère les ${nf(busyCells)} case${busyCells > 1 ? 's' : ''} occupée${busyCells > 1 ? 's' : ''}`} onClick={() => setConfirm('vider')} />}
-      <Row danger icon="🗑️" title="Supprimer la zone" sub="Supprime la zone et toutes ses plantations" onClick={() => setConfirm('supprimer')} />
+      {busyCells > 0 && <Row danger icon="broom" title="Vider la zone" sub={`Libère les ${nf(busyCells)} case${busyCells > 1 ? 's' : ''} occupée${busyCells > 1 ? 's' : ''}`} onClick={() => setConfirm('vider')} />}
+      <Row danger icon="trash" title="Supprimer la zone" sub="Supprime la zone et toutes ses plantations" onClick={() => setConfirm('supprimer')} />
       {error && <p className="text-sm font-bold text-alerte">{error.message}</p>}
     </Sheet>
   );

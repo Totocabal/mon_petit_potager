@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { useUpdatePlanting, useWater } from '../lib/data';
-import { BackHeader, Btn, Fold, Page, Tile, useToast } from '../components/ui';
+import { BackHeader, Btn, Fold, Icon, Page, Tile, useToast } from '../components/ui';
 import { Pests } from './SpeciesSheet';
 import { VarietyPicker } from '../components/VarietyPicker';
 import { ageDays, everyDays, varietyFields, isPlanned, isReady, isSol, lc, needsWater, neighbors, nextWater, nf, occupancy, placeText, plantCount, stage, stageNames } from '../lib/garden';
@@ -121,7 +121,7 @@ export default function PlantPage() {
       )}
       {!planned && (
         <div className="fixed bottom-[calc(14px+env(safe-area-inset-bottom))] left-1/2 z-20 w-[min(408px,calc(100%-24px))] -translate-x-1/2 lg:left-[calc(50%+142px)]">
-          <Btn variant={wateredToday ? 'doux' : 'eau'} onClick={onWater} disabled={water.isPending || wateredToday} className="shadow-[0_10px_22px_rgba(63,125,160,0.35)]">{wateredToday ? '✓ Arrosée aujourd’hui' : '💧 J’ai arrosé'}</Btn>
+          <Btn variant={wateredToday ? 'doux' : 'eau'} onClick={onWater} disabled={water.isPending || wateredToday} className="shadow-[0_10px_22px_rgba(63,125,160,0.35)]">{wateredToday ? '✓ Arrosée aujourd’hui' : <><Icon name="drop" size={20} />J’ai arrosé</>}</Btn>
         </div>
       )}
     </Page>

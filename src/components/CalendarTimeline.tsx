@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import type { CalendarDay, CalendarEvent } from '../lib/calendar';
 import { addDays, fmt, iso, JOURS, cap, parse } from '../lib/dates';
 import type { Variety, Zone } from '../lib/types';
-import { Tile } from './ui';
+import { Icon, Tile, type IconName } from './ui';
 
 type CompletableEvent = Extract<CalendarEvent, { kind: 'water' | 'task' }>;
 type Common = { zones: Zone[]; varieties: Map<string, Variety>; current: string; pending: string | null; onComplete: (event: CompletableEvent) => void };
@@ -49,20 +49,20 @@ function DayCard({ events, isToday, ...c }: { events: CalendarEvent[]; isToday: 
     <ul className="flex flex-col rounded-carte bg-white px-4 py-1">
       {shown.map(e => <EventRow key={e.id} event={e} isToday={isToday} {...c} />)}
       {done.length > VISIBLE && <li><button type="button" aria-expanded={more} onClick={() => setMore(m => !m)} className="flex min-h-11 w-full items-center justify-center font-extrabold text-vert">{more ? 'Réduire' : `+ ${done.length - VISIBLE} autre${done.length - VISIBLE > 1 ? 's' : ''} geste${done.length - VISIBLE > 1 ? 's' : ''}`}</button></li>}
-      {harvest.length > 0 && <Summary label="Récolter" icon="🧺" tone="bg-soleil-doux" events={harvest} isToday={isToday} {...c} />}
-      {sow.length > 0 && <Summary label="Semer ou planter" icon="🌱" tone="bg-vert-doux" events={sow} isToday={isToday} {...c} />}
+      {harvest.length > 0 && <Summary label="Récolter" icon="basket" tone="bg-soleil-doux text-soleil-encre" events={harvest} isToday={isToday} {...c} />}
+      {sow.length > 0 && <Summary label="Semer ou planter" icon="sprout" tone="bg-vert-doux text-vert" events={sow} isToday={isToday} {...c} />}
     </ul>
   );
 }
 
 /** Une ligne qui résume plusieurs gestes de même nature et les déplie à la demande. */
-function Summary({ label, icon, tone, events, isToday, ...c }: { label: string; icon: string; tone: string; events: CalendarEvent[]; isToday: boolean } & Common) {
+function Summary({ label, icon, tone, events, isToday, ...c }: { label: string; icon: IconName; tone: string; events: CalendarEvent[]; isToday: boolean } & Common) {
   const [open, setOpen] = useState(false);
   const n = events.length;
   return (
     <li className="border-b border-dashed border-trait last:border-0">
       <button type="button" aria-expanded={open} onClick={() => setOpen(o => !o)} className="flex min-h-[58px] w-full items-center gap-3 text-left">
-        <span aria-hidden="true" className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xl ${tone}`}>{icon}</span>
+        <span aria-hidden="true" className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${tone}`}><Icon name={icon} /></span>
         <span className="flex min-w-0 flex-1 flex-col"><b className="font-extrabold">{label}</b><span className="truncate text-[13px] text-gris">{n} plante{n > 1 ? 's' : ''}{label === 'Récolter' ? (isToday ? ' à maturité estimée' : ' · date estimée') : ' · période favorable'}</span></span>
         <span className="font-extrabold text-vert">{open ? 'Réduire' : 'Voir →'}</span>
       </button>

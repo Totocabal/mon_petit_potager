@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { useTasks, useToggleTask, useWater } from '../lib/data';
 import { TaskSheet } from '../components/TaskSheet';
-import { BottomNav, Btn, Loading, Page, Sheet, Tile, useToast } from '../components/ui';
+import { BottomNav, Btn, Icon, Loading, Page, Sheet, Tile, useToast } from '../components/ui';
 import { DropBadge } from '../components/garden';
 import { ageDays, isReady, isThirsty, needsWater, nf, plantCount } from '../lib/garden';
 import { addDays, fmt, longDate, today, iso, parse, diffDays, whenText } from '../lib/dates';
@@ -133,7 +133,7 @@ function TodayCard({ thirsty, harvest, tasks, zoneName, onWater, onHarvest, onTa
         {nWater > 0 && (
           <div className="flex flex-col gap-2.5 border-b border-dashed border-trait py-2.5">
             <div className="flex items-center gap-3">
-              <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-ciel text-xl">💧</span>
+              <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-ciel text-eau"><Icon name="drop" /></span>
               <span className="flex min-w-0 flex-1 flex-col"><b className="font-extrabold">Arroser</b><span className="truncate text-[13px] text-gris">{nWater} plante{nWater > 1 ? 's' : ''} · {where(thirsty)}</span></span>
             </div>
             <Btn variant="eau" onClick={onWater} className="!min-h-11 !text-[15px]">Tout arroser · {nWater} plante{nWater > 1 ? 's' : ''}</Btn>
@@ -141,7 +141,7 @@ function TodayCard({ thirsty, harvest, tasks, zoneName, onWater, onHarvest, onTa
         )}
         {nHarvest > 0 && (
           <button type="button" onClick={onHarvest} className="squish flex min-h-[58px] items-center gap-3 border-b border-dashed border-trait text-left">
-            <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-soleil-doux text-xl">🧺</span>
+            <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-soleil-doux text-soleil-encre"><Icon name="basket" /></span>
             <span className="flex min-w-0 flex-1 flex-col"><b className="font-extrabold">Récolter</b><span className="truncate text-[13px] text-gris">{nHarvest} plante{nHarvest > 1 ? 's' : ''} prête{nHarvest > 1 ? 's' : ''}</span></span>
             <span className="font-extrabold text-vert">Voir →</span>
           </button>
