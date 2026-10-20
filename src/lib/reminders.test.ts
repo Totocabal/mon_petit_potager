@@ -1,3 +1,4 @@
+import { DEFAULT_NOTIFICATION_PREFERENCES, NOTIFICATION_TYPES } from '../../supabase/functions/_shared/notification-types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { planReminders } from './reminders';
 import { iso } from './dates';
@@ -109,5 +110,31 @@ describe('récolte et tâches', () => {
     const crops = [planting({ id: '1', species_id: 't', last_watered_at: d(-9) }), planting({ id: '2', species_id: 'p', sown_at: '2026-06-01', last_watered_at: d(0) })];
     const rs = plan({ crops, byId: byId(tomate, prete), tasks: [task('1', 0, 'Pailler')] });
     expect(rs[0].body).toBe('À arroser : Tomate · À récolter : Courge · Tâche : Pailler');
+  });
+});
+
+describe('choix des types de rappels', () => {
+  it('coupe l’arrosage sans couper les tâches personnelles', () => {
+    const rs = plan({ preferences: { notify_water: false }, crops: [planting({ species_id: 't', last_watered_at: d(-9) })], tasks: [task('1', 0, 'Pailler')] });
+    expect(rs[0].body).toBe('Tâche : Pailler');
+  });
+  it('coupe ensemble récoltes estimées et tâches automatiques de récolte', () => {
+    const prete = species({ id: 'p', name: 'Courge', water_every_days: 99, harvest_months: [10], days_to_harvest: 30 });
+    const harvestTask = { ...task('1', 0, 'Récolter : courge'), origin: 'auto' as const, notification_type: 'harvest' as const };
+    const rs = plan({ preferences: { notify_harvest: false }, crops: [planting({ species_id: 'p', sown_at: '2026-06-01', last_watered_at: d(0) })], byId: byId(prete), tasks: [harvestTask] });
+    expect(rs).toEqual([]);
+  });
+  it.each(['sow_indoor', 'sow_outdoor', 'plant', 'harvest', 'care', 'personal'] as const)('ne conserve que les tâches du type choisi : %s', chosen => {
+    const kinds = ['sow_indoor', 'sow_outdoor', 'plant', 'harvest', 'care', 'personal'] as const;
+    const preferences = { ...DEFAULT_NOTIFICATION_PREFERENCES };
+    for (const { key } of NOTIFICATION_TYPES) preferences[`notify_${key}`] = key === chosen;
+    const tasks = kinds.map(kind => ({ ...task(kind, 0, kind), origin: kind === 'personal' ? 'manuel' as const : 'auto' as const, notification_type: kind }));
+    const rs = plan({ preferences, crops: [], tasks });
+    expect(rs[0].body).toBe(`Tâche : ${chosen}`);
+  });
+  it('ne programme aucun rappel lorsque tous les types sont désactivés', () => {
+    const preferences = { ...DEFAULT_NOTIFICATION_PREFERENCES };
+    for (const { key } of NOTIFICATION_TYPES) preferences[`notify_${key}`] = false;
+    expect(plan({ preferences, tasks: [task('1', 0)] })).toEqual([]);
   });
 });

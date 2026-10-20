@@ -24,7 +24,7 @@ export async function requestRemindersPermission(): Promise<boolean> {
 
 async function ensureChannel() {
   if (Capacitor.getPlatform() !== 'android') return;
-  await (await plugin()).createChannel({ id: CHANNEL, name: 'Rappels d’arrosage', description: 'Arrosage, récolte et tâches du jour', importance: 4, visibility: 1 });
+  await (await plugin()).createChannel({ id: CHANNEL, name: 'Rappels du potager', description: 'Rappels selon vos types de tâches activés', importance: 4, visibility: 1 });
 }
 
 /** Remplace tous les rappels programmés par ceux de la liste (heure approximative : pas de réglage « alarmes exactes » à demander). */

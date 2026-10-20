@@ -23,7 +23,7 @@ export function ReminderSync() {
   useEffect(() => {
     if (!enabled || !settings.data || tasks.isLoading) return;
     const id = window.setTimeout(() => {
-      const plan = planReminders({ crops, byId, zones, tasks: tasks.data ?? [], weather, hour: settings.data!.reminder_hour, skipIfRain: settings.data!.skip_if_rain });
+      const plan = planReminders({ crops, byId, zones, tasks: tasks.data ?? [], weather, hour: settings.data!.reminder_hour, skipIfRain: settings.data!.skip_if_rain, preferences: settings.data! });
       scheduleReminders(plan).catch(() => undefined);
     }, 800);
     return () => window.clearTimeout(id);

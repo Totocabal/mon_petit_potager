@@ -387,7 +387,8 @@ export function plannedTasksFor(o: {
         due_date: iso(sowDate),
         zone_id: zoneId,
         planting_id: plantingId,
-        origin: 'auto'
+        origin: 'auto',
+        notification_type: 'sow_indoor'
       });
     }
   }
@@ -405,7 +406,8 @@ export function plannedTasksFor(o: {
     due_date: iso(plantDate),
     zone_id: zoneId,
     planting_id: plantingId,
-    origin: 'auto'
+    origin: 'auto',
+    notification_type: verb === 'Planter en place' ? 'plant' : 'sow_outdoor'
   });
 
   if (!s.sow_indoor_months.length && s.germination_days != null) {
@@ -415,7 +417,8 @@ export function plannedTasksFor(o: {
       due_date: iso(addDays(plantDate, s.germination_days)),
       zone_id: zoneId,
       planting_id: plantingId,
-      origin: 'auto'
+      origin: 'auto',
+      notification_type: 'sow_outdoor'
     });
   }
 
@@ -428,7 +431,8 @@ export function plannedTasksFor(o: {
       due_date: iso(addDays(plantDate, careOffset)),
       zone_id: zoneId,
       planting_id: plantingId,
-      origin: 'auto'
+      origin: 'auto',
+      notification_type: 'care'
     });
   }
 
@@ -450,7 +454,8 @@ export function plannedTasksFor(o: {
       due_date: iso(harvestDate),
       zone_id: zoneId,
       planting_id: plantingId,
-      origin: 'auto'
+      origin: 'auto',
+      notification_type: 'harvest'
     });
   }
 

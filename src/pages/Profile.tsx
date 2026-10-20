@@ -56,7 +56,7 @@ export default function ProfilePage() {
         <Btn type="submit" variant="doux" disabled={updateGarden.isPending}>Enregistrer</Btn>
         {updateGarden.isError && <p className="text-sm font-bold text-alerte">{(updateGarden.error as Error).message}</p>}
       </form>
-      <Link to="/alertes" className="flex min-h-14 items-center justify-between rounded-carte bg-white px-4 font-extrabold text-vert">Alertes d’arrosage<span aria-hidden>→</span></Link>
+      <Link to="/alertes" className="flex min-h-14 items-center justify-between rounded-carte bg-white px-4 font-extrabold text-vert">Notifications<span aria-hidden>→</span></Link>
       <Link to="/inviter" className="flex min-h-14 items-center justify-between rounded-carte bg-white px-4 font-extrabold text-vert">Inviter un proche<span aria-hidden>→</span></Link>
       {gardens.length > 1 && (
         <label className="flex flex-col gap-1.5 text-sm font-extrabold">Changer de potager

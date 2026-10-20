@@ -1,3 +1,5 @@
+import type { NotificationPreferences, TaskNotificationType } from '../../supabase/functions/_shared/notification-types';
+
 export type Species = {
   id: string;
   slug: string;
@@ -134,9 +136,11 @@ export type Task = {
   done_at: string | null;
   done_by: string | null;
   origin: 'auto' | 'manuel';
+  /** Catégorie de notification ; absente sur les anciennes tâches. */
+  notification_type?: TaskNotificationType | null;
 };
 
 export type Member = { garden_id: string; user_id: string; role: 'owner' | 'member'; joined_at: string; first_name: string | null };
 export type Invite = { id: string; garden_id: string; email: string | null; token: string; expires_at: string; accepted_at: string | null };
 
-export type AlertSettings = { user_id: string; enabled: boolean; skip_if_rain: boolean; reminder_hour: 8 | 19 };
+export type AlertSettings = NotificationPreferences & { user_id: string; enabled: boolean; skip_if_rain: boolean; reminder_hour: 8 | 19 };

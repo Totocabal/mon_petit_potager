@@ -59,7 +59,7 @@ const sideTabs = [
   { ...tabs[1], label: 'Mon potager' },
   tabs[2],
   tabs[3],
-  { to: '/alertes', label: 'Alertes d’arrosage', d: 'M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 21h4' },
+  { to: '/alertes', label: 'Notifications', d: 'M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 21h4' },
   tabs[4]
 ];
 
