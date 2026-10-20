@@ -6,7 +6,7 @@ import { VarietyDetails } from '../components/VarietyPicker';
 import { categoryLabel, DIFFICULTY_LABEL } from '../lib/glossary';
 import { footprintText, isMulti, isSol, lc, rel } from '../lib/garden';
 import { MOIS, today } from '../lib/dates';
-import type { Species } from '../lib/types';
+import type { Species, Variety } from '../lib/types';
 
 const LETTERS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
 const HEIGHT = { basse: 'Basse', moyenne: 'Moyenne', haute: 'Haute' } as const;
@@ -84,20 +84,7 @@ export default function SpeciesSheet() {
       <Block title="Entretien">{s.care}</Block>
       <Pests key={s.id} pests={s.pests} treatment={s.pests_treatment} />
       <Block title="Récolte et conservation">{s.harvest_tips}</Block>
-      {varieties.length > 0 && (
-        <section className="flex flex-col gap-2.5 rounded-carte bg-white p-4" aria-labelledby="h-var">
-          <h2 id="h-var" className="font-titre text-lg font-semibold">Variétés <span className="font-corps text-sm font-bold text-gris">· {varieties.length}</span></h2>
-          <p className="-mt-1.5 text-[13px] text-gris">Choisissez-en une en plantant : le délai de récolte s’adapte à la variété.</p>
-          <ul className="flex flex-col gap-2">
-            {varieties.map(v => (
-              <li key={v.id} className="flex flex-col gap-1.5">
-                <div className="flex items-baseline justify-between gap-2"><b className="font-titre text-base font-semibold">{v.name}</b>{counts.get(v.id) ? <span className="text-xs font-extrabold text-vert">chez vous · {counts.get(v.id)}</span> : null}</div>
-                <VarietyDetails v={v} species={s} />
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <Varieties key={s.id} varieties={varieties} species={s} counts={counts} />
       {s.rotation_years != null && <Block title="Rotation">{`Famille des ${s.family}. Ne replantez pas une plante de cette famille au même endroit avant ${s.rotation_years} ans, pour limiter maladies et épuisement du sol. L’application vous prévient et évite ces cases quand elle génère un plan.`}</Block>}
       {s.notes && <p className="rounded-2xl bg-soleil-doux px-3 py-2.5 text-sm font-bold text-soleil-encre">{s.notes}</p>}
 
@@ -114,6 +101,42 @@ export default function SpeciesSheet() {
       </div>
       <Link to="/glossaire" className="self-center py-2 font-extrabold text-vert">← Tout le glossaire</Link>
     </Page>
+  );
+}
+
+/** Présentation compacte des variétés ; les détails s’ouvrent dans le même volet que les ravageurs. */
+function Varieties({ varieties, species, counts }: { varieties: Variety[]; species: Species; counts: Map<string, number> }) {
+  const [open, setOpen] = useState(false);
+  if (!varieties.length) return null;
+
+  return (
+    <>
+      <section className="flex flex-col gap-2.5 rounded-carte bg-white p-4" aria-labelledby="h-var">
+        <h2 id="h-var" className="font-titre text-lg font-semibold">Variétés <span className="font-corps text-sm font-bold text-gris">· {varieties.length}</span></h2>
+        <div className="flex flex-wrap gap-1.5">
+          {varieties.map(v => (
+            <span key={v.id} className="rounded-full bg-vert-doux px-2.5 py-0.5 text-xs font-extrabold text-vert">{v.name}</span>
+          ))}
+        </div>
+        <Btn variant="doux" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
+          Découvrir les variétés
+        </Btn>
+      </section>
+
+      {open && (
+        <Sheet title="Variétés" onClose={() => setOpen(false)} reserveSpace={false}>
+          <p className="text-[13px] text-gris">Choisissez-en une en plantant : le délai de récolte s’adapte à la variété.</p>
+          <ul className="flex flex-col gap-3">
+            {varieties.map(v => (
+              <li key={v.id} className="flex flex-col gap-1.5">
+                <div className="flex items-baseline justify-between gap-2"><b className="font-titre text-base font-semibold">{v.name}</b>{counts.get(v.id) ? <span className="text-xs font-extrabold text-vert">chez vous · {counts.get(v.id)}</span> : null}</div>
+                <VarietyDetails v={v} species={species} />
+              </li>
+            ))}
+          </ul>
+        </Sheet>
+      )}
+    </>
   );
 }
 
