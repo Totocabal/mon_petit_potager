@@ -43,7 +43,7 @@ export default function MyCalendar() {
     <Page nav>
       <header className="pt-6 lg:pt-0">
         <p className="mb-1 text-xs font-extrabold uppercase tracking-wide text-gris">{garden.name}</p>
-        <h1 className="font-titre text-[31px] font-semibold text-vert">Mon Calendrier</h1>
+        <h1 className="font-titre text-[31px] font-semibold text-vert">Calendrier</h1>
         <p className="mt-1 font-bold text-gris">Chaque geste, au bon moment.</p>
       </header>
       <div role="group" aria-label="Mois de mon calendrier" className="flex items-center justify-between gap-2 rounded-[20px] bg-white p-2">
@@ -58,7 +58,7 @@ export default function MyCalendar() {
       <p className="text-xs text-gris">Les récoltes sont estimées selon la saison et le délai de la variété : vérifiez la maturité sur place. L’arrosage est indiqué pour aujourd’hui, selon vos alertes et la pluie récente.</p>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Link to="/taches" className="flex min-h-11 items-center font-extrabold text-vert">Gérer mes tâches →</Link>
-        <Link to="/almanach" className="flex min-h-11 items-center font-extrabold text-vert">Voir l’Almanach →</Link>
+        <Link to="/almanach" className="flex min-h-11 items-center font-extrabold text-vert">Voir les plantes du mois →</Link>
       </div>
       <BottomNav />
     </Page>

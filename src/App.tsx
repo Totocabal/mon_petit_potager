@@ -15,7 +15,7 @@ import BlocPage from './pages/Bloc';
 import NewZone from './pages/NewZone';
 import AddPlant from './pages/AddPlant';
 import PlantPage from './pages/Plant';
-import Calendar from './pages/Calendar';
+import Plants from './pages/Plants';
 import MyCalendar from './pages/MyCalendar';
 import Generate from './pages/Generate';
 import InvitePage from './pages/Invite';
@@ -24,7 +24,6 @@ import Alerts from './pages/Alerts';
 import Installer from './pages/Installer';
 import Tasks from './pages/Tasks';
 import ProfilePage from './pages/Profile';
-import Glossary from './pages/Glossary';
 import WeatherPage from './pages/Weather';
 import SpeciesSheet from './pages/SpeciesSheet';
 
@@ -77,11 +76,11 @@ function Signed({ session }: { session: NonNullable<ReturnType<typeof useSession
         <Route path="/zones/:zoneId/generer" element={<Generate />} />
         <Route path="/zones/:zoneId/planter" element={<AddPlant />} />
         <Route path="/plantes/:plantingId" element={<PlantPage />} />
-        <Route path="/calendrier" element={<Navigate to="/almanach" replace />} />
-        <Route path="/almanach" element={<Calendar />} />
+        <Route path="/calendrier" element={<Navigate to="/mon-calendrier" replace />} />
+        <Route path="/almanach" element={<Plants />} />
         <Route path="/mon-calendrier" element={<MyCalendar />} />
         <Route path="/meteo" element={<WeatherPage />} />
-        <Route path="/glossaire" element={<Glossary />} />
+        <Route path="/glossaire" element={<Navigate to="/almanach?vue=toutes" replace />} />
         <Route path="/glossaire/:slug" element={<SpeciesSheet />} />
         <Route path="/inviter" element={<InvitePage />} />
         <Route path="/alertes" element={<Alerts />} />
