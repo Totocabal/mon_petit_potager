@@ -64,7 +64,7 @@ export default function PlantPage() {
     <Page>
       <BackHeader kicker={zone.name} title={s.name} />
       <div className="flex items-center gap-4">
-        <Tile slug={s.slug} w={104} h={104} size={84} round={28} />
+        <Tile slug={s.slug} w={104} h={104} size={84} round={28} hop />
         <div className="flex min-w-0 flex-col gap-1.5">
           <span className={`self-start rounded-full px-3 py-1 text-[13px] font-extrabold ${planned ? 'bg-soleil-doux text-soleil-encre' : ready ? 'bg-soleil text-soleil-encre' : 'bg-vert-doux text-vert'}`}>{planned ? 'Pas encore plantée' : ready ? 'À récolter' : st === 0 ? 'Jeune semis' : 'En croissance'}</span>
           {p.variety_id && varietyById.get(p.variety_id) && <p className="font-titre text-base font-semibold text-vert">{varietyById.get(p.variety_id)!.name}</p>}

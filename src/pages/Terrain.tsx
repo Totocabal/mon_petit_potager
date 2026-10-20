@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { useUpdateZone } from '../lib/data';
 import { BottomNav, Loading, Page, Picto, useToast } from '../components/ui';
-import { DropBadge } from '../components/garden';
+import { DropBadge, WaterButton } from '../components/garden';
 import { buzz } from '../lib/native';
 import { CELL_CM, isReady, isSol, isThirsty, meters, nf, plantCount, SPCOLOR, zoneFits, zoneGround, zoneSize } from '../lib/garden';
 import type { Zone } from '../lib/types';
@@ -14,7 +14,7 @@ const PRESS_SLOP_PX = 10;
 type Drag = { id: string; sx: number; sy: number; ox: number; oy: number; x: number; y: number; scale: number; ok: boolean };
 
 export default function Terrain() {
-  const { garden, zones, plantings, byId, loading, rainFor } = useApp();
+  const { garden, zones, plantings, crops, byId, loading, rainFor } = useApp();
   const T = { w: garden.terrain_width_cm, h: garden.terrain_length_cm };
   const updateZone = useUpdateZone();
   const toast = useToast();
@@ -186,6 +186,7 @@ export default function Terrain() {
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-vert-doux">+</span>Nouvelle zone
         </Link>
       </div>
+      {!editing && <WaterButton plantings={crops} label="tout le potager" />}
       </div>
       <BottomNav />
     </Page>
