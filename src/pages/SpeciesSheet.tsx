@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../lib/app';
-import { BackHeader, Page, Tile } from '../components/ui';
+import { BackHeader, Btn, Page, Sheet, Tile } from '../components/ui';
 import { categoryLabel, DIFFICULTY_LABEL } from '../lib/glossary';
 import { footprintText, isMulti, isSol, lc, rel } from '../lib/garden';
 import { MOIS, today } from '../lib/dates';
@@ -166,6 +166,7 @@ const SYMPTOMS: Record<string, string> = {
 export const symptomFor = (label: string): string => SYMPTOMS[label] ?? label;
 
 export function Pests({ pests, treatment }: { pests: string | null; treatment: string | null }) {
+  const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<number[]>([]);
   const [showAll, setShowAll] = useState(false);
 
@@ -192,78 +193,93 @@ export function Pests({ pests, treatment }: { pests: string | null; treatment: s
   const visible = showAll ? labeled : labeled.filter(t => selected.includes(t.index));
 
   return (
-    <section className="flex flex-col gap-3 rounded-carte bg-white p-4">
-      <div className="flex items-baseline justify-between gap-2">
+    <>
+      <section className="flex flex-col gap-2.5 rounded-carte bg-white p-4">
         <h2 className="font-titre text-lg font-semibold">Ravageurs et maladies</h2>
-        <button
-          type="button"
-          onClick={toggleAll}
-          className="text-xs font-extrabold text-vert underline-offset-2 hover:underline"
-        >
-          {showAll ? 'Masquer tout' : `Tout voir (${labeled.length})`}
-        </button>
-      </div>
+        <div className="flex flex-wrap gap-1.5">
+          {labeled.map(t => (
+            <span key={t.index} className="rounded-full bg-vert-doux px-2.5 py-0.5 text-xs font-extrabold text-vert">
+              {t.label}
+            </span>
+          ))}
+        </div>
+        <Btn variant="doux" onClick={() => setOpen(true)}>
+          Identifier un symptôme & traitements
+        </Btn>
+      </section>
 
-      <div className="flex flex-col gap-2">
-        <p className="text-xs font-extrabold text-gris">Quels symptômes observez-vous ?</p>
-        <div className="flex flex-col gap-1.5" role="group" aria-label="Symptômes observés">
-          {labeled.map(t => {
-            const on = selected.includes(t.index);
-            return (
-              <button
-                key={t.index}
-                type="button"
-                aria-pressed={on}
-                onClick={() => toggleSymptom(t.index)}
-                className={`squish flex items-start gap-2.5 rounded-2xl border-2 px-3 py-2.5 text-left text-[14px] font-bold leading-snug transition-colors ${
-                  on ? 'border-vert bg-vert-doux text-vert-fonce' : 'border-trait bg-fond/60 text-encre hover:border-vert/40'
-                }`}
-              >
-                <span
-                  aria-hidden="true"
-                  className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 text-xs ${
-                    on ? 'border-vert bg-vert text-white' : 'border-gris/50 bg-white'
+      {open && (
+        <Sheet title="Ravageurs et maladies" onClose={() => setOpen(false)}>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-extrabold text-gris">Quels symptômes observez-vous ?</p>
+            <button
+              type="button"
+              onClick={toggleAll}
+              className="min-h-11 px-1 text-xs font-extrabold text-vert underline-offset-2 hover:underline"
+            >
+              {showAll ? 'Masquer tout' : `Tout voir (${labeled.length})`}
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-1.5" role="group" aria-label="Symptômes observés">
+            {labeled.map(t => {
+              const on = selected.includes(t.index);
+              return (
+                <button
+                  key={t.index}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => toggleSymptom(t.index)}
+                  className={`squish flex items-start gap-2.5 rounded-2xl border-2 px-3 py-2.5 text-left text-[14px] font-bold leading-snug transition-colors ${
+                    on ? 'border-vert bg-vert-doux text-vert-fonce' : 'border-trait bg-fond/60 text-encre hover:border-vert/40'
                   }`}
                 >
-                  {on && '✓'}
-                </span>
-                <span className="flex-1">{t.symptom}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+                  <span
+                    aria-hidden="true"
+                    className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 text-xs ${
+                      on ? 'border-vert bg-vert text-white' : 'border-gris/50 bg-white'
+                    }`}
+                  >
+                    {on && '✓'}
+                  </span>
+                  <span className="flex-1">{t.symptom}</span>
+                </button>
+              );
+            })}
+          </div>
 
-      {visible.length > 0 && (
-        <div className="flex flex-col gap-2 pt-1">
-          <p className="text-xs font-extrabold text-vert">
-            {showAll
-              ? 'Tous les ravageurs, maladies et traitements'
-              : visible.length === 1
-                ? 'Diagnostic et traitement'
-                : `Diagnostics identifiés (${visible.length})`}
-          </p>
-          <ul className="flex flex-col gap-2">
-            {visible.map(t => (
-              <li key={t.index} className="flex flex-col gap-1 rounded-2xl bg-vert-doux/70 px-3.5 py-2.5">
-                <div className="flex items-center justify-between gap-2">
-                  <b className="text-[14px] font-extrabold text-vert">{t.label}</b>
-                  {!showAll && <span className="rounded-full bg-vert px-2 py-0.5 text-[11px] font-extrabold text-white">Identifié</span>}
-                </div>
-                {showAll && <span className="text-xs font-bold text-gris">Symptôme : {t.symptom.charAt(0).toLowerCase() + t.symptom.slice(1)}.</span>}
-                <span className="text-[15px] leading-snug"><b className="font-extrabold text-vert-fonce">Traitement : </b>{t.body}</span>
-              </li>
-            ))}
-            {extras.map((e, i) => (
-              <li key={'extra-' + i} className="rounded-2xl bg-vert-doux/40 px-3.5 py-2 text-[14px] font-bold text-vert-fonce">
-                {e.body}
-              </li>
-            ))}
-          </ul>
-          <p className="text-xs text-gris">Le préventif passe avant tout : aérer, pailler, arroser au pied. Lisez la notice de chaque produit et traitez le soir, hors floraison.</p>
-        </div>
+          {visible.length > 0 && (
+            <div className="flex flex-col gap-2 pt-1">
+              <p className="text-xs font-extrabold text-vert">
+                {showAll
+                  ? 'Tous les ravageurs, maladies et traitements'
+                  : visible.length === 1
+                    ? 'Diagnostic et traitement'
+                    : `Diagnostics identifiés (${visible.length})`}
+              </p>
+              <ul className="flex flex-col gap-2">
+                {visible.map(t => (
+                  <li key={t.index} className="flex flex-col gap-1 rounded-2xl bg-vert-doux/70 px-3.5 py-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <b className="text-[14px] font-extrabold text-vert">{t.label}</b>
+                      {!showAll && <span className="rounded-full bg-vert px-2 py-0.5 text-[11px] font-extrabold text-white">Identifié</span>}
+                    </div>
+                    {showAll && <span className="text-xs font-bold text-gris">Symptôme : {t.symptom.charAt(0).toLowerCase() + t.symptom.slice(1)}.</span>}
+                    <span className="text-[15px] leading-snug"><b className="font-extrabold text-vert-fonce">Traitement : </b>{t.body}</span>
+                  </li>
+                ))}
+                {extras.map((e, i) => (
+                  <li key={'extra-' + i} className="rounded-2xl bg-vert-doux/40 px-3.5 py-2 text-[14px] font-bold text-vert-fonce">
+                    {e.body}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-gris">Le préventif passe avant tout : aérer, pailler, arroser au pied. Lisez la notice de chaque produit et traitez le soir, hors floraison.</p>
+            </div>
+          )}
+        </Sheet>
       )}
-    </section>
+    </>
   );
 }
 

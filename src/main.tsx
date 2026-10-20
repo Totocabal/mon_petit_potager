@@ -30,7 +30,7 @@ supabase.auth.onAuthStateChange(event => {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <PersistQueryClientProvider client={queryClient} persistOptions={{ persister, maxAge: WEEK, buster: 'v1', dehydrateOptions: { shouldDehydrateQuery: q => q.state.status === 'success' } }}>
+    <PersistQueryClientProvider client={queryClient} persistOptions={{ persister, maxAge: WEEK, buster: 'v2', dehydrateOptions: { shouldDehydrateQuery: q => q.state.status === 'success' } }}>
       <BrowserRouter>
         <ToastProvider>
           <App />
