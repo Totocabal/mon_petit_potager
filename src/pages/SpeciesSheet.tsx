@@ -78,8 +78,7 @@ export default function SpeciesSheet() {
       <Block title="Semis et plantation">{s.sowing}</Block>
       <Block title="Sol et exposition">{s.soil}</Block>
       <Block title="Entretien">{s.care}</Block>
-      <Block title="Ravageurs et maladies">{s.pests}</Block>
-      <Treatments text={s.pests_treatment} />
+      <Pests pests={s.pests} treatment={s.pests_treatment} />
       <Block title="Récolte et conservation">{s.harvest_tips}</Block>
       {s.rotation_years != null && <Block title="Rotation">{`Famille des ${s.family}. Ne replantez pas une plante de cette famille au même endroit avant ${s.rotation_years} ans, pour limiter maladies et épuisement du sol. L’application vous prévient et évite ces cases quand elle génère un plan.`}</Block>}
       {s.notes && <p className="rounded-2xl bg-soleil-doux px-3 py-2.5 text-sm font-bold text-soleil-encre">{s.notes}</p>}
@@ -111,13 +110,13 @@ export const treatmentItems = (text: string): { label: string | null; body: stri
     return i > 0 && i < 40 ? { label: part.slice(0, i), body: part.slice(i + 3) } : { label: null, body: part };
   });
 
-function Treatments({ text }: { text: string | null }) {
-  if (!text) return null;
+function Pests({ pests, treatment }: { pests: string | null; treatment: string | null }) {
+  if (!treatment) return <Block title="Ravageurs et maladies">{pests}</Block>;
   return (
     <section className="flex flex-col gap-2.5 rounded-carte bg-white p-4">
-      <h2 className="font-titre text-lg font-semibold">Traitements qui peuvent aider</h2>
+      <h2 className="font-titre text-lg font-semibold">Ravageurs et maladies</h2>
       <ul className="flex flex-col gap-2">
-        {treatmentItems(text).map((t, i) => (
+        {treatmentItems(treatment).map((t, i) => (
           <li key={i} className="flex flex-col gap-0.5 rounded-2xl bg-vert-doux/60 px-3 py-2">
             {t.label && <b className="text-[13px] font-extrabold text-vert">{t.label}</b>}
             <span className="text-[15px] leading-snug">{t.body}</span>
