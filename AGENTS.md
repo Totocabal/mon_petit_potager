@@ -23,6 +23,7 @@ La CI (`.github/workflows/ci.yml`) rejoue les trois. Si vous changez une règle 
 ## Coordination entre modèles
 
 - **Une branche par modèle et par sujet**, puis une pull request vers `main` (`claude/<sujet>`, `codex/<sujet>`…). L'utilisateur relit et fusionne. Ne poussez directement sur `main` que si l'utilisateur l'a demandé.
+- **Le dossier du projet est partagé : n'y changez pas de branche.** Un autre modèle peut y être en train de travailler (un `git checkout` ou un `git reset` lui retire ses fichiers sous les pieds, et un commit part sur la mauvaise branche). Pour travailler sur une autre branche, créez un dossier à part : `git worktree add ../potager-<sujet> -b <branche> origin/main`, puis supprimez-le (`git worktree remove`) quand c'est fini. Avant de commiter, vérifiez `git branch --show-current`.
 - **Un seul modèle par fichier à la fois.** Avant de gros changements dans `src/components/garden.tsx`, `src/lib/garden.ts`, `src/lib/data.ts`, `src/pages/Zone.tsx` ou `src/pages/SpeciesSheet.tsx`, vérifiez qu'aucune branche ouverte ne les touche (`git branch -r`, `gh pr list`).
 - **Commits petits, un sujet chacun**, message à l'indicatif ou nominal, en français, une ligne. Ne commitez jamais `.claude/`, `.env*`, `node_modules`, `dist`, `android/app/build`.
 - **Ne commitez/poussez que sur demande de l'utilisateur** (il dit « commit et push »). En cas de doute, demandez.
