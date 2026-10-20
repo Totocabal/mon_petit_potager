@@ -13,12 +13,12 @@ export default function AddPlant() {
   const { zoneId } = useParams();
   const [sp] = useSearchParams();
   const x = Number(sp.get('x') ?? 0), y = Number(sp.get('y') ?? 0);
-  const { zones, plantings, species, byId, rels, garden, history } = useApp();
+  const { zones, plantings, species, byId, bySlug, rels, garden, history } = useApp();
   const zone = zones.find(z => z.id === zoneId);
   const grid = useMemo(() => (zone ? occupancy(zone, plantings.filter(p => p.zone_id === zone.id)) : []), [zone, plantings]);
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState<'saison' | 'toutes'>('saison');
-  const [pick, setPickRaw] = useState<string | null>(null);
+  const [pick, setPickRaw] = useState<string | null>(() => bySlug.get(sp.get('espece') ?? '')?.id ?? null);
   const [variety, setVariety] = useState<Variety | null>(null);
   const [planned, setPlanned] = useState(false);
   const [date, setDate] = useState(iso(today()));

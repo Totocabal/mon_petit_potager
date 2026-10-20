@@ -3,22 +3,23 @@ import { Link } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { useTasks, useToggleTask, useWater } from '../lib/data';
 import { TaskSheet } from '../components/TaskSheet';
-import { BottomNav, Loading, Page, Tile, useToast } from '../components/ui';
+import { BottomNav, Btn, Icon, Loading, Page, Sheet, Tile, useToast } from '../components/ui';
 import { DropBadge } from '../components/garden';
-import { ageDays, isReady, isThirsty, lc, needsWater, nf, plantCount } from '../lib/garden';
+import { ageDays, isReady, isThirsty, needsWater, nf, plantCount } from '../lib/garden';
 import { addDays, fmt, longDate, today, iso, parse, diffDays, whenText } from '../lib/dates';
 import { RAIN_MM, rainOn, SKY_LABEL, skyOf, type Weather } from '../lib/weather';
 import { WeatherIcon } from '../components/WeatherIcon';
 import { WeatherBackdrop } from '../components/WeatherBackdrop';
-import type { Planting } from '../lib/types';
+import type { Planting, Task } from '../lib/types';
 
 export default function Home() {
   const { profile, crops, zones, byId, loading, garden, weather, rainFor, varietyById } = useApp();
-  const water = useWater();
   const { session } = useApp();
   const tasks = useTasks(garden.id);
   const toggle = useToggleTask(garden.id, session.user.id);
   const [adding, setAdding] = useState(false);
+  const [watering, setWatering] = useState(false);
+  const [harvesting, setHarvesting] = useState(false);
   const dueTasks = (tasks.data ?? []).filter(t => !t.done_at && diffDays(parse(t.due_date), today()) <= 0);
   const toast = useToast();
 
@@ -77,41 +78,10 @@ export default function Home() {
       <div className="flex flex-col gap-4 lg:gap-5">
       {weather ? <WeatherCard weather={weather} thirsty={groups.thirsty.length} /> : !profile?.lat && <Link to="/profil" className="rounded-carte bg-white p-4 font-bold text-vert">Ajoutez votre ville pour voir la météo et éviter d’arroser sous la pluie →</Link>}
 
-      <h2 className="font-titre text-xl font-semibold">Aujourd’hui au jardin</h2>
-      <div className="rounded-carte bg-white px-4 py-1">
-        {groups.thirsty.map(ps => {
-          const s = byId.get(ps[0].species_id)!;
-          return (
-            <div key={'w' + ps[0].id} className="flex min-h-[58px] items-center gap-3 border-b border-dashed border-trait last:border-0">
-              <Tile slug={s.slug} w={40} h={40} size={32} round={12} />
-              <span className="flex min-w-0 flex-1 flex-col"><b className="font-extrabold">Arroser : {lc(s.name)}</b><span className="text-[13px] text-gris">{zoneName(ps[0].zone_id)}</span></span>
-              <button onClick={async () => { await water.mutateAsync(ps); toast(`Arrosage noté : ${lc(s.name)}`); }} className="min-h-10 rounded-xl bg-ciel px-3 text-[13px] font-extrabold text-ciel-encre">C’est fait</button>
-            </div>
-          );
-        })}
-        {groups.harvest.map(ps => {
-          const s = byId.get(ps[0].species_id)!;
-          return (
-            <Link key={'h' + ps[0].id} to={`/plantes/${ps[0].id}`} className="flex min-h-[58px] items-center gap-3 border-b border-dashed border-trait last:border-0">
-              <Tile slug={s.slug} w={40} h={40} size={32} round={12} />
-              <span className="flex min-w-0 flex-1 flex-col"><b className="font-extrabold">Récolter : {lc(s.name)}</b><span className="text-[13px] text-gris">{zoneName(ps[0].zone_id)}</span></span>
-              <span className="rounded-full bg-soleil px-2.5 py-0.5 text-xs font-extrabold text-soleil-encre">Prête</span>
-            </Link>
-          );
-        })}
-        {dueTasks.map(t => (
-          <div key={t.id} className="flex min-h-[58px] items-center gap-3 border-b border-dashed border-trait py-2 last:border-0">
-            <button aria-label={`Terminer : ${t.title}`} onClick={async () => { await toggle.mutateAsync({ id: t.id, done: true }); toast('Tâche terminée'); }} className="h-10 w-10 shrink-0 rounded-full border-2 border-vert" />
-            <span className="flex min-w-0 flex-1 flex-col"><b className="font-extrabold">{t.title}</b>{t.detail && <span className="mt-0.5 text-xs leading-snug text-encre/85">{t.detail}</span>}<span className="text-[13px] text-gris">{diffDays(parse(t.due_date), today()) < 0 ? 'En retard' : whenText(parse(t.due_date))}{zoneName(t.zone_id!) ? ' · ' + zoneName(t.zone_id!) : ''}</span></span>
-          </div>
-        ))}
-        {!groups.thirsty.length && !groups.harvest.length && !dueTasks.length && <p className="py-4 text-gris">Rien à faire aujourd’hui. Profitez-en pour regarder pousser.</p>}
-      </div>
-
-      <div className="flex gap-2.5">
-        <button onClick={() => setAdding(true)} className="min-h-11 flex-1 rounded-2xl bg-vert-doux font-extrabold text-vert">+ Tâche</button>
-        <Link to="/taches" className="flex min-h-11 flex-1 items-center justify-center rounded-2xl bg-white font-extrabold text-vert">Toutes les tâches</Link>
-      </div>
+      <TodayCard
+        thirsty={groups.thirsty} harvest={groups.harvest} tasks={dueTasks} zoneName={zoneName}
+        onWater={() => setWatering(true)} onHarvest={() => setHarvesting(true)}
+        onTask={async id => { await toggle.mutateAsync({ id, done: true }); toast('Tâche terminée'); }} onAdd={() => setAdding(true)} />
       </div>
 
       <div className="flex flex-col gap-4 lg:gap-5 lg:rounded-[28px] lg:bg-white lg:p-6">
@@ -138,8 +108,115 @@ export default function Home() {
       </div>
       </div>
       {adding && <TaskSheet onClose={() => setAdding(false)} />}
+      {watering && <WaterSheet groups={groups.thirsty} zoneName={zoneName} onClose={() => setWatering(false)} onDone={n => { setWatering(false); toast(`Arrosage noté · ${n} plante${n > 1 ? 's' : ''}`); }} />}
+      {harvesting && <HarvestSheet groups={groups.harvest} zoneName={zoneName} onClose={() => setHarvesting(false)} />}
       <BottomNav />
     </Page>
+  );
+}
+
+const MAX_TASKS = 3;
+
+/** « Aujourd’hui » : les gestes regroupés (un bouton pour tout arroser, un résumé des récoltes), puis les tâches du jour. */
+function TodayCard({ thirsty, harvest, tasks, zoneName, onWater, onHarvest, onTask, onAdd }: {
+  thirsty: Planting[][]; harvest: Planting[][]; tasks: Task[]; zoneName: (id: string) => string;
+  onWater: () => void; onHarvest: () => void; onTask: (id: string) => Promise<void>; onAdd: () => void;
+}) {
+  const nWater = thirsty.reduce((t, g) => t + g.length, 0), nHarvest = harvest.reduce((t, g) => t + g.length, 0);
+  const shown = tasks.slice(0, MAX_TASKS);
+  const gestures = (nWater ? 1 : 0) + (nHarvest ? 1 : 0) + tasks.length;
+  const where = (gs: Planting[][]) => [...new Set(gs.map(g => zoneName(g[0].zone_id)))].slice(0, 3).join(', ');
+  return (
+    <section aria-labelledby="h-today" className="flex flex-col gap-3">
+      <div className="flex items-center justify-between"><h2 id="h-today" className="font-titre text-xl font-semibold">Aujourd’hui</h2>{gestures > 0 && <span className="rounded-full bg-vert-doux px-2.5 py-0.5 text-xs font-extrabold text-vert">{gestures} geste{gestures > 1 ? 's' : ''}</span>}</div>
+      <div className="flex flex-col rounded-carte bg-white px-4 py-2">
+        {nWater > 0 && (
+          <div className="flex flex-col gap-2.5 border-b border-dashed border-trait py-2.5">
+            <div className="flex items-center gap-3">
+              <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-ciel text-eau"><Icon name="drop" /></span>
+              <span className="flex min-w-0 flex-1 flex-col"><b className="font-extrabold">Arroser</b><span className="truncate text-[13px] text-gris">{nWater} plante{nWater > 1 ? 's' : ''} · {where(thirsty)}</span></span>
+            </div>
+            <Btn variant="eau" onClick={onWater} className="!min-h-11 !text-[15px]">Tout arroser · {nWater} plante{nWater > 1 ? 's' : ''}</Btn>
+          </div>
+        )}
+        {nHarvest > 0 && (
+          <button type="button" onClick={onHarvest} className="squish flex min-h-[58px] items-center gap-3 border-b border-dashed border-trait text-left">
+            <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-soleil-doux text-soleil-encre"><Icon name="basket" /></span>
+            <span className="flex min-w-0 flex-1 flex-col"><b className="font-extrabold">Récolter</b><span className="truncate text-[13px] text-gris">{nHarvest} plante{nHarvest > 1 ? 's' : ''} prête{nHarvest > 1 ? 's' : ''}</span></span>
+            <span className="font-extrabold text-vert">Voir →</span>
+          </button>
+        )}
+        {shown.map(t => (
+          <div key={t.id} className="flex min-h-[58px] items-center gap-3 border-b border-dashed border-trait py-1.5 last:border-0">
+            <button aria-label={`Terminer : ${t.title}`} onClick={() => onTask(t.id)} className="flex h-11 w-11 shrink-0 items-center justify-center"><span className="h-8 w-8 rounded-full border-2 border-vert" /></button>
+            <span className="flex min-w-0 flex-1 flex-col"><b className="font-extrabold">{t.title}</b><span className={`truncate text-[13px] ${diffDays(parse(t.due_date), today()) < 0 ? 'font-extrabold text-alerte' : 'text-gris'}`}>{diffDays(parse(t.due_date), today()) < 0 ? 'En retard' : whenText(parse(t.due_date))}{t.zone_id && zoneName(t.zone_id) ? ' · ' + zoneName(t.zone_id) : ''}</span></span>
+          </div>
+        ))}
+        {gestures === 0 && <p className="py-4 text-gris">Rien à faire aujourd’hui. Profitez-en pour regarder pousser.</p>}
+        {tasks.length > MAX_TASKS && <Link to="/taches" className="flex min-h-11 items-center justify-center font-extrabold text-vert">+ {tasks.length - MAX_TASKS} autre{tasks.length - MAX_TASKS > 1 ? 's' : ''} tâche{tasks.length - MAX_TASKS > 1 ? 's' : ''}</Link>}
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        <button type="button" onClick={onAdd} className="squish min-h-11 rounded-2xl bg-vert-doux px-4 font-extrabold text-vert">+ Tâche</button>
+        <Link to="/mon-calendrier" className="flex min-h-11 items-center font-extrabold text-vert">Tout le calendrier →</Link>
+      </div>
+    </section>
+  );
+}
+
+/** « Tout arroser » : la liste des plantes à arroser, à décocher au besoin, validée d’un seul bouton. */
+function WaterSheet({ groups, zoneName, onClose, onDone }: { groups: Planting[][]; zoneName: (id: string) => string; onClose: () => void; onDone: (n: number) => void }) {
+  const { byId, varietyById } = useApp();
+  const water = useWater();
+  const [off, setOff] = useState<Set<string>>(new Set());
+  const keyOf = (g: Planting[]) => g[0].species_id + '|' + g[0].zone_id;
+  const chosen = groups.filter(g => !off.has(keyOf(g))).flat();
+  const flip = (k: string) => setOff(prev => { const n = new Set(prev); if (!n.delete(k)) n.add(k); return n; });
+  return (
+    <Sheet title={`À arroser · ${groups.reduce((t, g) => t + g.length, 0)} plantes`} onClose={onClose} reserveSpace={false}>
+      <p className="-mt-1 text-[13px] text-gris">Décochez celles que vous avez déjà arrosées.</p>
+      <ul className="flex flex-col">
+        {groups.map(g => {
+          const s = byId.get(g[0].species_id)!, k = keyOf(g), on = !off.has(k);
+          const v = g[0].variety_id ? varietyById.get(g[0].variety_id)?.name : null;
+          return (
+            <li key={k}>
+              <button type="button" role="checkbox" aria-checked={on} onClick={() => flip(k)} className="flex min-h-[58px] w-full items-center gap-3 border-b border-dashed border-trait text-left last:border-0">
+                <Tile slug={s.slug} w={40} h={40} size={32} round={12} />
+                <span className="flex min-w-0 flex-1 flex-col"><b className="truncate font-extrabold">{s.name}{v ? ` (${v})` : ''}{g.length > 1 ? ` · ${g.length}` : ''}</b><span className="truncate text-[13px] text-gris">{zoneName(g[0].zone_id)}</span></span>
+                <span aria-hidden="true" className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 text-sm font-extrabold ${on ? 'border-vert bg-vert text-white' : 'border-vert text-transparent'}`}>✓</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      <Btn variant="eau" disabled={!chosen.length || water.isPending} onClick={async () => { await water.mutateAsync(chosen); onDone(chosen.length); }}>
+        {water.isPending ? 'Enregistrement…' : chosen.length ? `J’ai arrosé ${chosen.length} plante${chosen.length > 1 ? 's' : ''}` : 'Rien à arroser'}
+      </Btn>
+      {water.isError && <p className="text-sm font-bold text-alerte">{(water.error as Error).message}</p>}
+    </Sheet>
+  );
+}
+
+/** Les plantes prêtes à être récoltées, chacune avec un lien vers sa plantation ou sa zone. */
+function HarvestSheet({ groups, zoneName, onClose }: { groups: Planting[][]; zoneName: (id: string) => string; onClose: () => void }) {
+  const { byId } = useApp();
+  return (
+    <Sheet title={`À récolter · ${groups.reduce((t, g) => t + g.length, 0)} plantes`} onClose={onClose} reserveSpace={false}>
+      <ul className="flex flex-col">
+        {groups.map(g => {
+          const s = byId.get(g[0].species_id)!;
+          return (
+            <li key={g[0].id}>
+              <Link to={g.length > 1 ? `/zones/${g[0].zone_id}` : `/plantes/${g[0].id}`} onClick={onClose} className="flex min-h-[58px] items-center gap-3 border-b border-dashed border-trait last:border-0">
+                <Tile slug={s.slug} w={40} h={40} size={32} round={12} />
+                <span className="flex min-w-0 flex-1 flex-col"><b className="truncate font-extrabold">{s.name}{g.length > 1 ? ` · ${g.length}` : ''}</b><span className="truncate text-[13px] text-gris">{zoneName(g[0].zone_id)}</span></span>
+                <span className="rounded-full bg-soleil px-2.5 py-0.5 text-xs font-extrabold text-soleil-encre">Prête</span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </Sheet>
   );
 }
 

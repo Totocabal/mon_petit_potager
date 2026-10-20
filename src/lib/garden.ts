@@ -313,6 +313,16 @@ export function findSpot(zones: Zone[], terrainW: number, terrainH: number, w: n
   return null;
 }
 
+/** Première case libre d'une zone, parcourue rang après rang, où une plante de w × h cases tient ; null si la zone n'a plus la place. */
+export function firstFreeCell(grid: Grid, w = 1, h = 1): { x: number; y: number } | null {
+  for (let y = 0; y + h <= grid.length; y++) for (let x = 0; x + w <= (grid[y]?.length ?? 0); x++) {
+    let ok = true;
+    for (let dy = 0; dy < h && ok; dy++) for (let dx = 0; dx < w && ok; dx++) if (grid[y + dy][x + dx]) ok = false;
+    if (ok) return { x, y };
+  }
+  return null;
+}
+
 export const inSeason = (s: Species, month: number) => s.plant_out_months.includes(month) || s.sow_indoor_months.includes(month);
 
 /** Prochaine date conseillée pour mettre en place une plante qu'on prévoit de cultiver plus tard. */

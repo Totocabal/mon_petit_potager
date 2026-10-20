@@ -44,7 +44,6 @@ export default function MyCalendar() {
       <header className="pt-6 lg:pt-0">
         <p className="mb-1 text-xs font-extrabold uppercase tracking-wide text-gris">{garden.name}</p>
         <h1 className="font-titre text-[31px] font-semibold text-vert">Calendrier</h1>
-        <p className="mt-1 font-bold text-gris">Chaque geste, au bon moment.</p>
       </header>
       <div role="group" aria-label="Mois de mon calendrier" className="flex items-center justify-between gap-2 rounded-[20px] bg-white p-2">
         <button type="button" aria-label="Mois précédent" disabled={offset === 0} onClick={() => setOffset(n => n - 1)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-vert-doux text-vert disabled:opacity-40"><Chevron left /></button>
@@ -55,10 +54,10 @@ export default function MyCalendar() {
       {tasks.isPending && <p role="status" className="text-sm text-gris">Chargement des tâches…</p>}
       {tasks.isError && <p role="alert" className="text-sm text-alerte">Impossible de charger les tâches. <Link to="/taches" className="underline">Réessayer depuis la page des tâches</Link>.</p>}
       {groups.length ? <CalendarTimeline groups={groups} zones={zones} varieties={varietyById} now={now} pending={pending} onComplete={complete} /> : !tasks.isPending && <p className="rounded-carte bg-white p-4 text-sm text-gris">Aucun geste prévu pour ce mois-ci.</p>}
-      <p className="text-xs text-gris">Les récoltes sont estimées selon la saison et le délai de la variété : vérifiez la maturité sur place. L’arrosage est indiqué pour aujourd’hui, selon vos alertes et la pluie récente.</p>
+      <p className="text-xs text-gris">Les récoltes sont estimées selon la saison et le délai de la variété : vérifiez la maturité sur place.</p>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Link to="/taches" className="flex min-h-11 items-center font-extrabold text-vert">Gérer mes tâches →</Link>
-        <Link to="/almanach" className="flex min-h-11 items-center font-extrabold text-vert">Voir les plantes du mois →</Link>
+        <Link to="/almanach" className="flex min-h-11 items-center font-extrabold text-vert">Plantes du mois →</Link>
       </div>
       <BottomNav />
     </Page>

@@ -3,6 +3,22 @@ import { createPortal } from 'react-dom';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { SPTINT } from '../lib/garden';
 
+/** Pictos à trait de l'interface (même style que la barre du bas : trait de 2, bouts arrondis, couleur du texte). */
+const ICONS = {
+  drop: 'M12 3.5c3.5 4.2 6 7.2 6 10.5a6 6 0 0 1-12 0c0-3.3 2.5-6.3 6-10.5z',
+  basket: 'M3.5 10h17l-1.6 8.5a2 2 0 0 1-2 1.5H7.1a2 2 0 0 1-2-1.5zM8 10l3-6M16 10l-3-6M9.5 13.5v3M12 13.5v3M14.5 13.5v3',
+  sprout: 'M12 20v-8M12 12c0-4-3-6-7-6 0 4 3 6 7 6zM12 10c0-3 2-5 6-5 0 3-2 5-6 5z',
+  sparkles: 'M11 3l1.7 4.8 4.8 1.7-4.8 1.7L11 16l-1.7-4.8L4.5 9.5l4.8-1.7zM18 15l.7 1.8 1.8.7-1.8.7L18 20l-.7-1.8-1.8-.7 1.8-.7z',
+  pencil: 'M4 20h4L19 9l-4-4L4 16zM13 7l4 4',
+  resize: 'M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7',
+  broom: 'M20 4l-7 7M9 10l5 5c-1 3.5-3.5 5.5-8 6l-2 .5.5-2c.5-4.5 2.5-7 4.5-9.5z',
+  trash: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6'
+} as const;
+export type IconName = keyof typeof ICONS;
+export function Icon({ name, size = 22, className = '' }: { name: IconName; size?: number; className?: string }) {
+  return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d={ICONS[name]} /></svg>;
+}
+
 export function Picto({ slug, size = 40, className = '' }: { slug: string; size?: number; className?: string }) {
   return <img src={`/pictos/${slug}.svg`} alt="" width={size} height={size} className={className} draggable={false} />;
 }
@@ -86,11 +102,11 @@ export function Page({ children, nav = false, wide = false }: { children: ReactN
   return <main className={`rise-in relative mx-auto flex min-h-full max-w-[440px] flex-col gap-4 overflow-x-clip px-4 pt-5 lg:gap-5 lg:px-8 lg:pb-12 lg:pt-8 ${wide ? 'lg:max-w-[1180px]' : 'lg:max-w-[760px]'} ${nav ? 'pb-32' : 'pb-40'}`}>{children}</main>;
 }
 
-export function Sheet({ children, onClose, title, reserveSpace = true }: { children: ReactNode; onClose: () => void; title: string; reserveSpace?: boolean }) {
+export function Sheet({ children, onClose, title, reserveSpace = true, tall = false }: { children: ReactNode; onClose: () => void; title: string; reserveSpace?: boolean; tall?: boolean }) {
   return (
     <>
       {reserveSpace && <div className="h-80" aria-hidden="true" />}
-      <div role="dialog" aria-label={title} className="sheet-up fixed bottom-0 left-1/2 z-30 flex max-h-[70%] w-[min(440px,100%)] -translate-x-1/2 flex-col lg:left-[calc(50%+142px)] lg:w-[min(520px,calc(100%-332px))] gap-3 overflow-y-auto rounded-t-[30px] bg-white px-5 pb-[calc(20px+env(safe-area-inset-bottom))] pt-5 shadow-[0_-10px_28px_rgba(46,107,63,0.16)]">
+      <div role="dialog" aria-label={title} className={`sheet-up fixed bottom-0 left-1/2 z-30 flex ${tall ? 'max-h-[90%]' : 'max-h-[70%]'} w-[min(440px,100%)] -translate-x-1/2 flex-col lg:left-[calc(50%+142px)] lg:w-[min(520px,calc(100%-332px))] gap-3 overflow-y-auto rounded-t-[30px] bg-white px-5 pb-[calc(20px+env(safe-area-inset-bottom))] pt-5 shadow-[0_-10px_28px_rgba(46,107,63,0.16)]`}>
         <div className="flex items-baseline justify-between gap-3">
           <h2 className="font-titre text-[22px] font-semibold text-vert">{title}</h2>
           <button onClick={onClose} className="min-h-11 px-1 font-extrabold text-vert">Fermer</button>
@@ -174,6 +190,19 @@ export function Select({ value, onChange, options, label, className = '' }: { va
           </div>
         </>, document.body)}
     </>
+  );
+}
+
+/** Section repliable (balise <details>) : le titre reste visible, le détail s'ouvre au toucher. */
+export function Fold({ title, count, defaultOpen = false, children }: { title: string; count?: number; defaultOpen?: boolean; children: ReactNode }) {
+  return (
+    <details open={defaultOpen} className="group rounded-carte bg-white px-4">
+      <summary className="flex min-h-[56px] cursor-pointer list-none items-center justify-between gap-3 font-titre text-lg font-semibold [&::-webkit-details-marker]:hidden">
+        <span>{title}{count != null && <span className="font-corps text-sm font-bold text-gris"> · {count}</span>}</span>
+        <span aria-hidden="true" className="text-2xl font-normal leading-none text-vert transition-transform group-open:rotate-45">＋</span>
+      </summary>
+      <div className="flex flex-col gap-2.5 pb-4">{children}</div>
+    </details>
   );
 }
 

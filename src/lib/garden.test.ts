@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   ageDays, blocInfo, harvestDays, isPlanned, isThirsty, nextPlantDate, plannedTasksFor, thirstyIn, resizeBounds, varietyFields, blocName, buildRelations, colLabel, de, everyDays, findSpot, footprintText, freeRects, inSeason, isBig, isMulti, isReady, isSol,
   lc, nextWater, needsWater, neighbors, occupancy, pitchCm, placeText, plantCount, plantingsIn, rangPlan, range, rel, remainingPieces, spacingOk,
-  stage, toSegments, tooClose, zoneFits, zoneGround, zoneSize, areaPerPlantCm2, spacingWarning, suggestedLayout
+  stage, toSegments, tooClose, zoneFits, zoneGround, zoneSize, firstFreeCell, areaPerPlantCm2, spacingWarning, suggestedLayout
 } from './garden';
 import { iso, parse } from './dates';
 import { byId, companion, planting, species, zone } from '../test/fixtures';
@@ -385,6 +385,24 @@ describe('plantations prévues et tâches automatiques', () => {
       ['2027-03-31', 'Entretien : radis'],
       ['2027-04-04', 'Récolter : radis']
     ]);
+  });
+});
+
+describe('firstFreeCell', () => {
+  const z = zone({ cols: 4, rows: 3 });
+  const g = (ps: ReturnType<typeof planting>[]) => occupancy(z, ps);
+  it('première case libre, rang après rang', () => {
+    expect(firstFreeCell(g([]))).toEqual({ x: 0, y: 0 });
+    expect(firstFreeCell(g([planting({ id: 'a', x: 0, y: 0, w: 2, h: 1 })]))).toEqual({ x: 2, y: 0 });
+  });
+  it('tient compte de l’empreinte demandée', () => {
+    const ps = [planting({ id: 'a', x: 1, y: 0 }), planting({ id: 'b', x: 3, y: 0 })];
+    expect(firstFreeCell(g(ps), 2, 2)).toEqual({ x: 0, y: 1 });
+    expect(firstFreeCell(g(ps))).toEqual({ x: 0, y: 0 });
+  });
+  it('null quand il n’y a plus de place', () => {
+    expect(firstFreeCell(g([planting({ id: 'a', x: 0, y: 0, w: 4, h: 3 })]))).toBeNull();
+    expect(firstFreeCell(g([]), 5, 1)).toBeNull();
   });
 });
 

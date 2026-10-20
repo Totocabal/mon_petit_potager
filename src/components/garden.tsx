@@ -204,7 +204,7 @@ export function WaterSplash() {
   );
 }
 
-export function WaterButton({ plantings, label, onDone }: { plantings: Planting[]; label: string; onDone?: () => void }) {
+export function WaterButton({ plantings, label, onDone, sticky = false }: { plantings: Planting[]; label: string; onDone?: () => void; sticky?: boolean }) {
   const water = useWater();
   const toast = useToast();
   const { byId } = useApp();
@@ -220,8 +220,8 @@ export function WaterButton({ plantings, label, onDone }: { plantings: Planting[
     onDone?.();
   }
   return (
-    <div className="flex flex-col gap-1.5">
-      <Btn variant="eau" onClick={go} disabled={water.isPending}>{water.isPending ? 'Enregistrement…' : `J’ai arrosé ${label} · ${n} plantation${n > 1 ? 's' : ''}`}</Btn>
+    <div className={sticky ? 'fixed bottom-[calc(14px+env(safe-area-inset-bottom))] left-1/2 z-20 flex w-[min(408px,calc(100%-24px))] -translate-x-1/2 flex-col gap-1.5 lg:left-[calc(50%+142px)]' : 'flex flex-col gap-1.5'}>
+      <Btn variant="eau" onClick={go} disabled={water.isPending} className={sticky ? 'shadow-[0_10px_22px_rgba(63,125,160,0.35)]' : ''}>{water.isPending ? 'Enregistrement…' : `J’ai arrosé ${sticky ? '' : label + ' '}· ${n} plantation${n > 1 ? 's' : ''}`.replace('arrosé ·', 'arrosé la zone ·')}</Btn>
       {water.isError && <p className="text-sm font-bold text-alerte">{(water.error as Error).message}</p>}
       {splash && <WaterSplash />}
     </div>
