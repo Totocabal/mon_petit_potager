@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Route, Routes, useLocation, useNavigationType } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useNavigationType } from 'react-router-dom';
 import { useCurrentGarden, useSession } from './lib/data';
 import { AppProvider } from './lib/app';
 import { Loading, SideNav } from './components/ui';
@@ -16,6 +16,7 @@ import NewZone from './pages/NewZone';
 import AddPlant from './pages/AddPlant';
 import PlantPage from './pages/Plant';
 import Calendar from './pages/Calendar';
+import MyCalendar from './pages/MyCalendar';
 import Generate from './pages/Generate';
 import InvitePage from './pages/Invite';
 import AcceptInvite, { INVITE_KEY } from './pages/AcceptInvite';
@@ -76,7 +77,9 @@ function Signed({ session }: { session: NonNullable<ReturnType<typeof useSession
         <Route path="/zones/:zoneId/generer" element={<Generate />} />
         <Route path="/zones/:zoneId/planter" element={<AddPlant />} />
         <Route path="/plantes/:plantingId" element={<PlantPage />} />
-        <Route path="/calendrier" element={<Calendar />} />
+        <Route path="/calendrier" element={<Navigate to="/almanach" replace />} />
+        <Route path="/almanach" element={<Calendar />} />
+        <Route path="/mon-calendrier" element={<MyCalendar />} />
         <Route path="/meteo" element={<WeatherPage />} />
         <Route path="/glossaire" element={<Glossary />} />
         <Route path="/glossaire/:slug" element={<SpeciesSheet />} />
