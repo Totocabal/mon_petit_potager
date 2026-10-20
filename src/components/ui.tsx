@@ -86,11 +86,11 @@ export function Page({ children, nav = false, wide = false }: { children: ReactN
   return <main className={`rise-in relative mx-auto flex min-h-full max-w-[440px] flex-col gap-4 overflow-x-clip px-4 pt-5 lg:gap-5 lg:px-8 lg:pb-12 lg:pt-8 ${wide ? 'lg:max-w-[1180px]' : 'lg:max-w-[760px]'} ${nav ? 'pb-32' : 'pb-40'}`}>{children}</main>;
 }
 
-export function Sheet({ children, onClose, title, reserveSpace = true }: { children: ReactNode; onClose: () => void; title: string; reserveSpace?: boolean }) {
+export function Sheet({ children, onClose, title, reserveSpace = true, tall = false }: { children: ReactNode; onClose: () => void; title: string; reserveSpace?: boolean; tall?: boolean }) {
   return (
     <>
       {reserveSpace && <div className="h-80" aria-hidden="true" />}
-      <div role="dialog" aria-label={title} className="sheet-up fixed bottom-0 left-1/2 z-30 flex max-h-[70%] w-[min(440px,100%)] -translate-x-1/2 flex-col lg:left-[calc(50%+142px)] lg:w-[min(520px,calc(100%-332px))] gap-3 overflow-y-auto rounded-t-[30px] bg-white px-5 pb-[calc(20px+env(safe-area-inset-bottom))] pt-5 shadow-[0_-10px_28px_rgba(46,107,63,0.16)]">
+      <div role="dialog" aria-label={title} className={`sheet-up fixed bottom-0 left-1/2 z-30 flex ${tall ? 'max-h-[90%]' : 'max-h-[70%]'} w-[min(440px,100%)] -translate-x-1/2 flex-col lg:left-[calc(50%+142px)] lg:w-[min(520px,calc(100%-332px))] gap-3 overflow-y-auto rounded-t-[30px] bg-white px-5 pb-[calc(20px+env(safe-area-inset-bottom))] pt-5 shadow-[0_-10px_28px_rgba(46,107,63,0.16)]`}>
         <div className="flex items-baseline justify-between gap-3">
           <h2 className="font-titre text-[22px] font-semibold text-vert">{title}</h2>
           <button onClick={onClose} className="min-h-11 px-1 font-extrabold text-vert">Fermer</button>
@@ -174,6 +174,19 @@ export function Select({ value, onChange, options, label, className = '' }: { va
           </div>
         </>, document.body)}
     </>
+  );
+}
+
+/** Section repliable (balise <details>) : le titre reste visible, le détail s'ouvre au toucher. */
+export function Fold({ title, count, defaultOpen = false, children }: { title: string; count?: number; defaultOpen?: boolean; children: ReactNode }) {
+  return (
+    <details open={defaultOpen} className="group rounded-carte bg-white px-4">
+      <summary className="flex min-h-[56px] cursor-pointer list-none items-center justify-between gap-3 font-titre text-lg font-semibold [&::-webkit-details-marker]:hidden">
+        <span>{title}{count != null && <span className="font-corps text-sm font-bold text-gris"> · {count}</span>}</span>
+        <span aria-hidden="true" className="text-2xl font-normal leading-none text-vert transition-transform group-open:rotate-45">＋</span>
+      </summary>
+      <div className="flex flex-col gap-2.5 pb-4">{children}</div>
+    </details>
   );
 }
 

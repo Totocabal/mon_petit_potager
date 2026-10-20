@@ -1,21 +1,24 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../lib/app';
-import { BackHeader, Btn, Page, Sheet, Tile } from '../components/ui';
+import { BackHeader, Btn, Fold, Page, Sheet, Tile } from '../components/ui';
 import { VarietyDetails } from '../components/VarietyPicker';
 import { categoryLabel, DIFFICULTY_LABEL } from '../lib/glossary';
-import { footprintText, isMulti, isSol, lc, rel } from '../lib/garden';
+import { firstFreeCell, footprintText, isMulti, isSol, lc, occupancy, rel } from '../lib/garden';
 import { MOIS, today } from '../lib/dates';
 import type { Species, Variety } from '../lib/types';
 
 const LETTERS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
 const HEIGHT = { basse: 'Basse', moyenne: 'Moyenne', haute: 'Haute' } as const;
+/** Les chiffres affichés d'emblée ; les autres sont dans « Distances et détails de culture ». */
+const KEY_FACTS = ['Exposition', 'Arrosage', 'Jusqu’à la récolte', 'Dans la grille'];
 
 /** Fiche détaillée d'une plante : en un coup d'œil, calendrier, conseils et voisines. */
 export default function SpeciesSheet() {
   const { slug } = useParams();
-  const { bySlug, species, rels, crops, zones, loading, varietiesOf } = useApp();
+  const { bySlug, species, rels, crops, zones, plantings, loading, varietiesOf } = useApp();
   const s = slug ? bySlug.get(slug) : undefined;
+  const [choosing, setChoosing] = useState(false);
 
   const neighbours = useMemo(() => {
     if (!s) return { good: [], bad: [] };
@@ -66,7 +69,7 @@ export default function SpeciesSheet() {
       </div>
 
       <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-        {facts.map(([k, v]) => (
+        {facts.filter(([k]) => KEY_FACTS.includes(k)).map(([k, v]) => (
           <div key={k} className="flex flex-col gap-0.5 rounded-[20px] bg-white p-3"><span className="text-xs font-bold text-gris">{k}</span><b className="font-titre text-[15px] font-semibold leading-snug">{v}</b></div>
         ))}
       </div>
@@ -79,27 +82,51 @@ export default function SpeciesSheet() {
         <p className="text-xs text-gris">Les mois à repérer sont colorés ; le mois en cours est entouré.</p>
       </section>
 
-      <Block title="Semis et plantation">{s.sowing}</Block>
-      <Block title="Sol et exposition">{s.soil}</Block>
-      <Block title="Entretien">{s.care}</Block>
+      <Fold title="Distances et détails de culture">
+        <dl className="flex flex-col">
+          {facts.filter(([k]) => !KEY_FACTS.includes(k)).map(([k, v]) => <div key={k} className="flex items-baseline justify-between gap-4 border-b border-dashed border-trait py-2 last:border-0"><dt className="text-sm text-gris">{k}</dt><dd className="text-right text-[15px] font-bold">{v}</dd></div>)}
+        </dl>
+      </Fold>
+      {s.sowing && <Fold title="Semis et plantation"><p className="text-[15px] leading-relaxed">{s.sowing}</p></Fold>}
+      {(s.soil || s.care) && <Fold title="Sol et entretien">{s.soil && <p className="text-[15px] leading-relaxed"><b>Sol et exposition. </b>{s.soil}</p>}{s.care && <p className="text-[15px] leading-relaxed"><b>Entretien. </b>{s.care}</p>}</Fold>}
       <Pests key={s.id} pests={s.pests} treatment={s.pests_treatment} />
-      <Block title="Récolte et conservation">{s.harvest_tips}</Block>
+      {s.harvest_tips && <Fold title="Récolte et conservation"><p className="text-[15px] leading-relaxed">{s.harvest_tips}</p></Fold>}
       <Varieties key={s.id} varieties={varieties} species={s} counts={counts} />
-      {s.rotation_years != null && <Block title="Rotation">{`Famille des ${s.family}. Ne replantez pas une plante de cette famille au même endroit avant ${s.rotation_years} ans, pour limiter maladies et épuisement du sol. L’application vous prévient et évite ces cases quand elle génère un plan.`}</Block>}
+      {s.rotation_years != null && <Fold title="Rotation"><p className="text-[15px] leading-relaxed">{`Famille des ${s.family}. Ne replantez pas une plante de cette famille au même endroit avant ${s.rotation_years} ans, pour limiter maladies et épuisement du sol. L’application vous prévient et évite ces cases quand elle génère un plan.`}</p></Fold>}
       {s.notes && <p className="rounded-2xl bg-soleil-doux px-3 py-2.5 text-sm font-bold text-soleil-encre">{s.notes}</p>}
 
       {(neighbours.good.length > 0 || neighbours.bad.length > 0) && (
-        <section className="flex flex-col gap-3 rounded-carte bg-white p-4" aria-labelledby="h-voisines">
-          <h2 id="h-voisines" className="font-titre text-lg font-semibold">Ses voisines</h2>
+        <Fold title="Ses voisines" count={neighbours.good.length + neighbours.bad.length}>
           <Neigh title="Bonnes voisines" tone="text-vert" list={neighbours.good} />
           <Neigh title="À éloigner" tone="text-alerte" list={neighbours.bad} />
-        </section>
+        </Fold>
       )}
 
       <div className="rounded-carte bg-vert-doux p-4 text-sm font-bold text-vert-fonce">
         {mine.length ? `Dans votre potager : ${mine.length} plantation${mine.length > 1 ? 's' : ''} (${where.join(', ')}).` : `Vous n’en cultivez pas encore : ${lc(s.name)} se plante depuis la page d’une zone.`}
       </div>
       <Link to="/almanach?vue=toutes" className="self-center py-2 font-extrabold text-vert">← Toutes les plantes</Link>
+      <div className="fixed bottom-[calc(14px+env(safe-area-inset-bottom))] left-1/2 z-20 w-[min(408px,calc(100%-24px))] -translate-x-1/2 lg:left-[calc(50%+142px)]">
+        <Btn onClick={() => setChoosing(true)} className="shadow-[0_10px_22px_rgba(46,107,63,0.35)]">Planter dans mon potager</Btn>
+      </div>
+      {choosing && (
+        <Sheet title={`Où planter ${lc(s.name)} ?`} onClose={() => setChoosing(false)} reserveSpace={false}>
+          {!zones.length && <Link to="/potager/nouvelle-zone" className="rounded-2xl bg-vert-doux p-4 font-bold text-vert">Créez d’abord une zone dans votre potager →</Link>}
+          <ul className="flex flex-col">
+            {zones.map(z => {
+              const spot = firstFreeCell(occupancy(z, plantings.filter(p => p.zone_id === z.id)), s.span_w, s.span_h);
+              const row = <><span className="flex min-w-0 flex-1 flex-col"><b className="truncate font-extrabold">{z.name}</b><span className="text-[13px] text-gris">{spot ? `${z.cols} × ${z.rows} cases · il y a de la place` : 'Pas la place pour ' + lc(s.name)}</span></span>{spot && <span className="font-extrabold text-vert">Choisir →</span>}</>;
+              return (
+                <li key={z.id}>
+                  {spot ? <Link to={`/zones/${z.id}/planter?x=${spot.x}&y=${spot.y}&espece=${s.slug}`} className="flex min-h-[60px] items-center gap-3 border-b border-dashed border-trait last:border-0">{row}</Link>
+                    : <div aria-disabled="true" className="flex min-h-[60px] items-center gap-3 border-b border-dashed border-trait opacity-50 last:border-0">{row}</div>}
+                </li>
+              );
+            })}
+          </ul>
+          <p className="text-[13px] text-gris">La première case libre est choisie ; vous pourrez changer de case depuis la zone.</p>
+        </Sheet>
+      )}
     </Page>
   );
 }
