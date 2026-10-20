@@ -44,9 +44,15 @@ export function useSession() {
 }
 
 /* ---------- catalogue ---------- */
+/**
+ * Version du contenu du catalogue (espèces, associations, variétés…). Le catalogue est gardé sur l'appareil et ne se redemande jamais (`staleTime: Infinity`) :
+ * à chaque ajout ou changement de forme, **augmentez ce nombre**, sinon les appareils déjà ouverts gardent l'ancien catalogue et ne voient pas la nouveauté.
+ */
+export const CATALOGUE_VERSION = 3;
+
 export function useCatalogue() {
   const q = useQuery({
-    queryKey: ['catalogue'],
+    queryKey: ['catalogue', CATALOGUE_VERSION],
     staleTime: Infinity,
     queryFn: async () => {
       const species = check(await supabase.from('species').select('*').order('name')) as Species[];
