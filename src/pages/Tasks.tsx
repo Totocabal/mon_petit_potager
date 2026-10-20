@@ -33,9 +33,10 @@ export default function Tasks() {
         {todo.map(t => {
           const late = diffDays(parse(t.due_date), today()) < 0;
           return (
-            <div key={t.id} className="flex min-h-[58px] items-center gap-3 border-b border-dashed border-trait last:border-0">
+            <div key={t.id} className="flex min-h-[58px] items-center gap-3 border-b border-dashed border-trait py-2.5 last:border-0">
               <button aria-label={`Terminer : ${t.title}`} onClick={() => toggle.mutate({ id: t.id, done: true })} className="h-8 w-8 shrink-0 rounded-full border-2 border-vert" />
               <span className="flex min-w-0 flex-1 flex-col"><b className="font-extrabold">{t.title}</b>
+                {t.detail && <span className="mt-0.5 text-[13px] leading-snug text-encre/85">{t.detail}</span>}
                 <span className={`text-[13px] ${late ? 'font-extrabold text-alerte' : 'text-gris'}`}>{late ? 'En retard · ' : ''}{whenText(parse(t.due_date))}{zoneName(t.zone_id) ? ' · ' + zoneName(t.zone_id) : ''}</span></span>
               <button aria-label={`Supprimer : ${t.title}`} onClick={() => del.mutate(t.id)} className="px-2 text-xl text-gris">×</button>
             </div>

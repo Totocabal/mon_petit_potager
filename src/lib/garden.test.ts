@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  ageDays, blocInfo, harvestDays, isThirsty, thirstyIn, resizeBounds, varietyFields, blocName, buildRelations, colLabel, de, everyDays, findSpot, footprintText, freeRects, inSeason, isBig, isMulti, isReady, isSol,
+  ageDays, blocInfo, harvestDays, isPlanned, isThirsty, nextPlantDate, plannedTasksFor, thirstyIn, resizeBounds, varietyFields, blocName, buildRelations, colLabel, de, everyDays, findSpot, footprintText, freeRects, inSeason, isBig, isMulti, isReady, isSol,
   lc, nextWater, needsWater, neighbors, occupancy, pitchCm, placeText, plantCount, plantingsIn, rangPlan, range, rel, remainingPieces, spacingOk,
   stage, toSegments, tooClose, zoneFits, zoneGround, zoneSize
 } from './garden';
@@ -337,5 +337,53 @@ describe('blocInfo', () => {
     const info = blocInfo(z, g, 0, 0, byId(s, o));
     expect(info).toEqual({ dom: 'a', free: 25 - 7, ready: true });
     expect(blocInfo(z, g, 1, 0, byId(s, o))).toEqual({ dom: null, free: 5, ready: false }); // bloc de 1 colonne × 5 rangs
+  });
+});
+
+describe('plantations prévues et tâches automatiques', () => {
+  const tomate = species({
+    id: 't', name: 'Tomate', sow_indoor_months: [3, 4], plant_out_months: [5, 6], harvest_months: [7, 8, 9, 10],
+    frost_sensitive: true, days_to_harvest: 75, sowing: 'Semer en godet au chaud.', soil: 'Sol riche.',
+    care: 'Tuteurer et tailler les gourmands.', harvest_tips: 'Cueillir bien colorée.'
+  });
+  const radis = species({
+    id: 'r', name: 'Radis', sow_indoor_months: [], plant_out_months: [3, 4, 5, 9], harvest_months: [4, 5, 6, 10],
+    frost_sensitive: false, days_to_harvest: 25, germination_days: 5, sow_depth_cm: 1,
+    care: 'Éclaircir à 4 cm.', harvest_tips: 'Récolter croquant.'
+  });
+  it('isPlanned reconnaît une date de plantation dans le futur et coupe soif et récolte', () => {
+    const future = planting({ sown_at: '2027-05-15', last_watered_at: null });
+    expect(isPlanned(future)).toBe(true);
+    expect(isPlanned(planting({ sown_at: '2026-10-19' }))).toBe(false);
+    expect(needsWater(future, tomate)).toBe(false);
+    expect(isThirsty(future, tomate)).toBe(false);
+    expect(isReady(future, tomate)).toBe(false);
+  });
+  it('nextPlantDate choisit la prochaine période de mise en terre et attend le 15 mai pour les plantes gélives', () => {
+    expect(iso(nextPlantDate(tomate))).toBe('2027-05-15');
+    expect(iso(nextPlantDate(radis))).toBe('2027-03-01');
+    expect(iso(nextPlantDate(species({ plant_out_months: [10], frost_sensitive: false })))).toBe('2026-10-26');
+  });
+  it('plannedTasksFor crée semis sous abri, plantation, entretien et récolte pour une plante repiquée', () => {
+    const tasks = plannedTasksFor({ species: tomate, zoneId: 'z1', plantingId: 'p1', plantDate: parse('2027-05-15') });
+    expect(tasks.map(t => [t.due_date, t.title])).toEqual([
+      ['2027-03-01', 'Semis sous abri : tomate'],
+      ['2027-05-15', 'Planter en place : tomate'],
+      ['2027-05-29', 'Entretien : tomate'],
+      ['2027-07-29', 'Récolter : tomate']
+    ]);
+    expect(tasks.every(t => t.origin === 'auto' && t.zone_id === 'z1' && t.planting_id === 'p1')).toBe(true);
+    expect(tasks[0].detail).toContain('Semer en godet au chaud.');
+    expect(tasks[2].detail).toContain('Tuteurer');
+    expect(tasks[3].detail).toContain('Cueillir bien colorée.');
+  });
+  it('plannedTasksFor crée semis en place, suivi de levée, entretien et récolte pour un semis direct', () => {
+    const tasks = plannedTasksFor({ species: radis, zoneId: 'z1', plantDate: parse('2027-03-10') });
+    expect(tasks.map(t => [t.due_date, t.title])).toEqual([
+      ['2027-03-10', 'Semer en place : radis'],
+      ['2027-03-15', 'Surveiller la levée : radis'],
+      ['2027-03-31', 'Entretien : radis'],
+      ['2027-04-04', 'Récolter : radis']
+    ]);
   });
 });

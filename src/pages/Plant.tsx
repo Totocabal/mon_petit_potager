@@ -5,7 +5,7 @@ import { useUpdatePlanting, useWater } from '../lib/data';
 import { BackHeader, Btn, Page, Tile, useToast } from '../components/ui';
 import { Pests } from './SpeciesSheet';
 import { VarietyPicker } from '../components/VarietyPicker';
-import { ageDays, everyDays, varietyFields, isReady, isSol, lc, needsWater, neighbors, nextWater, nf, occupancy, placeText, plantCount, stage, stageNames } from '../lib/garden';
+import { ageDays, everyDays, varietyFields, isPlanned, isReady, isSol, lc, needsWater, neighbors, nextWater, nf, occupancy, placeText, plantCount, stage, stageNames } from '../lib/garden';
 import { cap, fmt, iso, monthsText, parse, today, whenText } from '../lib/dates';
 
 export default function PlantPage() {
@@ -40,6 +40,7 @@ export default function PlantPage() {
     );
   }
 
+  const planned = isPlanned(p);
   const ready = isReady(p, s), st = stage(p, s), names = stageNames(s);
   const wateredToday = p.last_watered_at === iso(today());
   const nb = neighbors(grid, p, s.id, rels, p.id);
@@ -47,6 +48,11 @@ export default function PlantPage() {
   async function onWater() {
     await water.mutateAsync([p!]);
     toast(`Arrosage noté · prochain ${whenText(nextWater({ ...p!, last_watered_at: iso(today()) }, s!))}`);
+  }
+  async function onPlantNow() {
+    const t = iso(today());
+    await update.mutateAsync({ p: p!, patch: { sown_at: t, last_watered_at: t } });
+    toast(`${s!.name} plantée aujourd’hui`);
   }
   async function remove(harvest: boolean) {
     await update.mutateAsync({ p: p!, patch: { removed_at: new Date().toISOString() } });
@@ -60,9 +66,9 @@ export default function PlantPage() {
       <div className="flex items-center gap-4">
         <Tile slug={s.slug} w={104} h={104} size={84} round={28} />
         <div className="flex min-w-0 flex-col gap-1.5">
-          <span className={`self-start rounded-full px-3 py-1 text-[13px] font-extrabold ${ready ? 'bg-soleil text-soleil-encre' : 'bg-vert-doux text-vert'}`}>{ready ? 'À récolter' : st === 0 ? 'Jeune semis' : 'En croissance'}</span>
+          <span className={`self-start rounded-full px-3 py-1 text-[13px] font-extrabold ${planned ? 'bg-soleil-doux text-soleil-encre' : ready ? 'bg-soleil text-soleil-encre' : 'bg-vert-doux text-vert'}`}>{planned ? 'Pas encore plantée' : ready ? 'À récolter' : st === 0 ? 'Jeune semis' : 'En croissance'}</span>
           {p.variety_id && varietyById.get(p.variety_id) && <p className="font-titre text-base font-semibold text-vert">{varietyById.get(p.variety_id)!.name}</p>}
-          <p className="text-sm font-bold text-gris">Semée le {fmt(parse(p.sown_at))} · jour {ageDays(p)}</p>
+          <p className="text-sm font-bold text-gris">{planned ? `Prévue le ${fmt(parse(p.sown_at))} · ${whenText(parse(p.sown_at))}` : `Semée le ${fmt(parse(p.sown_at))} · jour ${ageDays(p)}`}</p>
           <p className="text-sm font-bold text-gris">{cap(placeText(p))} · {nf(plantCount(p, s))} plants</p>
         </div>
       </div>
@@ -72,21 +78,32 @@ export default function PlantPage() {
           <div key={k} className="flex flex-col gap-0.5 rounded-[20px] bg-white p-3"><span className="text-xs font-bold text-gris">{k}</span><b className="font-titre font-semibold">{v}</b></div>
         ))}
       </div>
-      <div className="flex flex-col gap-3 rounded-carte bg-white p-4">
-        <h2 className="font-titre text-lg font-semibold">Sa croissance</h2>
-        <div className="grid grid-cols-4 gap-1">
-          {names.map((n, i) => (
-            <div key={n} className={`flex flex-col items-center gap-1.5 text-center text-xs font-bold ${i <= st ? 'text-vert' : 'text-gris'}`}>
-              <i className={`block h-[18px] w-[18px] rounded-full ${i <= st ? 'bg-vert' : 'bg-trait'} ${i === st ? 'shadow-[0_0_0_5px_#E1EFD6]' : ''}`} />{n}
-            </div>
-          ))}
+      {planned ? (
+        <div className="flex flex-col gap-2.5 rounded-carte bg-white p-4">
+          <h2 className="font-titre text-lg font-semibold">Plantation prévue</h2>
+          <p className="text-sm text-gris">Cet emplacement est réservé pour {lc(s.name)} ({fmt(parse(p.sown_at))}). Les étapes de semis, plantation, entretien et récolte sont dans votre liste de tâches.</p>
+          <Btn onClick={onPlantNow} disabled={update.isPending}>C’est planté aujourd’hui</Btn>
+          <Link to="/taches" className="self-center text-sm font-extrabold text-vert">Voir mes tâches programmées →</Link>
         </div>
-      </div>
-      <div className="flex flex-col gap-2.5 rounded-carte bg-white p-4">
-        <div className="flex items-baseline justify-between"><h2 className="font-titre text-lg font-semibold">Arrosage</h2>
-          <span className="text-sm font-extrabold text-eau">{needsWater(p, s, undefined, rainFor(p.zone_id)) ? 'À arroser' : 'Prochain : ' + whenText(nextWater(p, s, rainFor(p.zone_id)))}</span></div>
-        <Btn variant={wateredToday ? 'eau' : 'plein'} onClick={onWater} disabled={water.isPending || wateredToday}>{wateredToday ? 'Arrosée aujourd’hui' : 'J’ai arrosé'}</Btn>
-      </div>
+      ) : (
+        <>
+          <div className="flex flex-col gap-3 rounded-carte bg-white p-4">
+            <h2 className="font-titre text-lg font-semibold">Sa croissance</h2>
+            <div className="grid grid-cols-4 gap-1">
+              {names.map((n, i) => (
+                <div key={n} className={`flex flex-col items-center gap-1.5 text-center text-xs font-bold ${i <= st ? 'text-vert' : 'text-gris'}`}>
+                  <i className={`block h-[18px] w-[18px] rounded-full ${i <= st ? 'bg-vert' : 'bg-trait'} ${i === st ? 'shadow-[0_0_0_5px_#E1EFD6]' : ''}`} />{n}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-col gap-2.5 rounded-carte bg-white p-4">
+            <div className="flex items-baseline justify-between"><h2 className="font-titre text-lg font-semibold">Arrosage</h2>
+              <span className="text-sm font-extrabold text-eau">{needsWater(p, s, undefined, rainFor(p.zone_id)) ? 'À arroser' : 'Prochain : ' + whenText(nextWater(p, s, rainFor(p.zone_id)))}</span></div>
+            <Btn variant={wateredToday ? 'eau' : 'plein'} onClick={onWater} disabled={water.isPending || wateredToday}>{wateredToday ? 'Arrosée aujourd’hui' : 'J’ai arrosé'}</Btn>
+          </div>
+        </>
+      )}
       <div className="flex flex-col gap-2 rounded-carte bg-white p-4">
         <h2 className="font-titre text-lg font-semibold">Ses voisines</h2>
         {nb.good.length > 0 && <p className="text-sm"><b className="text-vert">Bonnes voisines :</b> {nb.good.map(i => lc(byId.get(i)!.name)).join(', ')}</p>}
