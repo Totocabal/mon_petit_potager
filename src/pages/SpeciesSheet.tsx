@@ -227,7 +227,7 @@ export function Pests({ pests, treatment }: { pests: string | null; treatment: s
       </section>
 
       {open && (
-        <Sheet title="Ravageurs et maladies" onClose={() => setOpen(false)}>
+        <Sheet title="Ravageurs et maladies" onClose={() => setOpen(false)} reserveSpace={false}>
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs font-extrabold text-gris">Quels symptômes observez-vous ?</p>
             <button
