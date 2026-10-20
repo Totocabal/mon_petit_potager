@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
-import type { AlertSettings, Companion, Garden, Invite, Member, Planting, Profile, Species, Task, Zone } from './types';
+import type { AlertSettings, Companion, Garden, Invite, Member, Planting, Profile, Species, Task, Variety, Zone } from './types';
 import { buildRelations } from './garden';
 import { applyPending, isNetworkError, type PlantingRow } from './outbox';
 import { outbox, submit } from './offline';
@@ -51,12 +51,19 @@ export function useCatalogue() {
     queryFn: async () => {
       const species = check(await supabase.from('species').select('*').order('name')) as Species[];
       const companions = check(await supabase.from('species_companions').select('*')) as Companion[];
-      return { species, companions };
+      const varieties = check(await supabase.from('varieties').select('*').order('sort')) as Variety[];
+      return { species, companions, varieties };
     }
   });
   return useMemo(() => {
     const species = q.data?.species ?? [];
+    const varieties = q.data?.varieties ?? [];
+    const bySpecies = new Map<string, Variety[]>();
+    varieties.forEach(v => bySpecies.set(v.species_id, [...(bySpecies.get(v.species_id) ?? []), v]));
     return {
+      varieties,
+      varietyById: new Map(varieties.map(v => [v.id, v])),
+      varietiesOf: (speciesId: string) => bySpecies.get(speciesId) ?? [],
       loading: q.isLoading,
       species,
       byId: new Map(species.map(s => [s.id, s])),
@@ -166,14 +173,14 @@ export function usePlantings(gardenId: string | undefined) {
     queryFn: async () => applyPending(check(await supabase.from('plantings').select('*').eq('garden_id', gardenId!).is('removed_at', null)) as Planting[], outbox.pending(), gardenId!)
   });
 }
-export type NewPlanting = Pick<Planting, 'garden_id' | 'zone_id' | 'species_id' | 'x' | 'y' | 'w' | 'h'> & { sown_at?: string };
+export type NewPlanting = Pick<Planting, 'garden_id' | 'zone_id' | 'species_id' | 'x' | 'y' | 'w' | 'h'> & { sown_at?: string } & Partial<Pick<Planting, 'variety_id' | 'days_to_harvest' | 'water_every_days'>>;
 export function useAddPlantings() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (rows: NewPlanting[]) => {
       if (!rows.length) return;
       const t = iso(today());
-      const full: PlantingRow[] = rows.map(r => ({ id: crypto.randomUUID(), sown_at: t, last_watered_at: t, water_every_days: null, alerts_enabled: true, removed_at: null, ...r }));
+      const full: PlantingRow[] = rows.map(r => ({ id: crypto.randomUUID(), sown_at: t, last_watered_at: t, water_every_days: null, alerts_enabled: true, removed_at: null, variety_id: null, days_to_harvest: null, ...r }));
       await submit(qc, { kind: 'add', garden_id: rows[0].garden_id, rows: full });
     }
   });

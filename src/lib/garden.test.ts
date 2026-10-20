@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  ageDays, blocInfo, isThirsty, thirstyIn, resizeBounds, blocName, buildRelations, colLabel, de, everyDays, findSpot, footprintText, freeRects, inSeason, isBig, isMulti, isReady, isSol,
+  ageDays, blocInfo, harvestDays, isThirsty, thirstyIn, resizeBounds, varietyFields, blocName, buildRelations, colLabel, de, everyDays, findSpot, footprintText, freeRects, inSeason, isBig, isMulti, isReady, isSol,
   lc, nextWater, needsWater, neighbors, occupancy, pitchCm, placeText, plantCount, plantingsIn, rangPlan, range, rel, remainingPieces, spacingOk,
   stage, toSegments, tooClose, zoneFits, zoneGround, zoneSize
 } from './garden';
@@ -232,6 +232,39 @@ describe('arrosage, récolte, stade', () => {
     expect(stage(planting({ sown_at: '2026-06-01' }), s)).toBe(3);
     expect(stage(planting(), species({ days_to_harvest: null }))).toBe(2);
     expect(ageDays(planting({ sown_at: '2026-10-09' }))).toBe(10);
+  });
+});
+
+describe('variété : délai de récolte', () => {
+  // Récolte possible en octobre (la date simulée est le 19 octobre 2026)
+  const s = species({ days_to_harvest: 120, harvest_months: [10] });
+  it('une plantation sans délai propre suit l’espèce', () => {
+    expect(harvestDays(planting(), s)).toBe(120);
+  });
+  it('le délai de la variété l’emporte sur celui de l’espèce', () => {
+    expect(harvestDays(planting({ days_to_harvest: 90 }), s)).toBe(90);
+    expect(harvestDays(planting({ days_to_harvest: 90 }), species({ days_to_harvest: null }))).toBe(90);
+    expect(harvestDays(planting(), species({ days_to_harvest: null }))).toBeNull();
+  });
+  it('une variété précoce est prête plus tôt que l’espèce', () => {
+    const p = planting({ sown_at: '2026-07-10' }); // 101 jours le 19 octobre
+    expect(isReady(p, s)).toBe(false);
+    expect(isReady({ ...p, days_to_harvest: 100 }, s)).toBe(true);
+  });
+  it('une variété tardive est prête plus tard que l’espèce', () => {
+    const p = planting({ sown_at: '2026-06-10' }); // 131 jours
+    expect(isReady(p, s)).toBe(true);
+    expect(isReady({ ...p, days_to_harvest: 140 }, s)).toBe(false);
+  });
+  it('la frise de croissance suit le délai de la plantation', () => {
+    const p = planting({ sown_at: '2026-09-09' }); // 40 jours : 33 % de 120, 67 % de 60
+    expect(stage(p, s)).toBe(1);
+    expect(stage({ ...p, days_to_harvest: 60 }, s)).toBe(2);
+  });
+  it('varietyFields retient l’identifiant et le délai, ou rien', () => {
+    expect(varietyFields({ id: 'v1', days_to_harvest: 100 })).toEqual({ variety_id: 'v1', days_to_harvest: 100 });
+    expect(varietyFields({ id: 'v2', days_to_harvest: null })).toEqual({ variety_id: 'v2', days_to_harvest: null });
+    expect(varietyFields(null)).toEqual({ variety_id: null, days_to_harvest: null });
   });
 });
 

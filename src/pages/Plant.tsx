@@ -4,12 +4,13 @@ import { useApp } from '../lib/app';
 import { useUpdatePlanting, useWater } from '../lib/data';
 import { BackHeader, Btn, Page, Tile, useToast } from '../components/ui';
 import { Pests } from './SpeciesSheet';
-import { ageDays, everyDays, isReady, isSol, lc, needsWater, neighbors, nextWater, nf, occupancy, placeText, plantCount, stage, stageNames } from '../lib/garden';
+import { VarietyPicker } from '../components/VarietyPicker';
+import { ageDays, everyDays, varietyFields, isReady, isSol, lc, needsWater, neighbors, nextWater, nf, occupancy, placeText, plantCount, stage, stageNames } from '../lib/garden';
 import { cap, fmt, iso, monthsText, parse, today, whenText } from '../lib/dates';
 
 export default function PlantPage() {
   const { plantingId } = useParams();
-  const { plantings, zones, byId, rels, rainFor } = useApp();
+  const { plantings, zones, byId, rels, rainFor, varietyById } = useApp();
   const p = plantings.find(x => x.id === plantingId);
   const zone = p ? zones.find(z => z.id === p.zone_id) : undefined;
   const s = p ? byId.get(p.species_id) : undefined;
@@ -60,10 +61,12 @@ export default function PlantPage() {
         <Tile slug={s.slug} w={104} h={104} size={84} round={28} />
         <div className="flex min-w-0 flex-col gap-1.5">
           <span className={`self-start rounded-full px-3 py-1 text-[13px] font-extrabold ${ready ? 'bg-soleil text-soleil-encre' : 'bg-vert-doux text-vert'}`}>{ready ? 'À récolter' : st === 0 ? 'Jeune semis' : 'En croissance'}</span>
+          {p.variety_id && varietyById.get(p.variety_id) && <p className="font-titre text-base font-semibold text-vert">{varietyById.get(p.variety_id)!.name}</p>}
           <p className="text-sm font-bold text-gris">Semée le {fmt(parse(p.sown_at))} · jour {ageDays(p)}</p>
           <p className="text-sm font-bold text-gris">{cap(placeText(p))} · {nf(plantCount(p, s))} plants</p>
         </div>
       </div>
+      <div className="rounded-carte bg-white p-4"><VarietyPicker speciesId={s.id} value={p.variety_id} onChange={async v => { await update.mutateAsync({ p, patch: varietyFields(v) }); toast(v ? `Variété : ${v.name}` : 'Variété retirée'); }} /></div>
       <div className="grid grid-cols-3 gap-2.5">
         {[['Arrosage', everyDays(p, s) === 1 ? 'Tous les jours' : `Tous les ${everyDays(p, s)} j`], ['Exposition', s.exposure === 'soleil' ? 'Plein soleil' : 'Mi-ombre'], ['Récolte', monthsText(s.harvest_months)]].map(([k, v]) => (
           <div key={k} className="flex flex-col gap-0.5 rounded-[20px] bg-white p-3"><span className="text-xs font-bold text-gris">{k}</span><b className="font-titre font-semibold">{v}</b></div>

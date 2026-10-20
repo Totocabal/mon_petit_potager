@@ -4,7 +4,9 @@ import { useApp } from '../lib/app';
 import { useAddPlantings } from '../lib/data';
 import { BackHeader, Btn, Note, Page, Sheet, Tile, useToast } from '../components/ui';
 import { rotationHits, rotationMessage } from '../lib/rotation';
-import { footprintText, inSeason, isMulti, isSol, lc, neighbors, nf, occupancy, pitchCm, spacingOk, tooClose } from '../lib/garden';
+import { footprintText, inSeason, isMulti, isSol, lc, neighbors, nf, occupancy, pitchCm, spacingOk, tooClose, varietyFields } from '../lib/garden';
+import { VarietyPicker } from '../components/VarietyPicker';
+import type { Variety } from '../lib/types';
 import { iso, MOIS, monthsText, today } from '../lib/dates';
 
 export default function AddPlant() {
@@ -16,7 +18,9 @@ export default function AddPlant() {
   const grid = useMemo(() => (zone ? occupancy(zone, plantings.filter(p => p.zone_id === zone.id)) : []), [zone, plantings]);
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState<'saison' | 'toutes'>('saison');
-  const [pick, setPick] = useState<string | null>(null);
+  const [pick, setPickRaw] = useState<string | null>(null);
+  const [variety, setVariety] = useState<Variety | null>(null);
+  const setPick = (id: string | null) => { setPickRaw(id); setVariety(null); };
   const [date, setDate] = useState(iso(today()));
   const add = useAddPlantings();
   const nav = useNavigate();
@@ -43,7 +47,7 @@ export default function AddPlant() {
 
   async function plant() {
     if (!s) return;
-    await add.mutateAsync([{ garden_id: garden.id, zone_id: zone!.id, species_id: s.id, x, y, w: sw, h: sh, sown_at: date }]);
+    await add.mutateAsync([{ garden_id: garden.id, zone_id: zone!.id, species_id: s.id, x, y, w: sw, h: sh, sown_at: date, ...varietyFields(variety) }]);
     toast(isSol(s) ? `${s.name} · rang ${y + 1}, case ${x + 1}` : `${s.name} plantée · rang ${y + 1}, case ${x + 1}`);
     nav(-1);
   }
@@ -81,6 +85,7 @@ export default function AddPlant() {
           <label className="flex flex-col gap-1 text-sm font-extrabold">Planté le
             <input type="date" value={date} onChange={e => setDate(e.target.value)} className="min-h-11 rounded-2xl border-2 border-trait bg-white px-3 font-bold" />
           </label>
+          <VarietyPicker speciesId={s.id} value={variety?.id ?? null} onChange={setVariety} />
           <p className="text-sm font-bold text-gris">Distances recommandées : {s.inrow_spacing_cm} cm entre plants, {s.row_spacing_cm} cm entre rangs.</p>
           </>
           )}

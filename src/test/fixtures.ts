@@ -1,4 +1,4 @@
-import type { Companion, Planting, Species, Zone } from '../lib/types';
+import type { Companion, Planting, Species, Variety, Zone } from '../lib/types';
 
 /** Espèce de test : une plante simple à 1 plant par case, que chaque test précise. */
 export const species = (o: Partial<Species> = {}): Species => ({
@@ -10,7 +10,7 @@ export const species = (o: Partial<Species> = {}): Species => ({
 
 export const planting = (o: Partial<Planting> = {}): Planting => ({
   id: 'p', garden_id: 'g', zone_id: 'z', species_id: 's', x: 0, y: 0, w: 1, h: 1, sown_at: '2026-05-01', last_watered_at: null,
-  water_every_days: null, alerts_enabled: true, removed_at: null, created_at: '2026-05-01', ...o
+  water_every_days: null, alerts_enabled: true, removed_at: null, created_at: '2026-05-01', variety_id: null, days_to_harvest: null, ...o
 });
 
 export const zone = (o: Partial<Zone> = {}): Zone => ({
@@ -18,6 +18,8 @@ export const zone = (o: Partial<Zone> = {}): Zone => ({
 });
 
 export const companion = (a: string, b: string, relation: 'good' | 'bad'): Companion => ({ species_a: a, species_b: b, relation, reason: null });
+
+export const variety = (o: Partial<Variety> = {}): Variety => ({ id: 'v', species_id: 's', slug: 'v', name: 'Variété', days_to_harvest: null, traits: [], notes: null, sort: 1, ...o });
 
 /** Index d'espèces par identifiant, comme `byId` dans l'app. */
 export const byId = (...list: Species[]) => new Map(list.map(s => [s.id, s]));

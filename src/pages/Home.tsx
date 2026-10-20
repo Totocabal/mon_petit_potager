@@ -13,7 +13,7 @@ import { WeatherBackdrop } from '../components/WeatherBackdrop';
 import type { Planting } from '../lib/types';
 
 export default function Home() {
-  const { profile, crops, zones, byId, loading, garden, weather, rainFor } = useApp();
+  const { profile, crops, zones, byId, loading, garden, weather, rainFor, varietyById } = useApp();
   const water = useWater();
   const { session } = useApp();
   const tasks = useTasks(garden.id);
@@ -45,10 +45,12 @@ export default function Home() {
         plants: ps.reduce((t, p) => t + plantCount(p, s), 0),
         thirsty: ps.filter(p => isThirsty(p, s, rain)).length,
         ready: ps.some(p => isReady(p, s)),
-        age: Math.min(...ps.map(p => ageDays(p)))
+        age: Math.min(...ps.map(p => ageDays(p))),
+        // La variété s'affiche quand toutes les plantations du groupe ont la même
+        variety: new Set(ps.map(p => p.variety_id)).size === 1 && ps[0].variety_id ? varietyById.get(ps[0].variety_id)?.name ?? null : null
       };
     }).sort((a, b) => Number(b.thirsty > 0) - Number(a.thirsty > 0) || Number(b.ready) - Number(a.ready) || a.age - b.age);
-  }, [crops, byId, rainFor]);
+  }, [crops, byId, rainFor, varietyById]);
 
   if (loading) return <Loading />;
   const zoneName = (id: string) => zones.find(z => z.id === id)?.name ?? '';
@@ -123,6 +125,7 @@ export default function Home() {
               className={`squish relative flex w-[124px] shrink-0 flex-col items-center gap-0.5 rounded-carte bg-white p-2.5 lg:w-auto lg:bg-fond lg:px-2.5 lg:py-3.5 ${g.ready ? 'shadow-[inset_0_0_0_3px_#F6C445]' : ''}`}>
               <span className="relative"><Tile slug={g.s.slug} w={88} h={72} size={58} round={18} />{g.thirsty > 0 && <DropBadge size={20} className="!-right-1.5 !-top-1.5" />}</span>
               <b className="mt-1 text-center text-sm font-extrabold leading-tight">{g.s.name}</b>
+              {g.variety && <span className="max-w-full truncate text-[11px] font-extrabold text-vert">{g.variety}</span>}
               <span className="max-w-full truncate rounded-full bg-vert-doux px-2 py-0.5 text-[11px] font-extrabold text-vert">{zoneName(g.zoneId)}</span>
               <span className="text-xs font-bold text-gris">{nf(g.plants)} plant{g.plants > 1 ? 's' : ''}</span>
               <span className="text-center text-[11px] leading-tight text-gris">{g.thirsty ? <b className="text-eau">à arroser</b> : g.ready ? <b className="text-[#8A6A00]">à récolter</b> : g.ps.length > 1 ? `${g.ps.length} emplacements` : `Jour ${g.age}`}</span>

@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
 import { useApp } from '../lib/app';
 import { useAddPlantings, useCutPlantings, useWater } from '../lib/data';
-import { BLOC, de, isSol, lc, nf, rangPlan, remainingPieces, toSegments, type Grid } from '../lib/garden';
+import { BLOC, de, isSol, lc, nf, rangPlan, remainingPieces, toSegments, varietyFields, type Grid } from '../lib/garden';
 import { iso, today } from '../lib/dates';
 import { blockedCells } from '../lib/rotation';
 import { buzz } from '../lib/native';
-import type { Planting, Zone } from '../lib/types';
+import type { Planting, Variety, Zone } from '../lib/types';
+import { VarietyPicker } from './VarietyPicker';
 import { Btn, Note, Sheet, useToast } from './ui';
 import { SpeciesStrip, WaterSplash, unitOf, type CellSel } from './garden';
 
@@ -66,7 +67,9 @@ function PlantSheet({ zone, grid, free, onClose, onDone }: { zone: Zone; grid: G
   const { rels, byId, species, garden, history } = useApp();
   const toast = useToast();
   const add = useAddPlantings();
-  const [sp, setSp] = useState<string | null>(() => species.find(s => s.slug === 'ail')?.id ?? species[0]?.id ?? null);
+  const [sp, setSpRaw] = useState<string | null>(() => species.find(s => s.slug === 'ail')?.id ?? species[0]?.id ?? null);
+  const [variety, setVariety] = useState<Variety | null>(null);
+  const setSp = (id: string) => { setSpRaw(id); setVariety(null); };
   const [ignoreRot, setIgnoreRot] = useState(false);
   const s = sp ? byId.get(sp) : undefined;
   const blocked = useMemo(() => (s ? blockedCells(history, byId, zone, s) : new Set<number>()), [s, history, byId, zone]);
@@ -94,7 +97,7 @@ function PlantSheet({ zone, grid, free, onClose, onDone }: { zone: Zone; grid: G
 
   async function plant() {
     if (!s || !plan.count) return;
-    const rows = [...plan.ok].flatMap(([y, xs]) => toSegments(xs).map(seg => ({ garden_id: garden.id, zone_id: zone.id, species_id: s.id, x: seg.x, y, w: seg.w, h: 1, sown_at: iso(today()) })));
+    const rows = [...plan.ok].flatMap(([y, xs]) => toSegments(xs).map(seg => ({ garden_id: garden.id, zone_id: zone.id, species_id: s.id, x: seg.x, y, w: seg.w, h: 1, sown_at: iso(today()), ...varietyFields(variety) })));
     await add.mutateAsync(rows);
     void buzz();
     toast(isSol(s) ? `${plan.count} case${plan.count > 1 ? 's' : ''} en ${lc(s.name)}` : `${plan.count} case${plan.count > 1 ? 's' : ''} ${de(lc(s.name))} · ${nf(plan.count * s.plants_per_cell)} plants`);
@@ -109,6 +112,7 @@ function PlantSheet({ zone, grid, free, onClose, onDone }: { zone: Zone; grid: G
   return (
     <Sheet title={`Planter ${free.length} case${free.length > 1 ? 's' : ''}`} onClose={onClose}>
       <SpeciesStrip value={sp} onChange={setSp} onlySingleCell />
+      {s && !isSol(s) && <VarietyPicker speciesId={s.id} value={variety?.id ?? null} onChange={setVariety} />}
       <Note tone={msg[0]}>{msg[1]}</Note>
       {plan.rot > 0 && (
         <label className="flex items-start gap-2.5 rounded-2xl bg-[#F3EDE1] px-3 py-2.5 text-[13px] font-bold text-soleil-encre">

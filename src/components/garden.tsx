@@ -2,11 +2,12 @@ import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, ty
 import { Link } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { useAddPlantings, useCutPlantings, useRemovePlantings, useWater } from '../lib/data';
-import { BLOC, de, footprintText, freeRects, isMulti, isReady, isSol, isThirsty, lc, meters, nf, occupancy, plantingsIn, rangPlan, remainingPieces, SPTINT, toSegments, type Grid } from '../lib/garden';
+import { BLOC, de, footprintText, freeRects, isMulti, isReady, isSol, isThirsty, lc, meters, nf, occupancy, plantingsIn, rangPlan, remainingPieces, SPTINT, toSegments, varietyFields, type Grid } from '../lib/garden';
 import { cap, iso, today } from '../lib/dates';
 import { blockedCells } from '../lib/rotation';
 import { buzz, tick } from '../lib/native';
-import type { Planting, Species, Zone } from '../lib/types';
+import type { Planting, Species, Variety, Zone } from '../lib/types';
+import { VarietyPicker } from './VarietyPicker';
 import { Btn, Note, Picto, Sheet, Tile, useToast } from './ui';
 
 /** Bande horizontale d'espèces à choisir, celles de saison en premier. */
@@ -309,7 +310,9 @@ export function RangSheet({ zone, y, x0, onClose }: { zone: Zone; y: number; x0:
   const [confirmClear, setConfirmClear] = useState(false);
   const big = zone.cols > BLOC;
   const [scope, setScope] = useState<'bloc' | 'zone'>(big && x0 >= 0 ? 'bloc' : 'zone');
-  const [sp, setSp] = useState<string | null>(() => species.find(s => s.slug === 'ail')?.id ?? species[0]?.id ?? null);
+  const [sp, setSpRaw] = useState<string | null>(() => species.find(s => s.slug === 'ail')?.id ?? species[0]?.id ?? null);
+  const [variety, setVariety] = useState<Variety | null>(null);
+  const setSp = (id: string) => { setSpRaw(id); setVariety(null); };
   const grid = useMemo(() => occupancy(zone, plantings.filter(p => p.zone_id === zone.id)), [zone, plantings]);
   const s: Species | undefined = sp ? byId.get(sp) : undefined;
   const xa = scope === 'bloc' ? x0 : 0, xb = scope === 'bloc' ? Math.min(zone.cols, x0 + BLOC) : zone.cols;
@@ -336,7 +339,7 @@ export function RangSheet({ zone, y, x0, onClose }: { zone: Zone; y: number; x0:
 
   async function plant() {
     if (!s || !plan || !n) return;
-    await add.mutateAsync(toSegments(okCells).map(seg => ({ garden_id: garden.id, zone_id: zone.id, species_id: s.id, x: seg.x, y, w: seg.w, h: 1, sown_at: iso(today()) })));
+    await add.mutateAsync(toSegments(okCells).map(seg => ({ garden_id: garden.id, zone_id: zone.id, species_id: s.id, x: seg.x, y, w: seg.w, h: 1, sown_at: iso(today()), ...varietyFields(variety) })));
     toast(isSol(s) ? `Rang ${y + 1} : ${n} case${n > 1 ? 's' : ''} en ${lc(s.name)}` : `Rang ${y + 1} : ${n} cases ${de(lc(s.name))} · ${nf(n * s.plants_per_cell)} plants`);
     onClose();
   }
@@ -354,6 +357,7 @@ export function RangSheet({ zone, y, x0, onClose }: { zone: Zone; y: number; x0:
       )}
       <WaterButton plantings={inRow} label={`le rang ${y + 1}`} onDone={onClose} />
       <SpeciesStrip value={sp} onChange={setSp} onlySingleCell />
+      {s && !isSol(s) && <VarietyPicker speciesId={s.id} value={variety?.id ?? null} onChange={setVariety} />}
       <Note tone={msg[0]}>{msg[1]}</Note>
       {rotSkipped.length > 0 && (
         <label className="flex items-start gap-2.5 rounded-2xl bg-[#F3EDE1] px-3 py-2.5 text-[13px] font-bold text-soleil-encre">

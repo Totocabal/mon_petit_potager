@@ -1,4 +1,4 @@
-import type { Companion, Planting, Species, Zone } from './types';
+import type { Companion, Planting, Species, Variety, Zone } from './types';
 import { addDays, diffDays, parse, today } from './dates';
 
 /** Taille d'une case et d'un bloc. */
@@ -161,9 +161,16 @@ export function buildRelations(list: Companion[]): Relations {
 export const rel = (r: Relations, a: string, b: string) => r.get(a + '|' + b) ?? null;
 
 /** Prête à récolter : mois de récolte et durée atteinte (ou vivace). */
+/** Jours jusqu'à la récolte : celui de la plantation (variété choisie) l'emporte sur celui de l'espèce ; null = pas de délai connu. */
+export const harvestDays = (p: Pick<Planting, 'days_to_harvest'>, s: Pick<Species, 'days_to_harvest'>): number | null => p.days_to_harvest ?? s.days_to_harvest;
+
+/** Ce qu'une plantation retient de sa variété : son identifiant et ce qui la distingue de l'espèce. */
+export const varietyFields = (v: Pick<Variety, 'id' | 'days_to_harvest'> | null | undefined): Pick<Planting, 'variety_id' | 'days_to_harvest'> => ({ variety_id: v?.id ?? null, days_to_harvest: v?.days_to_harvest ?? null });
+
 export function isReady(p: Planting, s: Species, now = today()): boolean {
   if (!s.harvest_months.includes(now.getMonth() + 1)) return false;
-  return s.days_to_harvest == null || diffDays(now, parse(p.sown_at)) >= s.days_to_harvest;
+  const need = harvestDays(p, s);
+  return need == null || diffDays(now, parse(p.sown_at)) >= need;
 }
 
 export const ageDays = (p: Planting, now = today()) => diffDays(now, parse(p.sown_at));
@@ -188,8 +195,9 @@ export function thirstyIn(grid: Grid, x0: number, x1: number, y0: number, y1: nu
 /** Stade affiché sur la frise : 0 semis, 1 plantation, 2 croissance/fleurs, 3 récolte. */
 export function stage(p: Planting, s: Species): number {
   if (isReady(p, s)) return 3;
-  if (s.days_to_harvest == null) return 2;
-  const f = ageDays(p) / s.days_to_harvest;
+  const need = harvestDays(p, s);
+  if (need == null) return 2;
+  const f = ageDays(p) / need;
   return f < 0.2 ? 0 : f < 0.55 ? 1 : 2;
 }
 export const stageNames = (s: Species) => ['Semis', 'Plantation', ['Solanacées', 'Cucurbitacées', 'Fabacées', 'Rosacées'].includes(s.family) ? 'Fleurs' : 'Croissance', 'Récolte'];

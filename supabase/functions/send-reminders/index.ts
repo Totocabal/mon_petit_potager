@@ -23,7 +23,7 @@ const day = (iso: string) => Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +i
 const addIso = (iso: string, n: number) => new Date((day(iso) + n) * 864e5).toISOString().slice(0, 10);
 
 type Species = { id: string; name: string; water_every_days: number; harvest_months: number[]; days_to_harvest: number | null };
-type Planting = { id: string; garden_id: string; zone_id: string; species_id: string; sown_at: string; last_watered_at: string | null; water_every_days: number | null; alerts_enabled: boolean };
+type Planting = { id: string; garden_id: string; zone_id: string; species_id: string; sown_at: string; last_watered_at: string | null; water_every_days: number | null; days_to_harvest: number | null; alerts_enabled: boolean };
 
 const weatherCache = new Map<string, string | null>();
 /** Dernier jour (≤ aujourd'hui) avec assez de pluie, ou null. */
@@ -96,7 +96,7 @@ Deno.serve(async req => {
       const [{ data: gardens }, { data: zones }, { data: plantings }, { data: tasks }] = await Promise.all([
         admin.from('gardens').select('id, name').in('id', gids),
         admin.from('zones').select('id, sheltered').in('garden_id', gids),
-        admin.from('plantings').select('id, garden_id, zone_id, species_id, sown_at, last_watered_at, water_every_days, alerts_enabled').in('garden_id', gids).is('removed_at', null),
+        admin.from('plantings').select('id, garden_id, zone_id, species_id, sown_at, last_watered_at, water_every_days, days_to_harvest, alerts_enabled').in('garden_id', gids).is('removed_at', null),
         admin.from('tasks').select('garden_id, title').in('garden_id', gids).is('done_at', null).lte('due_date', now.date),
       ]);
       for (const g of gardens ?? []) {
@@ -110,7 +110,7 @@ Deno.serve(async req => {
             if (rain && !sheltered && rain > last) last = rain;
             if (addIso(last, p.water_every_days ?? s.water_every_days) <= now.date) water.add(s.name);
           }
-          if (s.harvest_months.includes(month) && (s.days_to_harvest == null || day(now.date) - day(p.sown_at.slice(0, 10)) >= s.days_to_harvest)) harvest.add(s.name);
+          if (s.harvest_months.includes(month) && ((p.days_to_harvest ?? s.days_to_harvest) == null || day(now.date) - day(p.sown_at.slice(0, 10)) >= (p.days_to_harvest ?? s.days_to_harvest)!)) harvest.add(s.name);
         }
         const todo = (tasks ?? []).filter(t => t.garden_id === g.id);
         const parts: string[] = [];

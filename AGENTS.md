@@ -30,7 +30,7 @@ La CI (`.github/workflows/ci.yml`) rejoue les trois. Si vous changez une règle 
 
 ## Base de données (Supabase, projet `kfdusbzchhbzshznlvmb`, Paris)
 
-- Toute modification de schéma ou de données du catalogue passe par un fichier `supabase/migrations/NNNN_nom.sql`. **Prochain numéro libre : 0014** — vérifiez `ls supabase/migrations` et la branche des autres avant de le prendre ; en cas de doute, ajoutez la date au nom (`0014_20261021_nom.sql`).
+- Toute modification de schéma ou de données du catalogue passe par un fichier `supabase/migrations/NNNN_nom.sql`. **Prochain numéro libre : 0015** — vérifiez `ls supabase/migrations` et la branche des autres avant de le prendre ; en cas de doute, ajoutez la date au nom (`0015_20261021_nom.sql`).
 - Les migrations sont **additives** : pas de `drop`/`delete` sans accord explicite. Écrire en SQL idempotent quand c'est possible.
 - Appliquer une migration sur le projet réel (outil MCP Supabase) **uniquement après accord de l'utilisateur**, et dans le même temps que le fichier est versionné. Vérifiez ensuite le résultat par une requête.
 - Les règles RLS protègent les données : ne les contournez pas. Les clés `sb_secret_*`/service_role ne vont **jamais** dans le code, dans un commit ni dans le chat.

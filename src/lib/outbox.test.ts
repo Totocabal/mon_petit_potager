@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { applyOp, applyPending, createOutbox, isNetworkError, type Op, type QueuedOp } from './outbox';
 import { planting } from '../test/fixtures';
 
-const base = { garden_id: 'g', zone_id: 'z', species_id: 's', sown_at: '2026-05-01', last_watered_at: null, water_every_days: null, alerts_enabled: true, removed_at: null };
+const base = { garden_id: 'g', zone_id: 'z', species_id: 's', sown_at: '2026-05-01', last_watered_at: null, water_every_days: null, alerts_enabled: true, removed_at: null, variety_id: null, days_to_harvest: null };
 
 describe('applyOp', () => {
   const rows = [planting({ id: 'a', x: 0, y: 0, w: 4, h: 1 }), planting({ id: 'b', x: 0, y: 2 })];

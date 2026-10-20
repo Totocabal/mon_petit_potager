@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import type { Garden, Planting, Profile, Species, Zone } from './types';
+import type { Garden, Planting, Profile, Species, Variety, Zone } from './types';
 import { useCatalogue, usePlantingHistory, usePlantings, useProfile, useZones } from './data';
 import { isSol, type Relations } from './garden';
 import { lastRainyDay, useWeather, type Weather } from './weather';
@@ -19,6 +19,10 @@ export type AppData = {
   /** Plantations retirées récemment (rotation des cultures) */
   history: Planting[];
   species: Species[];
+  /** Variétés de toutes les espèces, et accès par identifiant ou par espèce */
+  varieties: Variety[];
+  varietyById: Map<string, Variety>;
+  varietiesOf: (speciesId: string) => Variety[];
   byId: Map<string, Species>;
   bySlug: Map<string, Species>;
   rels: Relations;
@@ -54,6 +58,9 @@ export function AppProvider({ session, garden, gardens, selectGarden, children }
     crops: (plantings.data ?? []).filter(p => !isSol(cat.byId.get(p.species_id))),
     history: history.data ?? [],
     species: cat.species,
+    varieties: cat.varieties,
+    varietyById: cat.varietyById,
+    varietiesOf: cat.varietiesOf,
     byId: cat.byId,
     bySlug: cat.bySlug,
     rels: cat.rels,

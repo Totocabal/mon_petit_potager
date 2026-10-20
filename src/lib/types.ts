@@ -39,6 +39,20 @@ export type Species = {
   rotation_years: number | null;
 };
 
+/** Une variété d'une espèce (Marmande, Cœur de bœuf… pour la tomate) avec ce qui la distingue. */
+export type Variety = {
+  id: string;
+  species_id: string;
+  slug: string;
+  name: string;
+  /** Jours jusqu'à la récolte propres à la variété ; null = comme l'espèce */
+  days_to_harvest: number | null;
+  /** Particularités en quelques mots : « précoce », « à tuteurer », « de garde »… */
+  traits: string[];
+  notes: string | null;
+  sort: number;
+};
+
 export type SpeciesCategory = 'legume-fruit' | 'racine' | 'bulbe' | 'feuille' | 'chou' | 'tige' | 'legumineuse' | 'aromatique' | 'fleur' | 'petit-fruit' | 'sol';
 
 export type Companion = {
@@ -88,6 +102,9 @@ export type Planting = {
   alerts_enabled: boolean;
   removed_at: string | null;
   created_at: string;
+  variety_id: string | null;
+  /** Délai de récolte propre à cette plantation (copié de la variété choisie) ; l'emporte sur celui de l'espèce */
+  days_to_harvest: number | null;
 };
 
 export type Profile = {
