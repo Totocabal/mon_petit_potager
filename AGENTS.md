@@ -48,6 +48,7 @@ La CI (`.github/workflows/ci.yml`) rejoue les trois. Si vous changez une règle 
 - Les migrations sont **additives** : pas de `drop`/`delete` sans accord explicite. Écrire en SQL idempotent quand c'est possible.
 - Appliquer une migration sur le projet réel (outil MCP Supabase) **uniquement après accord de l'utilisateur**, et dans le même temps que le fichier est versionné. Vérifiez ensuite le résultat par une requête.
 - Les règles RLS protègent les données : ne les contournez pas. Les clés `sb_secret_*`/service_role ne vont **jamais** dans le code, dans un commit ni dans le chat.
+- **Cache du catalogue** : espèces, associations et variétés sont gardées sur l'appareil et jamais redemandées. Si une migration ajoute ou modifie des données du catalogue, **augmentez `CATALOGUE_VERSION`** dans `src/lib/data.ts` (sinon les appareils déjà ouverts ne voient pas la nouveauté : c'est arrivé avec les variétés).
 - `species` : le catalogue partagé (60 plantes + 2 sols `kind='sol'` : Jachère, Paillage). Les sols ne s'arrosent pas, ne se récoltent pas et ne comptent pas comme plants.
 
 ## Android / APK
