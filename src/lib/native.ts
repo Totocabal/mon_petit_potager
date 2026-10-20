@@ -5,7 +5,7 @@ import { supabase } from './supabase';
 export const isNative = Capacitor.isNativePlatform();
 
 /** Adresse publique du site : liens d'invitation et de connexion. Dans l'app native, `window.location` ne convient pas. */
-export const siteUrl = (import.meta.env.VITE_SITE_URL ?? '').replace(/\/$/, '') || window.location.origin;
+export const siteUrl = (import.meta.env.VITE_SITE_URL ?? '').replace(/\/$/, '') || (typeof window !== 'undefined' ? window.location.origin : '');
 
 /** Adresse que le lien de connexion de l'e-mail ouvre dans l'app (à autoriser dans les Redirect URLs de Supabase). */
 export const AUTH_SCHEME = 'fr.monpetitpotager.app://';
