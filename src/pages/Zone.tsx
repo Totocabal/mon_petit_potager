@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../lib/app';
-import { useDeleteZone, useUpdateZone } from '../lib/data';
+import { useUpdateZone } from '../lib/data';
 import { BackHeader, Btn, Loading, Note, Page, Select, Sheet, Tile, useToast } from '../components/ui';
-import { CellGrid, CheckMark, ClearArea, DropBadge, GroundActions, RangSheet, useCellSel, useHoldSelect, WaterButton, type CellSel } from '../components/garden';
+import { CellGrid, CheckMark, DropBadge, RangSheet, useCellSel, useHoldSelect, WaterButton, type CellSel } from '../components/garden';
 import { SelectionPanel } from '../components/CellSelection';
+import { ZoneMenu } from '../components/ZoneMenu';
 import { Stepper } from '../components/Stepper';
 import { BLOC, blocInfo, blocKeys, blocName, CELL_CM, isBig, isSol, isThirsty, meters, nf, occupancy, SPCOLOR, thirstyIn, resizeBounds, zoneFits, zoneGround } from '../lib/garden';
 import type { Grid } from '../lib/garden';
@@ -22,6 +23,7 @@ export default function ZonePage() {
   const [rowPick, setRowPick] = useState(0);
   const [renaming, setRenaming] = useState(false);
   const [resizing, setResizing] = useState(false);
+  const [menu, setMenu] = useState(false);
 
   if (loading) return <Loading />;
   if (!zone) return <Page><BackHeader title="Zone introuvable" /></Page>;
@@ -33,14 +35,9 @@ export default function ZonePage() {
   const head = (
     <>
       <BackHeader kicker={garden.name + ' ›'} title={zone.name}
-        right={<div className="flex gap-2">
-          <button onClick={() => setResizing(true)} aria-label="Modifier la taille de la zone" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-vert shadow-sm">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7" /></svg>
-          </button>
-          <button onClick={() => setRenaming(true)} aria-label="Renommer la zone" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-vert shadow-sm">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="M13 7l4 4" /></svg>
-          </button>
-        </div>} />
+        right={<button onClick={() => setMenu(true)} aria-label="Plus d’actions" aria-haspopup="dialog" className="squish flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-vert shadow-sm">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" /></svg>
+        </button>} />
       <p className="text-sm font-bold text-gris">{meters(zone.cols * CELL_CM)} × {meters(zone.rows * CELL_CM)} · {nf(total)} cases · {Math.round((planted / total) * 100)} % planté{zone.sheltered ? ' · sous abri' : ''}{ground ? ' · ' + (ground === 'jachere' ? 'en jachère' : 'paillée') : ''}</p>
       {thirsty > 0 && <p className="flex items-center gap-2 text-sm font-extrabold text-eau"><span className="relative inline-block h-[18px] w-[18px]"><DropBadge className="!-right-0 !-top-0" /></span>{thirsty} {thirsty > 1 ? 'plantations à arroser' : 'plantation à arroser'}</p>}
     </>
@@ -60,13 +57,10 @@ export default function ZonePage() {
             <button onClick={() => setRang(rowPick)} className="min-h-12 rounded-2xl bg-vert px-4 font-titre font-semibold text-white">Choisir l’espèce</button>
           </div>
         </div>}
-        <Link to={`/zones/${zone.id}/generer`} className="flex min-h-12 items-center justify-center rounded-[20px] bg-vert-doux px-4 font-titre text-[17px] font-semibold text-vert">Générer un plan automatique</Link>
         <SelectionPanel zone={zone} grid={grid} sel={sel} />
         {rang !== null && <RangSheet zone={zone} y={rang} x0={-1} onClose={() => setRang(null)} />}
-        <GroundActions zone={zone} grid={grid} label={'la zone ' + zone.name} />
-        <WaterButton plantings={ps} label={'la zone ' + zone.name} />
-        <ClearArea zone={zone} grid={grid} label={'la zone ' + zone.name} />
-        <DeleteZone zone={zone} plants={ps.length} />
+        <WaterButton plantings={ps} label={'la zone ' + zone.name} sticky />
+        {menu && <ZoneMenu zone={zone} grid={grid} onClose={() => setMenu(false)} onRename={() => { setMenu(false); setRenaming(true); }} onResize={() => { setMenu(false); setResizing(true); }} />}
         {renaming && <RenameZone zone={zone} onClose={() => setRenaming(false)} />}
       {resizing && <ResizeZone zone={zone} plantings={ps} onClose={() => setResizing(false)} />}
       </Page>
@@ -89,10 +83,8 @@ export default function ZonePage() {
       </div>
       <p className="text-[13px] text-gris">Touchez un bloc pour voir ses cases. Appui long : sélectionner plusieurs blocs (glissez pour en ajouter). Contour jaune : à récolter. Goutte bleue : à arroser. Coin brun : cases libres dans le bloc.</p>
       <SelectionPanel zone={zone} grid={grid} sel={sel} byBloc />
-      <GroundActions zone={zone} grid={grid} label={'la zone ' + zone.name} />
-      <WaterButton plantings={ps} label={'la zone ' + zone.name} />
-      <ClearArea zone={zone} grid={grid} label={'la zone ' + zone.name} />
-      <DeleteZone zone={zone} plants={ps.length} />
+      <WaterButton plantings={ps} label={'la zone ' + zone.name} sticky />
+      {menu && <ZoneMenu zone={zone} grid={grid} onClose={() => setMenu(false)} onRename={() => { setMenu(false); setRenaming(true); }} onResize={() => { setMenu(false); setResizing(true); }} />}
       {renaming && <RenameZone zone={zone} onClose={() => setRenaming(false)} />}
       {resizing && <ResizeZone zone={zone} plantings={ps} onClose={() => setResizing(false)} />}
     </Page>
@@ -194,25 +186,3 @@ function RenameZone({ zone, onClose }: { zone: Zone; onClose: () => void }) {
   );
 }
 
-function DeleteZone({ zone, plants }: { zone: Zone; plants: number }) {
-  const del = useDeleteZone();
-  const nav = useNavigate();
-  const toast = useToast();
-  const [confirm, setConfirm] = useState(false);
-
-  async function onDelete() {
-    await del.mutateAsync(zone);
-    toast(`Zone supprimée : ${zone.name}`);
-    nav('/potager', { replace: true });
-  }
-
-  return confirm ? (
-    <div className="flex flex-col gap-2.5 rounded-[20px] bg-alerte-doux p-4 text-[#6B2418]">
-      <p className="font-extrabold">Supprimer la zone « {zone.name} » ?</p>
-      <p className="text-sm">{plants ? `Ses ${plants} plantation${plants > 1 ? 's' : ''} et ses tâches seront aussi supprimées.` : 'Ses tâches seront aussi supprimées.'} Impossible de revenir en arrière.</p>
-      <div className="flex gap-2"><Btn variant="danger" onClick={onDelete} disabled={del.isPending}>Supprimer</Btn><Btn variant="contour" onClick={() => setConfirm(false)}>Annuler</Btn></div>
-    </div>
-  ) : (
-    <button onClick={() => setConfirm(true)} className="min-h-11 self-center font-extrabold text-alerte">Supprimer la zone</button>
-  );
-}
