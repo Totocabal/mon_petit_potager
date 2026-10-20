@@ -3,6 +3,22 @@ import { createPortal } from 'react-dom';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { SPTINT } from '../lib/garden';
 
+/** Pictos à trait de l'interface (même style que la barre du bas : trait de 2, bouts arrondis, couleur du texte). */
+const ICONS = {
+  drop: 'M12 3.5c3.5 4.2 6 7.2 6 10.5a6 6 0 0 1-12 0c0-3.3 2.5-6.3 6-10.5z',
+  basket: 'M3.5 10h17l-1.6 8.5a2 2 0 0 1-2 1.5H7.1a2 2 0 0 1-2-1.5zM8 10l3-6M16 10l-3-6M9.5 13.5v3M12 13.5v3M14.5 13.5v3',
+  sprout: 'M12 20v-8M12 12c0-4-3-6-7-6 0 4 3 6 7 6zM12 10c0-3 2-5 6-5 0 3-2 5-6 5z',
+  sparkles: 'M11 3l1.7 4.8 4.8 1.7-4.8 1.7L11 16l-1.7-4.8L4.5 9.5l4.8-1.7zM18 15l.7 1.8 1.8.7-1.8.7L18 20l-.7-1.8-1.8-.7 1.8-.7z',
+  pencil: 'M4 20h4L19 9l-4-4L4 16zM13 7l4 4',
+  resize: 'M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7',
+  broom: 'M20 4l-7 7M9 10l5 5c-1 3.5-3.5 5.5-8 6l-2 .5.5-2c.5-4.5 2.5-7 4.5-9.5z',
+  trash: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6'
+} as const;
+export type IconName = keyof typeof ICONS;
+export function Icon({ name, size = 22, className = '' }: { name: IconName; size?: number; className?: string }) {
+  return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d={ICONS[name]} /></svg>;
+}
+
 export function Picto({ slug, size = 40, className = '' }: { slug: string; size?: number; className?: string }) {
   return <img src={`/pictos/${slug}.svg`} alt="" width={size} height={size} className={className} draggable={false} />;
 }
