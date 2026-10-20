@@ -1,3 +1,4 @@
+import { DEFAULT_NOTIFICATION_PREFERENCES } from '../../supabase/functions/_shared/notification-types';
 import { siteUrl } from './native';
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -265,7 +266,7 @@ export function useAddTask(gardenId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (t: { title: string; due_date: string; zone_id?: string | null; detail?: string | null }) => {
-      check(await supabase.from('tasks').insert({ garden_id: gardenId, origin: 'manuel', ...t }));
+      check(await supabase.from('tasks').insert({ garden_id: gardenId, origin: 'manuel', notification_type: 'personal', ...t }));
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks', gardenId] })
   });
@@ -349,11 +350,11 @@ export async function acceptInvite(token: string): Promise<string> {
 }
 
 /* ---------- alertes ---------- */
-const DEFAULT_ALERTS = { enabled: false, skip_if_rain: true, reminder_hour: 19 as const };
+const DEFAULT_ALERTS = { ...DEFAULT_NOTIFICATION_PREFERENCES, enabled: false, skip_if_rain: true, reminder_hour: 19 as const };
 export function useAlertSettings(userId: string) {
   return useQuery({
     queryKey: ['alerts', userId],
-    queryFn: async () => ((check(await supabase.from('alert_settings').select('*').eq('user_id', userId).maybeSingle()) as AlertSettings | null) ?? { user_id: userId, ...DEFAULT_ALERTS }) as AlertSettings
+    queryFn: async () => ({ user_id: userId, ...DEFAULT_ALERTS, ...(check(await supabase.from('alert_settings').select('*').eq('user_id', userId).maybeSingle()) as Partial<AlertSettings> | null) })
   });
 }
 export function useSaveAlertSettings(userId: string) {

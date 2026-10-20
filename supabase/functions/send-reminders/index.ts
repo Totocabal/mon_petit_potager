@@ -1,3 +1,4 @@
+import { notificationEnabled, taskNotificationEnabled } from '../_shared/notification-types.ts';
 // Rappels du potager : arrosage, récolte, tâches du jour. Appelée chaque heure par pg_cron ;
 // n'envoie qu'aux personnes dont l'heure de rappel (8 h ou 19 h, heure de Paris) est la bonne.
 // Appelée par une personne connectée avec { "test": true }, elle envoie une notification de test.
@@ -97,22 +98,22 @@ Deno.serve(async req => {
         admin.from('gardens').select('id, name').in('id', gids),
         admin.from('zones').select('id, sheltered').in('garden_id', gids),
         admin.from('plantings').select('id, garden_id, zone_id, species_id, sown_at, last_watered_at, water_every_days, days_to_harvest, alerts_enabled').in('garden_id', gids).is('removed_at', null),
-        admin.from('tasks').select('garden_id, title').in('garden_id', gids).is('done_at', null).lte('due_date', now.date),
+        admin.from('tasks').select('garden_id, title, origin, notification_type').in('garden_id', gids).is('done_at', null).lte('due_date', now.date),
       ]);
       for (const g of gardens ?? []) {
         const ps = ((plantings ?? []) as Planting[]).filter(p => p.garden_id === g.id);
         const water = new Set<string>(), harvest = new Set<string>();
         for (const p of ps) {
           const s = species.get(p.species_id); if (!s) continue;
-          if (p.alerts_enabled) {
+          if (notificationEnabled(st, 'water') && p.alerts_enabled) {
             const sheltered = zones?.find(z => z.id === p.zone_id)?.sheltered;
             let last = (p.last_watered_at ?? p.sown_at).slice(0, 10);
             if (rain && !sheltered && rain > last) last = rain;
             if (addIso(last, p.water_every_days ?? s.water_every_days) <= now.date) water.add(s.name);
           }
-          if (s.harvest_months.includes(month) && ((p.days_to_harvest ?? s.days_to_harvest) == null || day(now.date) - day(p.sown_at.slice(0, 10)) >= (p.days_to_harvest ?? s.days_to_harvest)!)) harvest.add(s.name);
+          if (notificationEnabled(st, 'harvest') && s.harvest_months.includes(month) && ((p.days_to_harvest ?? s.days_to_harvest) == null || day(now.date) - day(p.sown_at.slice(0, 10)) >= (p.days_to_harvest ?? s.days_to_harvest)!)) harvest.add(s.name);
         }
-        const todo = (tasks ?? []).filter(t => t.garden_id === g.id);
+        const todo = (tasks ?? []).filter(t => t.garden_id === g.id && taskNotificationEnabled(st, t));
         const parts: string[] = [];
         if (water.size) parts.push('À arroser : ' + list([...water]));
         if (harvest.size) parts.push('À récolter : ' + list([...harvest]));
