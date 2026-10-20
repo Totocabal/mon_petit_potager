@@ -1,5 +1,5 @@
-import type { Companion, Planting, Species, Variety, Zone } from './types';
-import { addDays, diffDays, parse, today } from './dates';
+import type { Companion, Planting, Species, Task, Variety, Zone } from './types';
+import { addDays, diffDays, iso, parse, today } from './dates';
 
 /** Taille d'une case et d'un bloc. */
 export const CELL_CM = 30;
@@ -167,7 +167,11 @@ export const harvestDays = (p: Pick<Planting, 'days_to_harvest'>, s: Pick<Specie
 /** Ce qu'une plantation retient de sa variété : son identifiant et ce qui la distingue de l'espèce. */
 export const varietyFields = (v: Pick<Variety, 'id' | 'days_to_harvest'> | null | undefined): Pick<Planting, 'variety_id' | 'days_to_harvest'> => ({ variety_id: v?.id ?? null, days_to_harvest: v?.days_to_harvest ?? null });
 
+/** Plantation prévue pour plus tard (pas encore semée ou plantée). */
+export const isPlanned = (p: Pick<Planting, 'sown_at'>, now = today()): boolean => diffDays(parse(p.sown_at), now) > 0;
+
 export function isReady(p: Planting, s: Species, now = today()): boolean {
+  if (isPlanned(p, now)) return false;
   if (!s.harvest_months.includes(now.getMonth() + 1)) return false;
   const need = harvestDays(p, s);
   return need == null || diffDays(now, parse(p.sown_at)) >= need;
@@ -182,7 +186,7 @@ export function nextWater(p: Planting, s: Species, rain: Date | null = null): Da
   if (rain && rain > last) last = rain;
   return addDays(last, everyDays(p, s));
 }
-export const needsWater = (p: Planting, s: Species, now = today(), rain: Date | null = null) => diffDays(nextWater(p, s, rain), now) <= 0;
+export const needsWater = (p: Planting, s: Species, now = today(), rain: Date | null = null) => !isPlanned(p, now) && diffDays(nextWater(p, s, rain), now) <= 0;
 
 /** À arroser : une plante (jamais un sol) dont les alertes sont actives et dont l'arrosage est dû. Même règle que « Aujourd'hui au jardin ». */
 export const isThirsty = (p: Planting, s: Species | undefined, rain: Date | null = null, now = today()) => !!s && !isSol(s) && p.alerts_enabled && needsWater(p, s, now, rain);
@@ -271,6 +275,138 @@ export function findSpot(zones: Zone[], terrainW: number, terrainH: number, w: n
 }
 
 export const inSeason = (s: Species, month: number) => s.plant_out_months.includes(month) || s.sow_indoor_months.includes(month);
+
+/** Prochaine date conseillée pour mettre en place une plante qu'on prévoit de cultiver plus tard. */
+export function nextPlantDate(s: Species, now = today()): Date {
+  const months = s.plant_out_months.length ? s.plant_out_months : s.sow_indoor_months;
+  if (!months.length) return addDays(now, 7);
+  for (let k = 0; k <= 12; k++) {
+    const m0 = now.getMonth() + k;
+    const targetMonth = (m0 % 12) + 1;
+    const targetYear = now.getFullYear() + Math.floor(m0 / 12);
+    if (!months.includes(targetMonth)) continue;
+    const candidate = s.frost_sensitive && targetMonth === 5 && (k > 0 || now.getDate() < 15)
+      ? new Date(targetYear, 4, 15, 12)
+      : k === 0
+        ? addDays(now, 7)
+        : new Date(targetYear, targetMonth - 1, 1, 12);
+    if (diffDays(candidate, now) > 0 && months.includes(candidate.getMonth() + 1)) return candidate;
+  }
+  return addDays(now, 7);
+}
+
+export type PlannedTaskDraft = Omit<Task, 'id' | 'garden_id' | 'done_at' | 'done_by'>;
+
+/** Tâches automatiques générées lorsqu'on planifie une plante pas encore mise en terre (semis sous abri, mise en place, levée, entretien, récolte). */
+export function plannedTasksFor(o: {
+  species: Species;
+  variety?: Pick<Variety, 'name' | 'days_to_harvest' | 'notes'> | null;
+  plantDate: Date;
+  zoneId: string;
+  plantingId?: string | null;
+  place?: string | null;
+  now?: Date;
+}): PlannedTaskDraft[] {
+  const { species: s, variety: v, plantDate, zoneId } = o;
+  if (isSol(s)) return [];
+  const now = o.now ?? today();
+  const plantingId = o.plantingId ?? null;
+  const label = lc(s.name) + (v ? ` (${v.name})` : '');
+  const loc = o.place ? ` · ${o.place}` : '';
+  const out: PlannedTaskDraft[] = [];
+
+  if (s.sow_indoor_months.length > 0 && s.plant_out_months.length > 0) {
+    let sowDate: Date | null = null;
+    for (let k = 3; k >= 0; k--) {
+      const d = new Date(plantDate.getFullYear(), plantDate.getMonth() - k, 1, 12);
+      if (s.sow_indoor_months.includes(d.getMonth() + 1) && diffDays(plantDate, d) >= 14) {
+        sowDate = d;
+        break;
+      }
+    }
+    if (!sowDate) sowDate = addDays(plantDate, -42);
+    if (diffDays(sowDate, now) < 0) sowDate = now;
+    if (diffDays(plantDate, sowDate) > 0) {
+      const detail = [
+        s.sow_depth_cm != null ? `Profondeur : ${String(s.sow_depth_cm).replace('.', ',')} cm.` : '',
+        s.germination_days != null ? `Levée en ~${s.germination_days} jours.` : '',
+        s.sowing ?? ''
+      ].filter(Boolean).join(' ');
+      out.push({
+        title: `Semis sous abri : ${label}`,
+        detail: detail || null,
+        due_date: iso(sowDate),
+        zone_id: zoneId,
+        planting_id: plantingId,
+        origin: 'auto'
+      });
+    }
+  }
+
+  const verb = s.sow_indoor_months.length > 0 && s.plant_out_months.length > 0 ? 'Planter en place' : 'Semer en place';
+  const plantDetail = [
+    !s.sow_indoor_months.length && s.sow_depth_cm != null ? `Profondeur : ${String(s.sow_depth_cm).replace('.', ',')} cm.` : '',
+    `Distances : ${s.inrow_spacing_cm} cm entre plants, ${s.row_spacing_cm} cm entre rangs.`,
+    s.sowing ?? '',
+    s.soil ? `Sol : ${s.soil}` : ''
+  ].filter(Boolean).join(' ');
+  out.push({
+    title: `${verb} : ${label}${loc}`,
+    detail: plantDetail || null,
+    due_date: iso(plantDate),
+    zone_id: zoneId,
+    planting_id: plantingId,
+    origin: 'auto'
+  });
+
+  if (!s.sow_indoor_months.length && s.germination_days != null) {
+    out.push({
+      title: `Surveiller la levée : ${label}`,
+      detail: `Levée attendue après ${s.germination_days} jours. Garder la terre fraîche jusqu’à la levée et éclaircir si besoin.`,
+      due_date: iso(addDays(plantDate, s.germination_days)),
+      zone_id: zoneId,
+      planting_id: plantingId,
+      origin: 'auto'
+    });
+  }
+
+  if (s.care) {
+    const careOffset = s.sow_indoor_months.length ? 14 : Math.max(21, (s.germination_days ?? 7) + 14);
+    const careDetail = [s.care, v?.notes ?? ''].filter(Boolean).join(' ');
+    out.push({
+      title: `Entretien : ${label}`,
+      detail: careDetail || null,
+      due_date: iso(addDays(plantDate, careOffset)),
+      zone_id: zoneId,
+      planting_id: plantingId,
+      origin: 'auto'
+    });
+  }
+
+  const days = v?.days_to_harvest ?? s.days_to_harvest;
+  if (days != null || s.harvest_months.length > 0) {
+    let harvestDate = addDays(plantDate, days ?? 60);
+    if (s.harvest_months.length > 0 && !s.harvest_months.includes(harvestDate.getMonth() + 1)) {
+      for (let k = 1; k <= 12; k++) {
+        const d = new Date(harvestDate.getFullYear(), harvestDate.getMonth() + k, 1, 12);
+        if (s.harvest_months.includes(d.getMonth() + 1)) {
+          harvestDate = d;
+          break;
+        }
+      }
+    }
+    out.push({
+      title: `Récolter : ${label}`,
+      detail: s.harvest_tips ?? 'Vérifier la maturité sur place avant de récolter.',
+      due_date: iso(harvestDate),
+      zone_id: zoneId,
+      planting_id: plantingId,
+      origin: 'auto'
+    });
+  }
+
+  return out;
+}
 
 /** Couleur principale de chaque espèce, pour les vues d'ensemble. */
 export const SPCOLOR: Record<string, string> = { tomate: '#E2553F', 'tomate-cerise': '#EF6A4F', poivron: '#D9452F', aubergine: '#6B3FA0', courgette: '#3E8A47', concombre: '#2F7A3E', courge: '#E8782A', 'haricot-nain': '#5FB25C', 'haricot-a-rames': '#4E9A4F', 'petit-pois': '#7DBB5C', feve: '#9CCB7C', carotte: '#F08A3C', radis: '#E0457B', betterave: '#8E2350', navet: '#9B5FC0', panais: '#CDBB8E', poireau: '#6FAF7A', oignon: '#D9963F', ail: '#BFA97E', echalote: '#B35E48', salade: '#8CC66B', mache: '#2F7A3E', epinard: '#356E3E', blette: '#E2553F', chou: '#A6D785', brocoli: '#4E9A4F', fraise: '#E2553F', basilic: '#5FB25C', persil: '#3E8A47', ciboulette: '#B07BD8', capucine: '#F08A3C', 'oeillet-d-inde': '#F6A623', jachere: '#B8A27A', paillage: '#E3B94F', mais: '#F6C445', 'pomme-de-terre': '#D9B77A', 'chou-fleur': '#E8E2CF', kale: '#356E3E', 'chou-rave': '#B5DB91', 'celeri-rave': '#D9C79A', fenouil: '#D3DDB0', piment: '#E2402F', melon: '#F2D98B', pasteque: '#3E8A47', 'pak-choi': '#8CC66B', roquette: '#3E8A47', topinambour: '#C79A5E', artichaut: '#8CBF72', asperge: '#8CC66B', rhubarbe: '#D9455F', oseille: '#6FAF7A', aneth: '#8CC66B', coriandre: '#5FB25C', menthe: '#3FA66B', thym: '#9DBB84', romarin: '#79A27B', sauge: '#A9C4A5', tournesol: '#F6C445', souci: '#F08A2A', framboisier: '#D93A5A', groseillier: '#E2403F', myrtille: '#4B5FA8' };

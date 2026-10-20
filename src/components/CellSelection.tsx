@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useApp } from '../lib/app';
-import { useAddPlantings, useCutPlantings, useWater } from '../lib/data';
-import { BLOC, de, isSol, lc, nf, rangPlan, remainingPieces, toSegments, varietyFields, type Grid } from '../lib/garden';
-import { iso, today } from '../lib/dates';
+import { useAddPlantings, useAddTasks, useCutPlantings, useWater } from '../lib/data';
+import { BLOC, de, isPlanned, isSol, lc, nextPlantDate, nf, plannedTasksFor, rangPlan, remainingPieces, toSegments, varietyFields, type Grid } from '../lib/garden';
+import { fmt, iso, parse, today } from '../lib/dates';
 import { blockedCells } from '../lib/rotation';
 import { buzz } from '../lib/native';
 import type { Planting, Variety, Zone } from '../lib/types';
@@ -25,7 +25,7 @@ export function SelectionPanel({ zone, grid, sel, byBloc = false }: { zone: Zone
   if (!cells.length) return null;
   const free = cells.filter(c => !c.p);
   const planted = cells.filter(c => c.p);
-  const crops = [...new Set(planted.map(c => c.p!).filter(p => !isSol(byId.get(p.species_id))))];
+  const crops = [...new Set(planted.map(c => c.p!).filter(p => !isSol(byId.get(p.species_id)) && !isPlanned(p)))];
   const done = () => { sel.set(new Set()); setMode(null); };
   const n = cells.length;
   const blocs = byBloc ? new Set(cells.map(c => Math.floor(c.y / BLOC) * 1000 + Math.floor(c.x / BLOC))).size : 0;
@@ -67,9 +67,20 @@ function PlantSheet({ zone, grid, free, onClose, onDone }: { zone: Zone; grid: G
   const { rels, byId, species, garden, history } = useApp();
   const toast = useToast();
   const add = useAddPlantings();
+  const addTasks = useAddTasks(garden.id);
   const [sp, setSpRaw] = useState<string | null>(() => species.find(s => s.slug === 'ail')?.id ?? species[0]?.id ?? null);
   const [variety, setVariety] = useState<Variety | null>(null);
-  const setSp = (id: string) => { setSpRaw(id); setVariety(null); };
+  const [planned, setPlanned] = useState(false);
+  const [date, setDate] = useState(() => {
+    const first = species.find(s => s.slug === 'ail') ?? species[0];
+    return first ? iso(nextPlantDate(first)) : iso(today());
+  });
+  const setSp = (id: string) => {
+    setSpRaw(id);
+    setVariety(null);
+    const chosen = byId.get(id);
+    if (chosen && !isSol(chosen) && planned) setDate(iso(nextPlantDate(chosen)));
+  };
   const [ignoreRot, setIgnoreRot] = useState(false);
   const s = sp ? byId.get(sp) : undefined;
   const blocked = useMemo(() => (s ? blockedCells(history, byId, zone, s) : new Set<number>()), [s, history, byId, zone]);
@@ -95,12 +106,20 @@ function PlantSheet({ zone, grid, free, onClose, onDone }: { zone: Zone; grid: G
     return { ok, count, bad, rot, badNames: [...badNames] };
   }, [free, s, grid, zone, rels, blocked, ignoreRot]);
 
+  const isFuture = !isSol(s) && (planned || date > iso(today())) && planned;
+  const tasks = s && !isSol(s) && isFuture ? plannedTasksFor({ species: s, variety, zoneId: zone.id, plantDate: parse(date) }) : [];
+  const busy = add.isPending || addTasks.isPending;
+
   async function plant() {
     if (!s || !plan.count) return;
-    const rows = [...plan.ok].flatMap(([y, xs]) => toSegments(xs).map(seg => ({ garden_id: garden.id, zone_id: zone.id, species_id: s.id, x: seg.x, y, w: seg.w, h: 1, sown_at: iso(today()), ...varietyFields(variety) })));
-    await add.mutateAsync(rows);
+    const sown = isFuture ? date : iso(today());
+    const rows = [...plan.ok].flatMap(([y, xs]) => toSegments(xs).map(seg => ({ garden_id: garden.id, zone_id: zone.id, species_id: s.id, x: seg.x, y, w: seg.w, h: 1, sown_at: sown, ...varietyFields(variety) })));
+    const added = await add.mutateAsync(rows);
+    if (tasks.length > 0) {
+      await addTasks.mutateAsync(tasks.map(t => ({ ...t, planting_id: added.length === 1 ? added[0].id : null })));
+    }
     void buzz();
-    toast(isSol(s) ? `${plan.count} case${plan.count > 1 ? 's' : ''} en ${lc(s.name)}` : `${plan.count} case${plan.count > 1 ? 's' : ''} ${de(lc(s.name))} · ${nf(plan.count * s.plants_per_cell)} plants`);
+    toast(isSol(s) ? `${plan.count} case${plan.count > 1 ? 's' : ''} en ${lc(s.name)}` : isFuture ? `${plan.count} case${plan.count > 1 ? 's' : ''} ${de(lc(s.name))} prévues · ${tasks.length} tâches ajoutées` : `${plan.count} case${plan.count > 1 ? 's' : ''} ${de(lc(s.name))} · ${nf(plan.count * s.plants_per_cell)} plants`);
     onDone();
   }
 
@@ -112,7 +131,26 @@ function PlantSheet({ zone, grid, free, onClose, onDone }: { zone: Zone; grid: G
   return (
     <Sheet title={`Planter ${free.length} case${free.length > 1 ? 's' : ''}`} onClose={onClose}>
       <SpeciesStrip value={sp} onChange={setSp} onlySingleCell />
-      {s && !isSol(s) && <VarietyPicker speciesId={s.id} value={variety?.id ?? null} onChange={setVariety} />}
+      {s && !isSol(s) && (
+        <>
+          <div role="group" aria-label="État de la plantation" className="grid grid-cols-2 gap-1.5 rounded-2xl bg-fond p-1">
+            <button type="button" aria-pressed={!planned} onClick={() => setPlanned(false)} className={`min-h-11 rounded-xl px-2 text-[13px] font-extrabold ${!planned ? 'bg-vert text-white' : 'text-encre'}`}>Déjà en place</button>
+            <button type="button" aria-pressed={planned} onClick={() => { setPlanned(true); if (date <= iso(today())) setDate(iso(nextPlantDate(s))); }} className={`min-h-11 rounded-xl px-2 text-[13px] font-extrabold ${planned ? 'bg-vert text-white' : 'text-encre'}`}>Pas encore plantée</button>
+          </div>
+          {planned && (
+            <label className="flex flex-col gap-1 text-sm font-extrabold">Plantation ou semis prévu le
+              <input type="date" value={date} onChange={e => setDate(e.target.value)} className="min-h-11 rounded-2xl border-2 border-trait bg-white px-3 font-bold" />
+            </label>
+          )}
+          <VarietyPicker speciesId={s.id} value={variety?.id ?? null} onChange={setVariety} />
+          {isFuture && tasks.length > 0 && (
+            <div className="flex flex-col gap-1 rounded-2xl bg-vert-doux px-3.5 py-2.5 text-[13px] text-encre">
+              <b className="font-extrabold text-vert">{tasks.length} tâches ajoutées automatiquement :</b>
+              <p className="text-xs leading-snug text-gris">{tasks.map(t => `${fmt(parse(t.due_date))} (${t.title.split(' : ')[0]})`).join(' · ')}</p>
+            </div>
+          )}
+        </>
+      )}
       <Note tone={msg[0]}>{msg[1]}</Note>
       {plan.rot > 0 && (
         <label className="flex items-start gap-2.5 rounded-2xl bg-[#F3EDE1] px-3 py-2.5 text-[13px] font-bold text-soleil-encre">
@@ -120,8 +158,8 @@ function PlantSheet({ zone, grid, free, onClose, onDone }: { zone: Zone; grid: G
           <span>Rotation des cultures : {plan.rot} case{plan.rot > 1 ? 's' : ''} où la même famille a été cultivée récemment {plan.rot > 1 ? 'sont sautées' : 'est sautée'}. <u>Ignorer la rotation</u></span>
         </label>
       )}
-      <Btn onClick={plant} disabled={!plan.count || add.isPending}>{add.isPending ? 'Enregistrement…' : `${s && isSol(s) ? 'Couvrir' : 'Planter'} ${plan.count} case${plan.count > 1 ? 's' : ''}`}</Btn>
-      {add.isError && <p className="text-sm font-bold text-alerte">{(add.error as Error).message}</p>}
+      <Btn onClick={plant} disabled={!plan.count || busy}>{busy ? 'Enregistrement…' : `${s && isSol(s) ? 'Couvrir' : isFuture ? 'Prévoir sur' : 'Planter'} ${plan.count} case${plan.count > 1 ? 's' : ''}`}</Btn>
+      {(add.isError || addTasks.isError) && <p className="text-sm font-bold text-alerte">{((add.error ?? addTasks.error) as Error).message}</p>}
     </Sheet>
   );
 }

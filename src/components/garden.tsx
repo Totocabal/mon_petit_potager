@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../lib/app';
-import { useAddPlantings, useCutPlantings, useRemovePlantings, useWater } from '../lib/data';
-import { BLOC, de, footprintText, freeRects, isMulti, isReady, isSol, isThirsty, lc, meters, nf, occupancy, plantingsIn, rangPlan, remainingPieces, SPTINT, toSegments, varietyFields, type Grid } from '../lib/garden';
-import { cap, iso, today } from '../lib/dates';
+import { useAddPlantings, useAddTasks, useCutPlantings, useRemovePlantings, useWater } from '../lib/data';
+import { BLOC, de, footprintText, freeRects, isMulti, isPlanned, isReady, isSol, isThirsty, lc, meters, nextPlantDate, nf, occupancy, plannedTasksFor, plantingsIn, rangPlan, remainingPieces, SPTINT, toSegments, varietyFields, type Grid } from '../lib/garden';
+import { cap, fmt, iso, parse, today } from '../lib/dates';
 import { blockedCells } from '../lib/rotation';
 import { buzz, tick } from '../lib/native';
 import type { Planting, Species, Variety, Zone } from '../lib/types';
@@ -154,21 +154,23 @@ export function CellGrid({ zone, grid, x0 = 0, y0 = 0, x1, y1, rowHeaders = fals
         items.push(<span key={`g${x}-${y}`} aria-hidden="true" className="aspect-square min-w-0" style={pos} />);
         if (x === Math.max(ux, x0) && y === Math.max(uy, y0)) {
           const w = Math.min(ux + s.span_w, xe, p.x + p.w) - x, h = Math.min(uy + s.span_h, ye, p.y + p.h) - y;
+          const planned = isPlanned(p);
           items.push(
-            <Link key={`p${x}-${y}`} to={`/plantes/${p.id}`} aria-label={`${s.name}, rang ${uy + 1}, case ${ux + 1}, sur ${footprintText(s)} cases${isReady(p, s) ? ', prête à récolter' : ''}${isThirsty(p, s, rain) ? ', à arroser' : ''}`}
-              data-rect={`${x},${y},${w},${h}`} className={`pop-in squish relative z-10 min-h-0 min-w-0 select-none rounded-2xl bg-terre-case ${isReady(p, s) ? 'shadow-[inset_0_0_0_3px_#F6C445]' : ''}`}
+            <Link key={`p${x}-${y}`} to={`/plantes/${p.id}`} aria-label={`${s.name}, rang ${uy + 1}, case ${ux + 1}, sur ${footprintText(s)} cases${planned ? `, prévue le ${fmt(parse(p.sown_at))}` : ''}${isReady(p, s) ? ', prête à récolter' : ''}${isThirsty(p, s, rain) ? ', à arroser' : ''}`}
+              data-rect={`${x},${y},${w},${h}`} className={`pop-in squish relative z-10 min-h-0 min-w-0 select-none rounded-2xl bg-terre-case ${planned ? 'border-2 border-dashed border-[#E9C9A6]' : ''} ${isReady(p, s) ? 'shadow-[inset_0_0_0_3px_#F6C445]' : ''}`}
               style={{ gridRow: `${y - y0 + 1} / span ${h}`, gridColumn: `${col(x)} / span ${w}`, '--i': x - x0 + y - y0 } as React.CSSProperties}>
-              <Picto slug={s.slug} size={64} className={`absolute inset-0 m-auto ${w >= h ? 'h-[78%] w-auto' : 'h-auto w-[78%]'} ${mood(p, s, rain)}`} />
+              <Picto slug={s.slug} size={64} className={`absolute inset-0 m-auto ${w >= h ? 'h-[78%] w-auto' : 'h-auto w-[78%]'} ${planned ? 'opacity-70' : mood(p, s, rain)}`} />
               {isThirsty(p, s, rain) && <DropBadge />}
               {mark(x, y, w, h)}
             </Link>
           );
         }
       } else if (p && s) {
+        const planned = isPlanned(p);
         items.push(
-          <Link key={`p${x}-${y}`} to={`/plantes/${p.id}`} aria-label={`${s.name}, rang ${y + 1}, case ${x + 1}${isReady(p, s) ? ', prête à récolter' : ''}${isThirsty(p, s, rain) ? ', à arroser' : ''}`}
-            data-rect={`${x},${y},1,1`} className={`pop-in squish relative flex aspect-square min-w-0 select-none items-center justify-center rounded-2xl ${isSol(s) ? '' : 'bg-terre-case'} ${isReady(p, s) ? 'shadow-[inset_0_0_0_3px_#F6C445]' : ''}`} style={{ ...pos, ...(isSol(s) ? { background: SPTINT[s.slug] } : {}), '--i': x - x0 + y - y0 } as React.CSSProperties}>
-            <Picto slug={s.slug} size={44} className={`h-[72%] w-[72%] ${mood(p, s, rain)}`} />
+          <Link key={`p${x}-${y}`} to={`/plantes/${p.id}`} aria-label={`${s.name}, rang ${y + 1}, case ${x + 1}${planned ? `, prévue le ${fmt(parse(p.sown_at))}` : ''}${isReady(p, s) ? ', prête à récolter' : ''}${isThirsty(p, s, rain) ? ', à arroser' : ''}`}
+            data-rect={`${x},${y},1,1`} className={`pop-in squish relative flex aspect-square min-w-0 select-none items-center justify-center rounded-2xl ${isSol(s) ? '' : 'bg-terre-case'} ${planned ? 'border-2 border-dashed border-[#E9C9A6]' : ''} ${isReady(p, s) ? 'shadow-[inset_0_0_0_3px_#F6C445]' : ''}`} style={{ ...pos, ...(isSol(s) ? { background: SPTINT[s.slug] } : {}), '--i': x - x0 + y - y0 } as React.CSSProperties}>
+            <Picto slug={s.slug} size={44} className={`h-[72%] w-[72%] ${planned ? 'opacity-70' : mood(p, s, rain)}`} />
             {isThirsty(p, s, rain) && <DropBadge size={16} />}
             {mark(x, y)}
           </Link>
@@ -207,7 +209,7 @@ export function WaterButton({ plantings, label, onDone }: { plantings: Planting[
   const toast = useToast();
   const { byId } = useApp();
   const [splash, setSplash] = useState(false);
-  plantings = plantings.filter(p => !isSol(byId.get(p.species_id)));
+  plantings = plantings.filter(p => !isSol(byId.get(p.species_id)) && !isPlanned(p));
   const n = plantings.length;
   if (!n) return null;
   async function go() {
@@ -305,6 +307,7 @@ export function RangSheet({ zone, y, x0, onClose }: { zone: Zone; y: number; x0:
   const { plantings, rels, byId, species, garden, history } = useApp();
   const toast = useToast();
   const add = useAddPlantings();
+  const addTasks = useAddTasks(garden.id);
   const clear = useCutPlantings();
   const [ignoreRot, setIgnoreRot] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
@@ -312,7 +315,17 @@ export function RangSheet({ zone, y, x0, onClose }: { zone: Zone; y: number; x0:
   const [scope, setScope] = useState<'bloc' | 'zone'>(big && x0 >= 0 ? 'bloc' : 'zone');
   const [sp, setSpRaw] = useState<string | null>(() => species.find(s => s.slug === 'ail')?.id ?? species[0]?.id ?? null);
   const [variety, setVariety] = useState<Variety | null>(null);
-  const setSp = (id: string) => { setSpRaw(id); setVariety(null); };
+  const [planned, setPlanned] = useState(false);
+  const [date, setDate] = useState(() => {
+    const first = species.find(s => s.slug === 'ail') ?? species[0];
+    return first ? iso(nextPlantDate(first)) : iso(today());
+  });
+  const setSp = (id: string) => {
+    setSpRaw(id);
+    setVariety(null);
+    const chosen = byId.get(id);
+    if (chosen && !isSol(chosen) && planned) setDate(iso(nextPlantDate(chosen)));
+  };
   const grid = useMemo(() => occupancy(zone, plantings.filter(p => p.zone_id === zone.id)), [zone, plantings]);
   const s: Species | undefined = sp ? byId.get(sp) : undefined;
   const xa = scope === 'bloc' ? x0 : 0, xb = scope === 'bloc' ? Math.min(zone.cols, x0 + BLOC) : zone.cols;
@@ -330,6 +343,9 @@ export function RangSheet({ zone, y, x0, onClose }: { zone: Zone; y: number; x0:
 
   const inRow = [...new Set(grid[y].slice(xa, xb).filter((p): p is Planting => !!p))];
   const busy = grid[y].slice(xa, xb).filter(Boolean).length;
+  const isFuture = !isSol(s) && planned && date > iso(today());
+  const tasks = s && !isSol(s) && isFuture ? plannedTasksFor({ species: s, variety, zoneId: zone.id, plantDate: parse(date) }) : [];
+  const saving = add.isPending || addTasks.isPending;
 
   async function clearRow() {
     await clear.mutateAsync(inRow.map(p => ({ p, keep: remainingPieces(p, { x0: xa, x1: xb, y0: y, y1: y + 1 }, unitOf(byId.get(p.species_id))) })));
@@ -339,8 +355,12 @@ export function RangSheet({ zone, y, x0, onClose }: { zone: Zone; y: number; x0:
 
   async function plant() {
     if (!s || !plan || !n) return;
-    await add.mutateAsync(toSegments(okCells).map(seg => ({ garden_id: garden.id, zone_id: zone.id, species_id: s.id, x: seg.x, y, w: seg.w, h: 1, sown_at: iso(today()), ...varietyFields(variety) })));
-    toast(isSol(s) ? `Rang ${y + 1} : ${n} case${n > 1 ? 's' : ''} en ${lc(s.name)}` : `Rang ${y + 1} : ${n} cases ${de(lc(s.name))} · ${nf(n * s.plants_per_cell)} plants`);
+    const sown = isFuture ? date : iso(today());
+    const added = await add.mutateAsync(toSegments(okCells).map(seg => ({ garden_id: garden.id, zone_id: zone.id, species_id: s.id, x: seg.x, y, w: seg.w, h: 1, sown_at: sown, ...varietyFields(variety) })));
+    if (tasks.length > 0) {
+      await addTasks.mutateAsync(tasks.map(t => ({ ...t, planting_id: added.length === 1 ? added[0].id : null })));
+    }
+    toast(isSol(s) ? `Rang ${y + 1} : ${n} case${n > 1 ? 's' : ''} en ${lc(s.name)}` : isFuture ? `Rang ${y + 1} : ${n} cases ${de(lc(s.name))} prévues · ${tasks.length} tâches ajoutées` : `Rang ${y + 1} : ${n} cases ${de(lc(s.name))} · ${nf(n * s.plants_per_cell)} plants`);
     onClose();
   }
 
@@ -357,7 +377,26 @@ export function RangSheet({ zone, y, x0, onClose }: { zone: Zone; y: number; x0:
       )}
       <WaterButton plantings={inRow} label={`le rang ${y + 1}`} onDone={onClose} />
       <SpeciesStrip value={sp} onChange={setSp} onlySingleCell />
-      {s && !isSol(s) && <VarietyPicker speciesId={s.id} value={variety?.id ?? null} onChange={setVariety} />}
+      {s && !isSol(s) && (
+        <>
+          <div role="group" aria-label="État de la plantation" className="grid grid-cols-2 gap-1.5 rounded-2xl bg-fond p-1">
+            <button type="button" aria-pressed={!planned} onClick={() => setPlanned(false)} className={`min-h-11 rounded-xl px-2 text-[13px] font-extrabold ${!planned ? 'bg-vert text-white' : 'text-encre'}`}>Déjà en place</button>
+            <button type="button" aria-pressed={planned} onClick={() => { setPlanned(true); if (date <= iso(today())) setDate(iso(nextPlantDate(s))); }} className={`min-h-11 rounded-xl px-2 text-[13px] font-extrabold ${planned ? 'bg-vert text-white' : 'text-encre'}`}>Pas encore plantée</button>
+          </div>
+          {planned && (
+            <label className="flex flex-col gap-1 text-sm font-extrabold">Plantation ou semis prévu le
+              <input type="date" value={date} onChange={e => setDate(e.target.value)} className="min-h-11 rounded-2xl border-2 border-trait bg-white px-3 font-bold" />
+            </label>
+          )}
+          <VarietyPicker speciesId={s.id} value={variety?.id ?? null} onChange={setVariety} />
+          {isFuture && tasks.length > 0 && (
+            <div className="flex flex-col gap-1 rounded-2xl bg-vert-doux px-3.5 py-2.5 text-[13px] text-encre">
+              <b className="font-extrabold text-vert">{tasks.length} tâches ajoutées automatiquement :</b>
+              <p className="text-xs leading-snug text-gris">{tasks.map(t => `${fmt(parse(t.due_date))} (${t.title.split(' : ')[0]})`).join(' · ')}</p>
+            </div>
+          )}
+        </>
+      )}
       <Note tone={msg[0]}>{msg[1]}</Note>
       {rotSkipped.length > 0 && (
         <label className="flex items-start gap-2.5 rounded-2xl bg-[#F3EDE1] px-3 py-2.5 text-[13px] font-bold text-soleil-encre">
@@ -371,8 +410,8 @@ export function RangSheet({ zone, y, x0, onClose }: { zone: Zone; y: number; x0:
           <span className="text-[13px] font-bold text-gris">{n} case{n > 1 ? 's' : ''} · {meters(n * 30)}</span>
         </div>
       )}
-      <Btn onClick={plant} disabled={!n || add.isPending}>{add.isPending ? 'Enregistrement…' : `${s && isSol(s) ? 'Couvrir' : 'Planter'} ${n} case${n > 1 ? 's' : ''}`}</Btn>
-      {add.isError && <p className="text-sm font-bold text-alerte">{(add.error as Error).message}</p>}
+      <Btn onClick={plant} disabled={!n || saving}>{saving ? 'Enregistrement…' : `${s && isSol(s) ? 'Couvrir' : isFuture ? 'Prévoir sur' : 'Planter'} ${n} case${n > 1 ? 's' : ''}`}</Btn>
+      {(add.isError || addTasks.isError) && <p className="text-sm font-bold text-alerte">{((add.error ?? addTasks.error) as Error).message}</p>}
       {busy > 0 && (confirmClear ? (
         <div className="flex flex-col gap-2.5 rounded-[20px] bg-alerte-doux p-4 text-[#6B2418]">
           <p className="font-extrabold">Retirer ce qui couvre {busy} case{busy > 1 ? 's' : ''} du rang {y + 1} ?</p>

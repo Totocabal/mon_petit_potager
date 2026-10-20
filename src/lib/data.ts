@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import type { AlertSettings, Companion, Garden, Invite, Member, Planting, Profile, Species, Task, Variety, Zone } from './types';
-import { buildRelations } from './garden';
+import { buildRelations, type PlannedTaskDraft } from './garden';
 import { applyPending, isNetworkError, type PlantingRow } from './outbox';
 import { outbox, submit } from './offline';
 import { addDays, iso, today } from './dates';
@@ -184,10 +184,14 @@ export function useAddPlantings() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (rows: NewPlanting[]) => {
-      if (!rows.length) return;
+      if (!rows.length) return [] as PlantingRow[];
       const t = iso(today());
-      const full: PlantingRow[] = rows.map(r => ({ id: crypto.randomUUID(), sown_at: t, last_watered_at: t, water_every_days: null, alerts_enabled: true, removed_at: null, variety_id: null, days_to_harvest: null, ...r }));
+      const full: PlantingRow[] = rows.map(r => {
+        const sown = r.sown_at ?? t;
+        return { id: crypto.randomUUID(), sown_at: sown, last_watered_at: sown > t ? null : t, water_every_days: null, alerts_enabled: true, removed_at: null, variety_id: null, days_to_harvest: null, ...r };
+      });
       await submit(qc, { kind: 'add', garden_id: rows[0].garden_id, rows: full });
+      return full;
     }
   });
 }
@@ -262,6 +266,16 @@ export function useAddTask(gardenId: string) {
   return useMutation({
     mutationFn: async (t: { title: string; due_date: string; zone_id?: string | null; detail?: string | null }) => {
       check(await supabase.from('tasks').insert({ garden_id: gardenId, origin: 'manuel', ...t }));
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks', gardenId] })
+  });
+}
+export function useAddTasks(gardenId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (rows: PlannedTaskDraft[]) => {
+      if (!rows.length) return;
+      check(await supabase.from('tasks').insert(rows.map(r => ({ garden_id: gardenId, ...r }))));
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks', gardenId] })
   });

@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useApp } from '../lib/app';
-import { useAddPlantings } from '../lib/data';
+import { useAddPlantings, useAddTasks } from '../lib/data';
 import { BackHeader, Btn, Loading, Note, Page, Tile, useToast } from '../components/ui';
-import { footprintText, inSeason, isMulti, isSol, lc, nf, occupancy, plantCount, SPCOLOR } from '../lib/garden';
+import { footprintText, inSeason, isMulti, isSol, lc, nextPlantDate, nf, occupancy, plannedTasksFor, plantCount, SPCOLOR } from '../lib/garden';
 import { generatePlan, type Area } from '../lib/generator';
 import { blockedCells } from '../lib/rotation';
-import { MOIS, today } from '../lib/dates';
+import { fmt, iso, MOIS, today } from '../lib/dates';
 
 export default function Generate() {
   const { zoneId } = useParams();
@@ -14,6 +14,7 @@ export default function Generate() {
   const { zones, plantings, species, byId, rels, garden, loading, history } = useApp();
   const zone = zones.find(z => z.id === zoneId);
   const add = useAddPlantings();
+  const addTasks = useAddTasks(garden.id);
   const nav = useNavigate();
   const toast = useToast();
   const m = today().getMonth() + 1;
@@ -21,6 +22,7 @@ export default function Generate() {
   const [seed, setSeed] = useState<number | null>(null);
   const [filter, setFilter] = useState<'saison' | 'toutes'>('saison');
   const [ignoreRot, setIgnoreRot] = useState(false);
+  const [planned, setPlanned] = useState(false);
 
   const area: Area | null = zone ? {
     x: Number(sp.get('x') ?? 0), y: Number(sp.get('y') ?? 0),
@@ -64,8 +66,31 @@ export default function Generate() {
 
   async function validate() {
     if (!plan) return;
-    await add.mutateAsync(plan.rects.map(r => ({ garden_id: garden.id, zone_id: zone!.id, species_id: r.species_id, x: r.x, y: r.y, w: r.w, h: r.h })));
-    toast(`Plan enregistré : ${plan.placed} cases plantées`);
+    const dateBySpecies = new Map<string, Date>();
+    if (planned) {
+      for (const [id] of plan.counts) {
+        const s = byId.get(id);
+        if (s) dateBySpecies.set(id, nextPlantDate(s));
+      }
+    }
+    const added = await add.mutateAsync(plan.rects.map(r => {
+      const d = dateBySpecies.get(r.species_id);
+      return { garden_id: garden.id, zone_id: zone!.id, species_id: r.species_id, x: r.x, y: r.y, w: r.w, h: r.h, ...(d ? { sown_at: iso(d) } : {}) };
+    }));
+    if (planned) {
+      const allTasks = [...plan.counts.keys()].flatMap(id => {
+        const s = byId.get(id);
+        const d = dateBySpecies.get(id);
+        if (!s || !d) return [];
+        const matching = added.filter(a => a.species_id === id);
+        const pid = matching.length === 1 ? matching[0].id : null;
+        return plannedTasksFor({ species: s, zoneId: zone!.id, plantingId: pid, plantDate: d });
+      });
+      if (allTasks.length > 0) await addTasks.mutateAsync(allTasks);
+      toast(`Plan enregistré : ${plan.placed} cases prévues · ${allTasks.length} tâches ajoutées`);
+    } else {
+      toast(`Plan enregistré : ${plan.placed} cases plantées`);
+    }
     nav(-1);
   }
 
@@ -75,6 +100,7 @@ export default function Generate() {
     const cols: number[] = Array.from({ length: area.w }, (_, i) => area.x + i);
     const used = [...plan.counts.entries()].sort((a, b) => b[1] - a[1]);
     const plants = plan.rects.reduce((t, r) => t + plantCount(r, byId.get(r.species_id)!), 0);
+    const busy = add.isPending || addTasks.isPending;
     return (
       <Page>
         <BackHeader kicker={zone.name} title="Plan proposé" />
@@ -91,18 +117,32 @@ export default function Generate() {
         <div className="flex flex-col gap-2 rounded-carte bg-white p-4">
           {used.map(([id, n]) => {
             const s = byId.get(id)!;
-            return <div key={id} className="flex items-center gap-3"><Tile slug={s.slug} w={36} h={36} size={28} round={11} /><b className="flex-1 font-extrabold">{s.name}</b><span className="rounded-full px-2.5 py-0.5 text-xs font-extrabold text-white" style={{ background: SPCOLOR[s.slug] }}>{nf(n)} cases</span></div>;
+            return (
+              <div key={id} className="flex items-center gap-3">
+                <Tile slug={s.slug} w={36} h={36} size={28} round={11} />
+                <div className="min-w-0 flex-1">
+                  <b className="block font-extrabold">{s.name}</b>
+                  {planned && <span className="text-xs font-bold text-gris">Prévue le {fmt(nextPlantDate(s))}</span>}
+                </div>
+                <span className="rounded-full px-2.5 py-0.5 text-xs font-extrabold text-white" style={{ background: SPCOLOR[s.slug] }}>{nf(n)} cases</span>
+              </div>
+            );
           })}
           {picks.filter(p => !plan.counts.has(p.species.id)).map(p => <p key={p.species.id} className="text-sm text-gris">{p.species.name} : pas assez de place, non placée.</p>)}
         </div>
+        <div role="group" aria-label="État des plantations du plan" className="grid grid-cols-2 gap-1.5 rounded-2xl bg-white p-1">
+          <button type="button" aria-pressed={!planned} onClick={() => setPlanned(false)} className={`min-h-11 rounded-xl px-2 text-[13px] font-extrabold ${!planned ? 'bg-vert text-white' : 'text-encre'}`}>Déjà en place</button>
+          <button type="button" aria-pressed={planned} onClick={() => setPlanned(true)} className={`min-h-11 rounded-xl px-2 text-[13px] font-extrabold ${planned ? 'bg-vert text-white' : 'text-encre'}`}>Pas encore plantées</button>
+        </div>
+        {planned && <Note tone="bon">Les semis sous abri, la mise en terre, le suivi de levée, l’entretien et la récolte seront ajoutés automatiquement à vos tâches aux bonnes dates.</Note>}
         {plan.good > 0 && <Note tone="bon">{nf(plan.good)} voisinages favorables entre vos plantes.</Note>}
         {plan.gaps > 0 && <Note tone="neutre">{plan.gaps} case{plan.gaps > 1 ? 's' : ''} laissée{plan.gaps > 1 ? 's' : ''} vide{plan.gaps > 1 ? 's' : ''} pour séparer des espèces qui ne s’entendent pas.</Note>}
         {offSeason.length > 0 && <Note tone="neutre">Hors saison en {MOIS[m - 1]} : {offSeason.map(p => lc(p.species.name)).join(', ')}.</Note>}
         {frost.length > 0 && <Note tone="neutre">Sensible au gel : {frost.map(p => lc(p.species.name)).join(', ')}. Attendez les Saints de glace pour planter.</Note>}
-        <Btn onClick={validate} disabled={add.isPending || !plan.rects.length}>{add.isPending ? 'Enregistrement…' : 'Planter ce plan'}</Btn>
+        <Btn onClick={validate} disabled={busy || !plan.rects.length}>{busy ? 'Enregistrement…' : planned ? 'Prévoir ce plan et créer les tâches' : 'Planter ce plan'}</Btn>
         <Btn variant="doux" onClick={() => setSeed(Math.floor(Math.random() * 1e9))}>Autre proposition</Btn>
         <Btn variant="contour" onClick={() => setSeed(null)}>Changer les plantes</Btn>
-        {add.isError && <p className="text-sm font-bold text-alerte">{(add.error as Error).message}</p>}
+        {(add.isError || addTasks.isError) && <p className="text-sm font-bold text-alerte">{((add.error ?? addTasks.error) as Error).message}</p>}
       </Page>
     );
   }

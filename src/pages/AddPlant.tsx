@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useApp } from '../lib/app';
-import { useAddPlantings } from '../lib/data';
+import { useAddPlantings, useAddTasks } from '../lib/data';
 import { BackHeader, Btn, Note, Page, Sheet, Tile, useToast } from '../components/ui';
 import { rotationHits, rotationMessage } from '../lib/rotation';
-import { footprintText, inSeason, isMulti, isSol, lc, neighbors, nf, occupancy, pitchCm, spacingOk, tooClose, varietyFields } from '../lib/garden';
+import { footprintText, inSeason, isMulti, isSol, lc, neighbors, nextPlantDate, nf, occupancy, pitchCm, plannedTasksFor, spacingOk, tooClose, varietyFields } from '../lib/garden';
 import { VarietyPicker } from '../components/VarietyPicker';
 import type { Variety } from '../lib/types';
-import { iso, MOIS, monthsText, today } from '../lib/dates';
+import { fmt, iso, MOIS, monthsText, parse, today } from '../lib/dates';
 
 export default function AddPlant() {
   const { zoneId } = useParams();
@@ -20,12 +20,26 @@ export default function AddPlant() {
   const [filter, setFilter] = useState<'saison' | 'toutes'>('saison');
   const [pick, setPickRaw] = useState<string | null>(null);
   const [variety, setVariety] = useState<Variety | null>(null);
-  const setPick = (id: string | null) => { setPickRaw(id); setVariety(null); };
+  const [planned, setPlanned] = useState(false);
   const [date, setDate] = useState(iso(today()));
   const add = useAddPlantings();
+  const addTasks = useAddTasks(garden.id);
   const nav = useNavigate();
   const toast = useToast();
   const m = today().getMonth() + 1;
+
+  const setPick = (id: string | null) => {
+    setPickRaw(id);
+    setVariety(null);
+    const chosen = id ? byId.get(id) : undefined;
+    if (chosen && !isSol(chosen) && !inSeason(chosen, m)) {
+      setPlanned(true);
+      setDate(iso(nextPlantDate(chosen)));
+    } else {
+      setPlanned(false);
+      setDate(iso(today()));
+    }
+  };
 
   if (!zone) return <Page><BackHeader title="Zone introuvable" /></Page>;
 
@@ -45,10 +59,17 @@ export default function AddPlant() {
     : nb.good.length ? ['bon', 'Bon voisinage : ' + nb.good.map(i => lc(byId.get(i)!.name)).join(', ') + '.']
     : ['neutre', 'Voisines neutres : rien à signaler.'];
 
+  const isFuture = planned || date > iso(today());
+  const tasks = s && !isSol(s) && isFuture ? plannedTasksFor({ species: s, variety, zoneId: zone.id, plantDate: parse(date) }) : [];
+  const busy = add.isPending || addTasks.isPending;
+
   async function plant() {
     if (!s) return;
-    await add.mutateAsync([{ garden_id: garden.id, zone_id: zone!.id, species_id: s.id, x, y, w: sw, h: sh, sown_at: date, ...varietyFields(variety) }]);
-    toast(isSol(s) ? `${s.name} · rang ${y + 1}, case ${x + 1}` : `${s.name} plantée · rang ${y + 1}, case ${x + 1}`);
+    const added = await add.mutateAsync([{ garden_id: garden.id, zone_id: zone!.id, species_id: s.id, x, y, w: sw, h: sh, sown_at: date, ...varietyFields(variety) }]);
+    if (tasks.length > 0) {
+      await addTasks.mutateAsync(tasks.map(t => ({ ...t, planting_id: added[0]?.id ?? null })));
+    }
+    toast(isSol(s) ? `${s.name} · rang ${y + 1}, case ${x + 1}` : isFuture ? `${s.name} prévue · ${tasks.length} tâches ajoutées` : `${s.name} plantée · rang ${y + 1}, case ${x + 1}`);
     nav(-1);
   }
 
@@ -82,18 +103,32 @@ export default function AddPlant() {
           <>
           <p className="text-sm">Semis ou plantation : {monthsText(s.plant_out_months.length ? s.plant_out_months : s.sow_indoor_months)} · arrosage {s.water_every_days === 1 ? 'tous les jours' : `tous les ${s.water_every_days} j`} · récolte {monthsText(s.harvest_months)}</p>
           <p className="text-sm font-bold text-gris">{isMulti(s) ? `1 plant sur ${footprintText(s)} cases` : `${nf(s.plants_per_cell)} plant${s.plants_per_cell > 1 ? 's' : ''} dans la case`}</p>
-          <label className="flex flex-col gap-1 text-sm font-extrabold">Planté le
-            <input type="date" value={date} onChange={e => setDate(e.target.value)} className="min-h-11 rounded-2xl border-2 border-trait bg-white px-3 font-bold" />
+          <div role="group" aria-label="État de la plantation" className="grid grid-cols-2 gap-1.5 rounded-2xl bg-fond p-1">
+            <button type="button" aria-pressed={!isFuture} onClick={() => { setPlanned(false); setDate(iso(today())); }} className={`min-h-11 rounded-xl px-2 text-[13px] font-extrabold ${!isFuture ? 'bg-vert text-white' : 'text-encre'}`}>Déjà en place</button>
+            <button type="button" aria-pressed={isFuture} onClick={() => { setPlanned(true); if (date <= iso(today())) setDate(iso(nextPlantDate(s))); }} className={`min-h-11 rounded-xl px-2 text-[13px] font-extrabold ${isFuture ? 'bg-vert text-white' : 'text-encre'}`}>Pas encore plantée</button>
+          </div>
+          <label className="flex flex-col gap-1 text-sm font-extrabold">{isFuture ? 'Plantation ou semis prévu le' : 'Planté le'}
+            <input type="date" value={date} onChange={e => { setDate(e.target.value); setPlanned(e.target.value > iso(today())); }} className="min-h-11 rounded-2xl border-2 border-trait bg-white px-3 font-bold" />
           </label>
           <VarietyPicker speciesId={s.id} value={variety?.id ?? null} onChange={setVariety} />
+          {isFuture && tasks.length > 0 && (
+            <div className="flex flex-col gap-1.5 rounded-2xl bg-vert-doux px-3.5 py-3 text-[13px] text-encre">
+              <b className="font-extrabold text-vert">{tasks.length} tâches ajoutées automatiquement au bon moment :</b>
+              <ul className="flex flex-col gap-1">
+                {tasks.map((t, i) => (
+                  <li key={i} className="leading-snug"><b className="font-extrabold">{fmt(parse(t.due_date))}</b> · {t.title}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           <p className="text-sm font-bold text-gris">Distances recommandées : {s.inrow_spacing_cm} cm entre plants, {s.row_spacing_cm} cm entre rangs.</p>
           </>
           )}
           {!isSol(s) && <Note tone={check[0]}>{check[1]}</Note>}
           {rotation && <Note tone="mauvais">{rotation} Vous pouvez planter quand même.</Note>}
           {dist.length > 0 && <Note tone="neutre">Attention : {dist.join(' ')}</Note>}
-          <Btn onClick={plant} disabled={!fits || nb.bad.length > 0 || add.isPending}>{add.isPending ? 'Enregistrement…' : isSol(s) ? 'Couvrir la case' : rotation ? 'Planter quand même' : 'Planter'}</Btn>
-          {add.isError && <p className="text-sm font-bold text-alerte">{(add.error as Error).message}</p>}
+          <Btn onClick={plant} disabled={!fits || nb.bad.length > 0 || busy}>{busy ? 'Enregistrement…' : isSol(s) ? 'Couvrir la case' : isFuture ? 'Prévoir sur cette case' : rotation ? 'Planter quand même' : 'Planter'}</Btn>
+          {(add.isError || addTasks.isError) && <p className="text-sm font-bold text-alerte">{((add.error ?? addTasks.error) as Error).message}</p>}
           {!isSol(s) && <Link to={`/glossaire/${s.slug}`} className="self-center text-sm font-extrabold text-vert">Voir la fiche complète →</Link>}
         </Sheet>
       )}

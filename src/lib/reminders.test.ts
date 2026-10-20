@@ -71,8 +71,12 @@ describe('arrosage', () => {
     expect(dates(plan({ weather, crops }))[0]).toBe(d(1)); // abri : la pluie d'aujourd'hui ne compte pas
     expect(dates(plan({ weather, crops: [planting({ species_id: 't', zone_id: 'z', last_watered_at: d(-1) })] }))[0]).toBe(d(2)); // dehors : arrosé par la pluie
   });
-  it('ignore les plantations dont les alertes sont coupées ou d’espèce inconnue', () => {
-    const crops = [planting({ species_id: 't', last_watered_at: d(-9), alerts_enabled: false }), planting({ id: '2', species_id: 'inconnue', last_watered_at: d(-9) })];
+  it('ignore les plantations dont les alertes sont coupées, pas encore plantées ou d’espèce inconnue', () => {
+    const crops = [
+      planting({ species_id: 't', last_watered_at: d(-9), alerts_enabled: false }),
+      planting({ id: '2', species_id: 'inconnue', last_watered_at: d(-9) }),
+      planting({ id: '3', species_id: 't', sown_at: d(15), last_watered_at: null })
+    ];
     expect(plan({ crops })).toEqual([]);
   });
   it('regroupe les noms : trois puis « et N autres »', () => {

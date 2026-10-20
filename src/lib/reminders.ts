@@ -1,5 +1,5 @@
 import { addDays, iso, parse, today } from './dates';
-import { everyDays, isReady } from './garden';
+import { everyDays, isPlanned, isReady } from './garden';
 import { RAIN_MM, type Weather } from './weather';
 import type { Planting, Species, Task, Zone } from './types';
 
@@ -32,7 +32,7 @@ export function planReminders(o: {
     const water = new Set<string>();
     for (const p of o.crops) {
       const s = o.byId.get(p.species_id);
-      if (!s || !p.alerts_enabled) continue;
+      if (!s || !p.alerts_enabled || isPlanned(p, day)) continue;
       let last = parse(p.last_watered_at ?? p.sown_at);
       if (o.skipIfRain && !sheltered.has(p.zone_id)) {
         const rain = rainyDays.filter(d => d <= key).pop();

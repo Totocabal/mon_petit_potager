@@ -6,7 +6,7 @@ import { TaskSheet } from '../components/TaskSheet';
 import { BottomNav, Loading, Page, Tile, useToast } from '../components/ui';
 import { DropBadge } from '../components/garden';
 import { ageDays, isReady, isThirsty, lc, needsWater, nf, plantCount } from '../lib/garden';
-import { addDays, longDate, today, iso, parse, diffDays, whenText } from '../lib/dates';
+import { addDays, fmt, longDate, today, iso, parse, diffDays, whenText } from '../lib/dates';
 import { RAIN_MM, rainOn, SKY_LABEL, skyOf, type Weather } from '../lib/weather';
 import { WeatherIcon } from '../components/WeatherIcon';
 import { WeatherBackdrop } from '../components/WeatherBackdrop';
@@ -100,9 +100,9 @@ export default function Home() {
           );
         })}
         {dueTasks.map(t => (
-          <div key={t.id} className="flex min-h-[58px] items-center gap-3 border-b border-dashed border-trait last:border-0">
+          <div key={t.id} className="flex min-h-[58px] items-center gap-3 border-b border-dashed border-trait py-2 last:border-0">
             <button aria-label={`Terminer : ${t.title}`} onClick={async () => { await toggle.mutateAsync({ id: t.id, done: true }); toast('Tâche terminée'); }} className="h-10 w-10 shrink-0 rounded-full border-2 border-vert" />
-            <span className="flex min-w-0 flex-1 flex-col"><b className="font-extrabold">{t.title}</b><span className="text-[13px] text-gris">{diffDays(parse(t.due_date), today()) < 0 ? 'En retard' : whenText(parse(t.due_date))}{zoneName(t.zone_id!) ? ' · ' + zoneName(t.zone_id!) : ''}</span></span>
+            <span className="flex min-w-0 flex-1 flex-col"><b className="font-extrabold">{t.title}</b>{t.detail && <span className="mt-0.5 text-xs leading-snug text-encre/85">{t.detail}</span>}<span className="text-[13px] text-gris">{diffDays(parse(t.due_date), today()) < 0 ? 'En retard' : whenText(parse(t.due_date))}{zoneName(t.zone_id!) ? ' · ' + zoneName(t.zone_id!) : ''}</span></span>
           </div>
         ))}
         {!groups.thirsty.length && !groups.harvest.length && !dueTasks.length && <p className="py-4 text-gris">Rien à faire aujourd’hui. Profitez-en pour regarder pousser.</p>}
@@ -128,7 +128,7 @@ export default function Home() {
               {g.variety && <span className="max-w-full truncate text-[11px] font-extrabold text-vert">{g.variety}</span>}
               <span className="max-w-full truncate rounded-full bg-vert-doux px-2 py-0.5 text-[11px] font-extrabold text-vert">{zoneName(g.zoneId)}</span>
               <span className="text-xs font-bold text-gris">{nf(g.plants)} plant{g.plants > 1 ? 's' : ''}</span>
-              <span className="text-center text-[11px] leading-tight text-gris">{g.thirsty ? <b className="text-eau">à arroser</b> : g.ready ? <b className="text-[#8A6A00]">à récolter</b> : g.ps.length > 1 ? `${g.ps.length} emplacements` : `Jour ${g.age}`}</span>
+              <span className="text-center text-[11px] leading-tight text-gris">{g.thirsty ? <b className="text-eau">à arroser</b> : g.ready ? <b className="text-[#8A6A00]">à récolter</b> : g.age < 0 ? `Prévue le ${fmt(parse(g.ps[0].sown_at))}` : g.ps.length > 1 ? `${g.ps.length} emplacements` : `Jour ${g.age}`}</span>
             </Link>
           ))}
         </div>
