@@ -14,7 +14,7 @@ const SUN = <circle className="wi-sun" cx="30" cy="24" r="16" fill="#F6C445" />;
 const delay = (s: number): CSSProperties => ({ animationDelay: `${s}s` });
 
 /** Nuage de face avec son visage : tout bouge ensemble quand l'icône est animée. */
-const Cloud = ({ fill = '#ACD8EA' }: { fill?: string }) => <g className="wi-cloud"><path d={CLOUD_PATH} fill={fill} />{FACE}</g>;
+const Cloud = () => <g className="wi-cloud"><path d={CLOUD_PATH} fill="#FFFFFF" />{FACE}</g>;
 
 /** Petite météo illustrée, dans le style des plantes (visage souriant). Avec `animate` : soleil qui rayonne, pluie qui tombe… */
 export function WeatherIcon({ sky, size = 76, animate = false }: { sky: Sky; size?: number; animate?: boolean }) {
@@ -36,7 +36,7 @@ export function WeatherIcon({ sky, size = 76, animate = false }: { sky: Sky; siz
   } else if (sky === 'nuageux' || sky === 'brouillard') {
     body = (
       <>
-        <path className="wi-cloud-back" d="M14 40h30a9 9 0 0 0 0-18 12 12 0 0 0-22 3 8 8 0 0 0-8 15z" fill="#B7CED5" />
+        <path className="wi-cloud-back" d="M14 40h30a9 9 0 0 0 0-18 12 12 0 0 0-22 3 8 8 0 0 0-8 15z" fill="#FFFFFF" />
         <Cloud />
         {sky === 'brouillard' && <g stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round"><path className="wi-fog" d="M16 58h34" /><path className="wi-fog" d="M28 62h30" style={delay(1.2)} /></g>}
       </>
@@ -48,7 +48,7 @@ export function WeatherIcon({ sky, size = 76, animate = false }: { sky: Sky; siz
     body = (
       <>
         {sky === 'averses' && SUN}
-        <Cloud fill={sky === 'orage' ? '#91B2BF' : '#ACD8EA'} />
+        <Cloud />
         {sky === 'orage' ? <path className="wi-bolt" d="M46 47l-8 9h6l-3 7 11-12h-7l3-4z" fill="#F6C445" /> : drops}
       </>
     );
