@@ -1,87 +1,70 @@
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../lib/app';
-import { useTasks } from '../lib/data';
-import { monthPlan } from '../lib/calendar';
-import { cap, fmt, iso, MOIS, parse, today } from '../lib/dates';
-import { isThirsty } from '../lib/garden';
-import { BottomNav, Loading, Page, Select, Tile } from '../components/ui';
-import { SpeciesLinks } from '../components/SpeciesLinks';
+import { useTasks, useToggleTask, useWater } from '../lib/data';
+import { calendarTimeline, type CalendarEvent } from '../lib/calendar';
+import { cap, MOIS, today } from '../lib/dates';
+import { BottomNav, Loading, Page, useToast } from '../components/ui';
+import { CalendarTimeline } from '../components/CalendarTimeline';
 
 export default function MyCalendar() {
-  const { garden, crops, byId, zones, loading, rainFor, varietyById } = useApp();
+  const { garden, session, crops, byId, zones, loading, rainFor, varietyById } = useApp();
   const tasks = useTasks(garden.id);
+  const water = useWater();
+  const toggleTask = useToggleTask(garden.id, session.user.id);
+  const toast = useToast();
   const now = today();
-  const [offset, setOffset] = useState('0');
-  const selected = new Date(now.getFullYear(), now.getMonth() + Number(offset), 1);
-  const plan = monthPlan({ crops, byId, tasks: tasks.data ?? [], year: selected.getFullYear(), month: selected.getMonth() + 1, now });
-  const water = new Map<string, { id: string; name: string; slug: string; zoneId: string }>();
-  if (offset === '0') for (const p of crops) {
-    const s = byId.get(p.species_id);
-    if (!p.removed_at && parse(p.sown_at) <= now && isThirsty(p, s, rainFor(p.zone_id), now)) {
-      water.set(`${p.species_id}|${p.zone_id}`, { id: p.id, name: s!.name, slug: s!.slug, zoneId: p.zone_id });
+  const [offset, setOffset] = useState(0);
+  const [pending, setPending] = useState<string | null>(null);
+  const selected = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+  const groups = calendarTimeline({ crops, byId, tasks: tasks.data ?? [], year: selected.getFullYear(), month: selected.getMonth() + 1, now, rainFor });
+  const hasCrops = crops.some(p => !p.removed_at);
+
+  async function complete(event: Extract<CalendarEvent, { kind: 'water' | 'task' }>) {
+    if (pending) return;
+    setPending(event.id);
+    try {
+      if (event.kind === 'water') {
+        await water.mutateAsync(event.plantings);
+        toast(`Arrosage noté : ${event.species.name}`);
+      } else {
+        await toggleTask.mutateAsync({ id: event.task.id, done: true });
+        toast('Tâche terminée');
+      }
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'Impossible d’enregistrer. Réessayez.');
+    } finally {
+      setPending(null);
     }
   }
-  const zoneName = (id: string | null) => zones.find(z => z.id === id)?.name;
-  if (loading) return <Loading />;
 
+  if (loading) return <Loading />;
   return (
     <Page nav>
-      <div className="pt-6 lg:pt-0">
+      <header className="pt-6 lg:pt-0">
+        <p className="mb-1 text-xs font-extrabold uppercase tracking-wide text-gris">{garden.name}</p>
         <h1 className="font-titre text-[31px] font-semibold text-vert">Mon Calendrier</h1>
-        <p className="mt-1 font-bold text-gris">Les gestes à prévoir dans {garden.name}.</p>
+        <p className="mt-1 font-bold text-gris">Chaque geste, au bon moment.</p>
+      </header>
+      <div role="group" aria-label="Mois de mon calendrier" className="flex items-center justify-between gap-2 rounded-[20px] bg-white p-2">
+        <button type="button" aria-label="Mois précédent" disabled={offset === 0} onClick={() => setOffset(n => n - 1)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-vert-doux text-vert disabled:opacity-40"><Chevron left /></button>
+        <p aria-live="polite" className="text-center font-titre text-lg font-semibold">{cap(MOIS[selected.getMonth()])} {selected.getFullYear()}</p>
+        <button type="button" aria-label="Mois suivant" disabled={offset === 11} onClick={() => setOffset(n => n + 1)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-vert-doux text-vert disabled:opacity-40"><Chevron /></button>
       </div>
-      <Select label="Mois de mon calendrier" value={offset} onChange={setOffset} options={Array.from({ length: 12 }, (_, i) => {
-        const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
-        return { value: String(i), label: `${cap(MOIS[date.getMonth()])} ${date.getFullYear()}` };
-      })} />
-      {!plan.cultivated.length && <Link to="/potager" className="rounded-carte bg-vert-doux p-4 font-bold text-vert">Ajoutez des plantes à votre potager pour retrouver ici leurs semis, plantations et récoltes →</Link>}
-      {offset === '0' && (
-        <CalendarSection title="À arroser aujourd’hui">
-          {water.size ? [...water].map(([key, p]) => (
-            <Link key={key} to={`/zones/${p.zoneId}`} className="flex min-h-11 items-center gap-3 rounded-2xl bg-eau/10 p-3">
-              <Tile slug={p.slug} w={36} h={36} size={30} round={12} />
-              <span><b className="block font-extrabold">{p.name}</b><span className="text-sm text-gris">{zoneName(p.zoneId)}</span></span>
-            </Link>
-          )) : <p className="text-sm text-gris">Aucun arrosage signalé aujourd’hui.</p>}
-          <p className="text-xs text-gris">Selon vos alertes et la pluie récente ; les zones sous abri restent à arroser.</p>
-        </CalendarSection>
-      )}
-      <CalendarSection title="Semis sous abri">
-        {plan.indoor.length ? <SpeciesLinks list={plan.indoor} /> : <p className="text-sm text-gris">Aucun semis sous abri pour vos espèces ce mois-ci.</p>}
-      </CalendarSection>
-      <CalendarSection title="Semis en place et plantations">
-        {plan.outdoor.length ? <SpeciesLinks list={plan.outdoor} /> : <p className="text-sm text-gris">Aucun semis en place ni plantation pour vos espèces ce mois-ci.</p>}
-        <p className="text-xs text-gris">Périodes possibles pour renouveler les espèces de votre potager. Ouvrez une fiche pour les conseils de culture.</p>
-      </CalendarSection>
-      <CalendarSection title="Récoltes prévues">
-        {plan.harvest.length ? plan.harvest.map(h => (
-          <Link key={`${h.planting.id}|${h.date}`} to={h.count > 1 ? `/zones/${h.planting.zone_id}` : `/plantes/${h.planting.id}`} className="flex min-h-11 items-center gap-3 rounded-2xl bg-soleil-doux p-3">
-            <Tile slug={h.species.slug} w={40} h={40} size={32} round={12} />
-            <span className="min-w-0 flex-1">
-              <b className="block font-extrabold">{h.species.name}{h.planting.variety_id && varietyById.get(h.planting.variety_id) ? ` · ${varietyById.get(h.planting.variety_id)!.name}` : ''}</b>
-              <span className="block text-sm text-gris">{zoneName(h.planting.zone_id)}{h.count > 1 ? ` · ${h.count} emplacements` : ''}</span>
-              <span className="text-sm font-bold text-vert">{h.date === iso(now) ? 'Dès maintenant' : `À partir du ${fmt(parse(h.date))}`}</span>
-            </span>
-          </Link>
-        )) : <p className="text-sm text-gris">Aucune récolte prévue pour vos plantations ce mois-ci.</p>}
-        <p className="text-xs text-gris">Estimations selon la saison, la date de plantation et le délai de la variété lorsqu’il est renseigné. Vérifiez la maturité sur place.</p>
-      </CalendarSection>
-      <CalendarSection title="Tâches du mois">
-        {tasks.isPending ? <p className="text-sm text-gris">Chargement des tâches…</p> : tasks.isError ? <p className="text-sm text-alerte">Impossible de charger les tâches. Réessayez depuis la page des tâches.</p> : plan.tasks.length ? plan.tasks.map(t => (
-          <Link key={t.id} to="/taches" className="flex min-h-11 flex-col justify-center rounded-2xl bg-fond p-3">
-            <b className="font-extrabold">{t.title}</b>
-            <span className="text-sm text-gris">{t.due_date < iso(now) ? 'En retard · ' : ''}{fmt(parse(t.due_date))}{zoneName(t.zone_id) ? ` · ${zoneName(t.zone_id)}` : ''}</span>
-          </Link>
-        )) : <p className="text-sm text-gris">Aucune tâche prévue ce mois-ci.</p>}
+      {!hasCrops && <Link to="/potager" className="rounded-carte bg-vert-doux p-4 font-bold text-vert">Ajoutez des plantes à votre potager pour retrouver ici leurs semis, plantations et récoltes →</Link>}
+      {tasks.isPending && <p role="status" className="text-sm text-gris">Chargement des tâches…</p>}
+      {tasks.isError && <p role="alert" className="text-sm text-alerte">Impossible de charger les tâches. <Link to="/taches" className="underline">Réessayer depuis la page des tâches</Link>.</p>}
+      {groups.length ? <CalendarTimeline groups={groups} zones={zones} varieties={varietyById} now={now} pending={pending} onComplete={complete} /> : !tasks.isPending && <p className="rounded-carte bg-white p-4 text-sm text-gris">Aucun geste prévu pour ce mois-ci.</p>}
+      <p className="text-xs text-gris">Les récoltes sont estimées selon la saison et le délai de la variété : vérifiez la maturité sur place. L’arrosage est indiqué pour aujourd’hui, selon vos alertes et la pluie récente.</p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <Link to="/taches" className="flex min-h-11 items-center font-extrabold text-vert">Gérer mes tâches →</Link>
-      </CalendarSection>
-      <Link to="/almanach" className="flex min-h-11 items-center justify-center rounded-2xl bg-vert-doux p-3 font-extrabold text-vert">Explorer toutes les plantes dans l’Almanach →</Link>
+        <Link to="/almanach" className="flex min-h-11 items-center font-extrabold text-vert">Voir l’Almanach →</Link>
+      </div>
       <BottomNav />
     </Page>
   );
 }
 
-function CalendarSection({ title, children }: { title: string; children: ReactNode }) {
-  return <section className="flex flex-col gap-2.5 rounded-carte bg-white p-4"><h2 className="font-titre text-lg font-semibold">{title}</h2>{children}</section>;
+function Chevron({ left = false }: { left?: boolean }) {
+  return <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d={left ? 'M15 6l-6 6 6 6' : 'M9 6l6 6-6 6'} /></svg>;
 }

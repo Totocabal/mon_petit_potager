@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { monthPlan } from './calendar';
+import { calendarTimeline, monthPlan } from './calendar';
 import { byId, planting, species } from '../test/fixtures';
 import type { Task } from './types';
 
@@ -55,5 +55,52 @@ describe('calendrier personnel', () => {
     expect(result.indoor).toEqual([]);
     expect(result.harvest).toEqual([]);
     expect(result.tasks).toHaveLength(1);
+  });
+});
+
+const timeline = (o: Partial<Parameters<typeof calendarTimeline>[0]> = {}) => calendarTimeline({ crops: [planting({ sown_at: '2026-08-15', days_to_harvest: 70 })], byId: byId(crop), tasks: [], year: 2026, month: 10, rainFor: () => null, ...o });
+
+describe('timeline du calendrier', () => {
+  it('classe les gestes par date et garde les semis dans une période non datée', () => {
+    const result = timeline({ tasks: [task('pailler', '2026-10-22')] });
+    expect(result.map(g => g.date)).toEqual(['2026-10-20', '2026-10-22', '2026-10-24', null]);
+    expect(result.map(g => g.events.map(e => e.kind))).toEqual([['water'], ['task'], ['harvest'], ['indoor']]);
+  });
+  it('place les tâches en retard aujourd’hui et conserve leur échéance originale', () => {
+    const result = timeline({ tasks: [task('retard', '2026-09-01'), task('aujourd’hui', '2026-10-20')] });
+    const events = result[0].events.filter(e => e.kind === 'task');
+    expect(result[0].date).toBe('2026-10-20');
+    expect(events.map(e => e.task.due_date)).toEqual(['2026-09-01', '2026-10-20']);
+  });
+  it('regroupe l’arrosage par espèce et zone avec les bons identifiants à enregistrer', () => {
+    const result = timeline({ crops: [planting({ id: 'a' }), planting({ id: 'b' }), planting({ id: 'c', zone_id: 'serre' })] });
+    const water = result[0].events.filter(e => e.kind === 'water');
+    expect(water.map(e => e.plantings.map(p => p.id))).toEqual([['a', 'b'], ['c']]);
+  });
+  it('respecte la pluie récente pour les zones extérieures et les abris', () => {
+    const result = timeline({ crops: [planting({ id: 'dehors' }), planting({ id: 'abri', zone_id: 'serre' })], rainFor: id => id === 'serre' ? null : new Date(2026, 9, 20) });
+    const water = result[0].events.filter(e => e.kind === 'water');
+    expect(water.flatMap(e => e.plantings.map(p => p.id))).toEqual(['abri']);
+  });
+  it('ne signale pas d’arrosage pour les plantes retirées, futures, inconnues, les sols ou les alertes désactivées', () => {
+    const result = timeline({ crops: [planting({ removed_at: '2026-10-19' }), planting({ id: 'future', sown_at: '2026-10-25' }), planting({ id: 'inconnue', species_id: 'inconnue' }), planting({ id: 'sol', species_id: 'sol' }), planting({ id: 'sans-alerte', alerts_enabled: false })], byId: byId(crop, species({ id: 'sol', kind: 'sol' })) });
+    expect(result.flatMap(g => g.events).filter(e => e.kind === 'water')).toEqual([]);
+  });
+  it('ne crée pas de dates d’arrosage hypothétiques pour les mois futurs', () => {
+    const result = timeline({ month: 11 });
+    expect(result.flatMap(g => g.events).some(e => e.kind === 'water')).toBe(false);
+    expect(result[result.length - 1]?.date).toBeNull();
+    expect(result[result.length - 1]?.events[0].kind).toBe('outdoor');
+  });
+  it('fait disparaître un arrosage enregistré et une tâche terminée', () => {
+    const result = timeline({ crops: [planting({ last_watered_at: '2026-10-20' })], tasks: [task('faite', '2026-10-20', '2026-10-20')] });
+    expect(result.flatMap(g => g.events).some(e => e.kind === 'water' || e.kind === 'task')).toBe(false);
+  });
+  it('garde les tâches seules dans un potager vide, sans groupe vide', () => {
+    expect(timeline({ crops: [] })).toEqual([]);
+    const result = timeline({ crops: [], tasks: [task('préparer', '2026-10-23')] });
+    expect(result).toHaveLength(1);
+    expect(result[0].date).toBe('2026-10-23');
+    expect(result[0].events[0].kind).toBe('task');
   });
 });
