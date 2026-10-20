@@ -32,6 +32,8 @@ export type Species = {
   soil: string | null;
   care: string | null;
   pests: string | null;
+  /** Traitements possibles, un par ravageur ou maladie (« Mildiou : … »), préventif d'abord */
+  pests_treatment: string | null;
   harvest_tips: string | null;
   /** Années avant de replanter la même famille au même endroit ; null = pas de contrainte */
   rotation_years: number | null;
