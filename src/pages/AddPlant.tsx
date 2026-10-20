@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { useAddPlantings, useAddTasks } from '../lib/data';
-import { BackHeader, Btn, Note, Page, Sheet, Tile, useToast } from '../components/ui';
+import { BackHeader, Btn, Icon, Note, Page, Sheet, Tile, useToast } from '../components/ui';
 import { rotationHits, rotationMessage } from '../lib/rotation';
 import { footprintText, inSeason, isMulti, isSol, lc, neighbors, nextPlantDate, nf, occupancy, plannedTasksFor, spacingWarning, tooClose, varietyFields } from '../lib/garden';
 import { VarietyPicker } from '../components/VarietyPicker';
@@ -79,7 +79,7 @@ export default function AddPlant() {
       <BackHeader kicker={zone.name} title="Ajouter une plante" />
       <p className="-mt-2 text-sm font-bold text-gris">Rang {y + 1}, case {x + 1}</p>
       <label className="flex min-h-[50px] items-center gap-2.5 rounded-2xl bg-white px-3.5">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#55625A" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="M16 16l4 4" /></svg>
+        <Icon name="search" size={28} />
         <span className="sr-only">Rechercher une plante</span>
         <input type="search" value={q} onChange={e => setQ(e.target.value)} placeholder={`Rechercher parmi ${species.length} plantes`} className="min-w-0 flex-1 bg-transparent text-base outline-none" />
       </label>

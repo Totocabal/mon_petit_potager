@@ -3,6 +3,7 @@ import type { Sky } from '../lib/weather';
 
 const FACE = (
   <>
+    <ellipse cx="36" cy="46" rx="3" ry="1.7" fill="#F7A39A" /><ellipse cx="54" cy="46" rx="3" ry="1.7" fill="#F7A39A" />
     <circle cx="40" cy="42" r="2" fill="#3A2320" />
     <circle cx="50" cy="42" r="2" fill="#3A2320" />
     <path d="M42 47q3 3 6 0" stroke="#3A2320" strokeWidth="2" fill="none" strokeLinecap="round" />
@@ -13,7 +14,7 @@ const SUN = <circle className="wi-sun" cx="30" cy="24" r="16" fill="#F6C445" />;
 const delay = (s: number): CSSProperties => ({ animationDelay: `${s}s` });
 
 /** Nuage de face avec son visage : tout bouge ensemble quand l'icône est animée. */
-const Cloud = ({ fill = '#FFFFFF' }: { fill?: string }) => <g className="wi-cloud"><path d={CLOUD_PATH} fill={fill} />{FACE}</g>;
+const Cloud = ({ fill = '#ACD8EA' }: { fill?: string }) => <g className="wi-cloud"><path d={CLOUD_PATH} fill={fill} />{FACE}</g>;
 
 /** Petite météo illustrée, dans le style des plantes (visage souriant). Avec `animate` : soleil qui rayonne, pluie qui tombe… */
 export function WeatherIcon({ sky, size = 76, animate = false }: { sky: Sky; size?: number; animate?: boolean }) {
@@ -24,6 +25,7 @@ export function WeatherIcon({ sky, size = 76, animate = false }: { sky: Sky; siz
         <g className="wi-rays" stroke="#F6C445" strokeWidth="3" strokeLinecap="round"><path d="M40 4v6M40 54v6M12 32H6M74 32h-6M20 12l4 4M60 12l-4 4M20 52l4-4M60 52l-4-4" /></g>
         <g className="wi-sun">
           <circle cx="40" cy="32" r="18" fill="#F6C445" />
+          <ellipse cx="30" cy="34" rx="3" ry="1.7" fill="#F7A39A" /><ellipse cx="50" cy="34" rx="3" ry="1.7" fill="#F7A39A" />
           <circle cx="34" cy="30" r="2" fill="#3A2320" /><circle cx="46" cy="30" r="2" fill="#3A2320" />
           <path d="M36 36q4 4 8 0" stroke="#3A2320" strokeWidth="2" fill="none" strokeLinecap="round" />
         </g>
@@ -46,7 +48,7 @@ export function WeatherIcon({ sky, size = 76, animate = false }: { sky: Sky; siz
     body = (
       <>
         {sky === 'averses' && SUN}
-        <Cloud fill={sky === 'orage' ? '#C4D5DB' : '#FFFFFF'} />
+        <Cloud fill={sky === 'orage' ? '#91B2BF' : '#ACD8EA'} />
         {sky === 'orage' ? <path className="wi-bolt" d="M46 47l-8 9h6l-3 7 11-12h-7l3-4z" fill="#F6C445" /> : drops}
       </>
     );

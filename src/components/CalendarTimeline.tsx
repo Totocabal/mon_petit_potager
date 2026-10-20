@@ -1,9 +1,10 @@
+import { taskNotificationType } from '../../supabase/functions/_shared/notification-types';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { CalendarDay, CalendarEvent } from '../lib/calendar';
 import { addDays, fmt, iso, JOURS, cap, parse } from '../lib/dates';
 import type { Variety, Zone } from '../lib/types';
-import { Icon, Tile, type IconName } from './ui';
+import { Icon, NOTIFICATION_ICONS, Tile, type IconName } from './ui';
 
 type CompletableEvent = Extract<CalendarEvent, { kind: 'water' | 'task' }>;
 type Common = { zones: Zone[]; varieties: Map<string, Variety>; current: string; pending: string | null; onComplete: (event: CompletableEvent) => void };
@@ -85,7 +86,7 @@ function EventRow({ event, zones, varieties, current, pending, onComplete }: { e
   const busy = pending === event.id;
   return (
     <li className="flex min-h-[58px] items-center gap-3 border-b border-dashed border-trait py-1 last:border-0" aria-busy={busy}>
-      {s ? <Tile slug={s.slug} w={40} h={40} size={32} round={12} /> : <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-vert-doux text-vert"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5h6M9 3h6v4H9zM6 5H5v16h14V5h-1M8 14l3 3 5-6" /></svg></span>}
+      {s ? <Tile slug={s.slug} w={40} h={40} size={32} round={12} /> : <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-vert-doux text-vert"><Icon name={event.kind === 'task' ? NOTIFICATION_ICONS[taskNotificationType(event.task)] : 'personal'} /></span>}
       <span className="flex min-w-0 flex-1 flex-col"><b className="truncate font-extrabold">{label}</b>{sub && <span className={`truncate text-[13px] ${late ? 'font-extrabold text-alerte' : 'text-gris'}`}>{sub}</span>}</span>
       {event.kind === 'water' || event.kind === 'task' ? (
         <button type="button" disabled={pending !== null} onClick={() => onComplete(event)} aria-label={event.kind === 'water' ? `Noter l’arrosage : ${s!.name}, ${zoneName(p!.zone_id)}` : `Terminer : ${event.task.title}`} className="squish flex h-11 w-11 shrink-0 items-center justify-center disabled:opacity-50">
