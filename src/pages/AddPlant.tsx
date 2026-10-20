@@ -4,7 +4,7 @@ import { useApp } from '../lib/app';
 import { useAddPlantings, useAddTasks } from '../lib/data';
 import { BackHeader, Btn, Note, Page, Sheet, Tile, useToast } from '../components/ui';
 import { rotationHits, rotationMessage } from '../lib/rotation';
-import { footprintText, inSeason, isMulti, isSol, lc, neighbors, nextPlantDate, nf, occupancy, pitchCm, plannedTasksFor, spacingOk, tooClose, varietyFields } from '../lib/garden';
+import { footprintText, inSeason, isMulti, isSol, lc, neighbors, nextPlantDate, nf, occupancy, plannedTasksFor, spacingWarning, tooClose, varietyFields } from '../lib/garden';
 import { VarietyPicker } from '../components/VarietyPicker';
 import type { Variety } from '../lib/types';
 import { fmt, iso, MOIS, monthsText, parse, today } from '../lib/dates';
@@ -51,7 +51,8 @@ export default function AddPlant() {
   const close = s && fits ? tooClose(grid, { x, y, w: sw, h: sh }, s, byId) : new Map<string, { gap: number; need: number }>();
   const rotation = s && fits ? rotationMessage(s, rotationHits(history, byId, zone.id, { x, y, w: sw, h: sh }, s)) : '';
   const dist: string[] = [];
-  if (s && !isSol(s) && !spacingOk(s)) dist.push(`Dans la grille, ${lc(s.name)} est à ${Math.round(pitchCm(s))} cm de la plante voisine du même rang ; on recommande ${s.inrow_spacing_cm} cm.`);
+  const tight = s ? spacingWarning(s) : null;
+  if (tight) dist.push(tight);
   close.forEach((v, id) => dist.push(`Trop près de ${lc(byId.get(id)!.name)} : ${v.gap} cm entre les plants, on recommande ${v.need} cm.`));
   const check: ['bon' | 'mauvais' | 'neutre', string] = !s ? ['neutre', '']
     : !fits ? ['mauvais', `${s.name} prend ${footprintText(s)} cases : pas assez de place à partir de cette case.`]

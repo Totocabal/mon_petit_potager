@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   ageDays, blocInfo, harvestDays, isPlanned, isThirsty, nextPlantDate, plannedTasksFor, thirstyIn, resizeBounds, varietyFields, blocName, buildRelations, colLabel, de, everyDays, findSpot, footprintText, freeRects, inSeason, isBig, isMulti, isReady, isSol,
   lc, nextWater, needsWater, neighbors, occupancy, pitchCm, placeText, plantCount, plantingsIn, rangPlan, range, rel, remainingPieces, spacingOk,
-  stage, toSegments, tooClose, zoneFits, zoneGround, zoneSize
+  stage, toSegments, tooClose, zoneFits, zoneGround, zoneSize, areaPerPlantCm2, spacingWarning, suggestedLayout
 } from './garden';
 import { iso, parse } from './dates';
 import { byId, companion, planting, species, zone } from '../test/fixtures';
@@ -72,12 +72,12 @@ describe('plantes sur plusieurs cases', () => {
     expect(plantCount({ w: 1, h: 1 }, tomate)).toBe(1); // reste de plantation rognée : au moins un plant
     expect(plantCount({ w: 5, h: 5 }, species({ kind: 'sol' }))).toBe(0);
   });
-  it('pitchCm et spacingOk comparent la grille à la distance recommandée (tolérance de 25 %)', () => {
+  it('pitchCm et spacingOk comparent la grille aux distances recommandées (strict entre plants, 25 % de tolérance sur la surface)', () => {
     expect(pitchCm(tomate)).toBe(60); expect(pitchCm(courge)).toBe(90); expect(pitchCm(carotte)).toBe(7.5);
     expect(pitchCm(species({ plants_per_cell: 4 }))).toBe(15);
     expect(spacingOk(species({ id: 'x', span_w: 2, span_h: 2, inrow_spacing_cm: 50 }))).toBe(true);
     expect(spacingOk(species({ id: 'x', inrow_spacing_cm: 40, plants_per_cell: 4 }))).toBe(false); // 15 cm < 30
-    expect(spacingOk(species({ id: 'x', inrow_spacing_cm: 40 }))).toBe(true); // 30 cm ≥ 30
+    expect(spacingOk(species({ id: 'x', inrow_spacing_cm: 40 }))).toBe(false); // 30 cm < 40 : strict entre plants
   });
 });
 
@@ -385,5 +385,49 @@ describe('plantations prévues et tâches automatiques', () => {
       ['2027-03-31', 'Entretien : radis'],
       ['2027-04-04', 'Récolter : radis']
     ]);
+  });
+});
+
+describe('espacements stricts', () => {
+  it('areaPerPlantCm2 : surface par plant selon la case ou l’empreinte', () => {
+    expect(areaPerPlantCm2(species({ plants_per_cell: 4 }))).toBe(225);
+    expect(areaPerPlantCm2(species({ span_w: 2, span_h: 2 }))).toBe(3600);
+    expect(areaPerPlantCm2(species({ span_w: 4, span_h: 2 }))).toBe(7200);
+  });
+  it('pitchCm : la plus petite dimension d’une empreinte rectangulaire', () => {
+    expect(pitchCm(species({ span_w: 4, span_h: 2 }))).toBe(60);
+    expect(pitchCm(species({ span_w: 2, span_h: 1 }))).toBe(30);
+  });
+  it('spacingOk vérifie aussi l’espacement entre rangs, par la surface', () => {
+    // 30 cm entre plants suffit, mais 30 × 30 cm pour une plante qui veut 30 × 100 cm : trop serré
+    expect(spacingOk(species({ id: 'x', inrow_spacing_cm: 30, row_spacing_cm: 100 }))).toBe(false);
+    expect(spacingOk(species({ id: 'x', inrow_spacing_cm: 30, row_spacing_cm: 30 }))).toBe(true);
+    // 25 % de tolérance sur la surface : 30 × 40 cm souhaités, 900 cm² disponibles sur 1 200
+    expect(spacingOk(species({ id: 'x', inrow_spacing_cm: 30, row_spacing_cm: 40 }))).toBe(true);
+  });
+  it('spacingWarning explique le problème, ou rien si la grille convient', () => {
+    expect(spacingWarning(species({ name: 'Pomme de terre', inrow_spacing_cm: 35, row_spacing_cm: 70 }))).toContain('30 cm de la plante voisine');
+    expect(spacingWarning(species({ name: 'Courge', span_w: 3, span_h: 3, inrow_spacing_cm: 60, row_spacing_cm: 300 }))).toContain('cm entre rangs');
+    expect(spacingWarning(species({ name: 'Salade' }))).toBeNull();
+    expect(spacingWarning(species({ name: 'Jachère', kind: 'sol', inrow_spacing_cm: 99, row_spacing_cm: 99 }))).toBeNull();
+  });
+  it('suggestedLayout donne la disposition du catalogue', () => {
+    const l = (a: number, b: number) => { const r = suggestedLayout(a, b); return `${r.plants_per_cell}/${r.span_w}x${r.span_h}`; };
+    expect(l(3, 15)).toBe('16/1x1');   // radis : au plus 16 par case
+    expect(l(4, 25)).toBe('12/1x1');   // carotte
+    expect(l(12, 25)).toBe('4/1x1');   // ail
+    expect(l(15, 60)).toBe('1/1x1');   // haricot à rames
+    expect(l(30, 30)).toBe('1/1x1');   // salade
+    expect(l(50, 80)).toBe('1/2x2');   // tomate
+    expect(l(35, 70)).toBe('1/2x2');   // pomme de terre
+    expect(l(30, 50)).toBe('1/2x1');   // fraise
+    expect(l(50, 150)).toBe('1/4x2');  // framboisier
+    expect(l(100, 150)).toBe('1/4x4'); // courge
+  });
+  it('toute disposition suggérée respecte ses distances', () => {
+    for (const inr of [3, 5, 10, 15, 25, 30, 40, 50, 80, 100]) for (const rw of [15, 30, 60, 100, 150]) {
+      const L = suggestedLayout(inr, rw);
+      expect(spacingOk(species({ id: 'x', inrow_spacing_cm: inr, row_spacing_cm: rw, ...L }))).toBe(true);
+    }
   });
 });

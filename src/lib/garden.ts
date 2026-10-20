@@ -77,11 +77,50 @@ export function occupancy(z: Pick<Zone, 'cols' | 'rows'>, plantings: Planting[])
   return g;
 }
 
-/** Distance réelle (cm) entre deux plants d'une même plantation, selon la grille de cases. */
-export const pitchCm = (s: Species) => (isMulti(s) ? CELL_CM * s.span_w : CELL_CM / Math.sqrt(s.plants_per_cell));
+/** Distance réelle (cm) entre deux plants d'une même plantation, selon la grille de cases (la plus petite dimension quand l'empreinte est rectangulaire). */
+export const pitchCm = (s: Species) => (isMulti(s) ? CELL_CM * Math.min(s.span_w, s.span_h) : CELL_CM / Math.sqrt(s.plants_per_cell));
 
-/** La grille respecte-t-elle la distance recommandée entre plants ? (tolérance de 25 %) */
-export const spacingOk = (s: Species) => pitchCm(s) >= s.inrow_spacing_cm * 0.75;
+/** Surface (cm²) dont dispose chaque plant dans la grille. */
+export const areaPerPlantCm2 = (s: Species) => (isMulti(s) ? CELL_CM * CELL_CM * s.span_w * s.span_h : (CELL_CM * CELL_CM) / s.plants_per_cell);
+
+/** Surface (cm²) que les distances recommandées réservent à un plant : entre plants × entre rangs. */
+export const recommendedAreaCm2 = (s: Pick<Species, 'inrow_spacing_cm' | 'row_spacing_cm'>) => s.inrow_spacing_cm * s.row_spacing_cm;
+
+/** On ne travaille qu'en cases entières : la surface par plant peut être 25 % sous « entre plants × entre rangs ». */
+export const AREA_TOLERANCE = 0.75;
+
+/**
+ * La grille respecte-t-elle les distances recommandées ? Entre plants : strictement. Entre rangs : par la surface dont dispose chaque plant
+ * (une grille serrée dans un sens et large dans l'autre convient si la surface y est).
+ */
+export const spacingOk = (s: Species) => pitchCm(s) >= s.inrow_spacing_cm - 0.5 && areaPerPlantCm2(s) >= recommendedAreaCm2(s) * AREA_TOLERANCE - 1;
+
+/** Phrase d'avertissement quand la grille est plus serrée que les distances recommandées ; null si tout va bien. */
+export function spacingWarning(s: Species): string | null {
+  if (isSol(s) || spacingOk(s)) return null;
+  if (pitchCm(s) < s.inrow_spacing_cm - 0.5) return `Dans la grille, ${lc(s.name)} est à ${Math.round(pitchCm(s))} cm de la plante voisine du même rang ; on recommande ${s.inrow_spacing_cm} cm.`;
+  return `Dans la grille, chaque plant de ${lc(s.name)} dispose d’environ ${nf(Math.round(areaPerPlantCm2(s)))} cm² ; on recommande ${s.inrow_spacing_cm} cm entre plants et ${s.row_spacing_cm} cm entre rangs (${nf(Math.round(recommendedAreaCm2(s)))} cm²).`;
+}
+
+/**
+ * Disposition d'une espèce dans la grille qui respecte ses distances recommandées : plusieurs plants par case pour les petites plantes,
+ * une case par plant, ou une empreinte de plusieurs cases (largeur ≥ hauteur) pour les grandes. C'est la règle des valeurs du catalogue
+ * (migration 0015) : à utiliser pour toute nouvelle espèce.
+ */
+export function suggestedLayout(inrowCm: number, rowCm: number): { plants_per_cell: number; span_w: number; span_h: number } {
+  const cell2 = CELL_CM * CELL_CM, need = inrowCm * rowCm * AREA_TOLERANCE;
+  let n = need <= cell2 ? Math.floor(cell2 / need) : 0;
+  while (n >= 2 && CELL_CM / Math.sqrt(n) < inrowCm) n--;
+  n = Math.min(n, 16);
+  if (n >= 2) return { plants_per_cell: n, span_w: 1, span_h: 1 };
+  if (CELL_CM >= inrowCm && cell2 >= need) return { plants_per_cell: 1, span_w: 1, span_h: 1 };
+  let best: { cells: number; gap: number; w: number; h: number } | null = null;
+  for (let w = 1; w <= 6; w++) for (let h = w; h <= 6; h++) {
+    if (CELL_CM * w < inrowCm || cell2 * w * h < need) continue;
+    if (!best || w * h < best.cells || (w * h === best.cells && h - w < best.gap)) best = { cells: w * h, gap: h - w, w, h };
+  }
+  return { plants_per_cell: 1, span_w: best?.h ?? 6, span_h: best?.w ?? 6 };
+}
 
 /** Espèces voisines plantées plus près que la distance recommandée (moyenne des deux espèces, tolérance de 25 %). */
 export function tooClose(g: Grid, r: { x: number; y: number; w: number; h: number }, s: Species, byId: Map<string, Species>, excludeId?: string) {
