@@ -22,12 +22,25 @@ La CI (`.github/workflows/ci.yml`) rejoue les trois. Si vous changez une règle 
 
 ## Coordination entre modèles
 
-- **Une branche par modèle et par sujet**, puis une pull request vers `main` (`claude/<sujet>`, `codex/<sujet>`…). L'utilisateur relit et fusionne. Ne poussez directement sur `main` que si l'utilisateur l'a demandé.
-- **Le dossier du projet est partagé : n'y changez pas de branche.** Un autre modèle peut y être en train de travailler (un `git checkout` ou un `git reset` lui retire ses fichiers sous les pieds, et un commit part sur la mauvaise branche). Pour travailler sur une autre branche, créez un dossier à part : `git worktree add ../potager-<sujet> -b <branche> origin/main`, puis supprimez-le (`git worktree remove`) quand c'est fini. Avant de commiter, vérifiez `git branch --show-current`.
-- **Un seul modèle par fichier à la fois.** Avant de gros changements dans `src/components/garden.tsx`, `src/lib/garden.ts`, `src/lib/data.ts`, `src/pages/Zone.tsx` ou `src/pages/SpeciesSheet.tsx`, vérifiez qu'aucune branche ouverte ne les touche (`git branch -r`, `gh pr list`).
-- **Commits petits, un sujet chacun**, message à l'indicatif ou nominal, en français, une ligne. Ne commitez jamais `.claude/`, `.env*`, `node_modules`, `dist`, `android/app/build`.
-- **Ne commitez/poussez que sur demande de l'utilisateur** (il dit « commit et push »). En cas de doute, demandez.
-- Laissez une trace : en fin de travail, dites ce qui est fait, ce qui ne l'est pas, et ce qui n'a pas pu être vérifié.
+**Un dossier de travail par agent, une branche par sujet, une pull request par branche. L'utilisateur fusionne.**
+
+1. **Ne travaillez jamais dans le dossier principal du projet** : il est partagé, et un `checkout`, un `reset` ou un commit fait là déplace tous les autres agents (un commit peut partir sur la branche d'un autre). Créez votre propre dossier :
+   ```bash
+   scripts/agent.sh new <agent> <sujet>     # ex. : scripts/agent.sh new claude varietes
+   cd ../potager-<agent>-<sujet>            # branche <agent>/<sujet>, issue de origin/main, dépendances installées
+   ```
+   Nommez la branche `<agent>/<sujet>` (`claude/…`, `codex/…`, `antigravity/…`). Fini : `scripts/agent.sh done <agent> <sujet>`. `scripts/agent.sh list` montre les dossiers en cours.
+2. **Avant de commencer**, relisez l'état du dépôt : `git fetch`, `git log origin/main -10`, `gh pr list`. Partez toujours de `origin/main` à jour.
+3. **Avant de commiter**, vérifiez `git branch --show-current` : ce doit être votre branche, jamais `main` ni celle d'un autre.
+4. **Poussez votre branche et ouvrez une PR** (`gh pr create`, le modèle de description est fourni). Ne fusionnez pas vous-même, ne poussez pas sur `main`, sauf demande explicite de l'utilisateur pour un petit changement sûr.
+5. **La CI doit être verte** (`Vérifications`) avant toute fusion. Si elle est rouge, corrigez-la dans votre branche ; ne contournez pas.
+6. **Un seul agent par fichier à la fois.** Avant de gros changements dans `src/components/garden.tsx`, `src/lib/garden.ts`, `src/lib/data.ts`, `src/pages/Zone.tsx` ou `src/pages/SpeciesSheet.tsx`, vérifiez qu'aucune branche ouverte ne les touche (`gh pr list`, `git diff origin/main...origin/<branche> --stat`). Sinon, attendez sa fusion ou demandez à l'utilisateur.
+7. **Rebasez sur `origin/main`** (`git fetch && git rebase origin/main`) avant d'ouvrir la PR et après chaque fusion d'une autre branche, pour que les conflits se règlent chez vous, pas à la fusion.
+8. **Commits petits, un sujet chacun**, message à l'indicatif ou nominal, en français, une ligne. Ne commitez jamais `.claude/`, `.env*`, `node_modules`, `dist`, `android/app/build`.
+9. **Ne commitez et ne poussez que sur demande de l'utilisateur** (« commit et push »). En cas de doute, demandez.
+10. Laissez une trace : en fin de travail, dites ce qui est fait, ce qui ne l'est pas, et ce qui n'a pas pu être vérifié.
+
+**Réglage GitHub à faire par l'utilisateur** (Settings → Branches → règle sur `main`) : exiger une pull request, exiger que le contrôle `Vérifications` soit vert, interdire les poussées directes.
 
 ## Base de données (Supabase, projet `kfdusbzchhbzshznlvmb`, Paris)
 
