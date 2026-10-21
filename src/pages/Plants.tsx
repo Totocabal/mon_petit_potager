@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useApp } from '../lib/app';
-import { BottomNav, Btn, Loading, Page, Sheet, Tile } from '../components/ui';
+import { BottomNav, Btn, Icon, Loading, Page, Sheet, Tile } from '../components/ui';
 import { SpeciesLinks } from '../components/SpeciesLinks';
 import { almanacEntries, type AlmanacActivity, type AlmanacCategory, type AlmanacSort } from '../lib/almanac';
 import { cap, MOIS, today } from '../lib/dates';
@@ -47,13 +47,13 @@ export default function Plants() {
 
       <div className="flex gap-2.5">
         <label className="flex min-h-[50px] min-w-0 flex-1 items-center gap-2.5 rounded-2xl bg-white px-3.5 lg:max-w-md">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#55625A" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="M16 16l4 4" /></svg>
+          <Icon name="search" size={28} />
           <span className="sr-only">Rechercher une plante</span>
           <input type="search" value={q} onChange={e => setQ(e.target.value)} placeholder="Rechercher une plante" className="min-w-0 flex-1 bg-transparent text-base outline-none" />
         </label>
         <button type="button" onClick={() => setSheet(true)} aria-label={active.length ? `Filtres : ${active.length} actif${active.length > 1 ? 's' : ''}` : 'Filtres'}
           className="squish relative flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-2xl bg-white text-vert">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M4 7h16M7 12h10M10 17h4" /></svg>
+          <Icon name="filter" size={30} />
           {active.length > 0 && <span aria-hidden="true" className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#E2553F] text-xs font-extrabold text-white">{active.length}</span>}
         </button>
       </div>

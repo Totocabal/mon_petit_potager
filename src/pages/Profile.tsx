@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { useDeleteGarden, useMembers, useSaveProfile, useUpdateGarden } from '../lib/data';
 import { supabase } from '../lib/supabase';
-import { BottomNav, Btn, Page, Select, useToast } from '../components/ui';
+import { BottomNav, Btn, Icon, Page, Select, useToast } from '../components/ui';
 import { Stepper } from '../components/Stepper';
 import { CELL_CM } from '../lib/garden';
 import { geocode, type Place } from '../lib/weather';
@@ -30,7 +30,7 @@ export default function ProfilePage() {
   return (
     <Page nav>
       <div className="pt-6 lg:pt-0">
-        <h1 className="font-titre text-[31px] font-semibold text-vert">Profil</h1>
+        <h1 className="flex items-center gap-3 font-titre text-[31px] font-semibold text-vert"><Icon name="settings" size={36} />Profil</h1>
         <p className="mt-1 font-bold text-gris">{session.user.email}</p>
       </div>
       <form className="flex flex-col gap-3 rounded-carte bg-white p-4" onSubmit={async e => { e.preventDefault(); const c = city.trim(); let place = null;
@@ -56,7 +56,7 @@ export default function ProfilePage() {
         <Btn type="submit" variant="doux" disabled={updateGarden.isPending}>Enregistrer</Btn>
         {updateGarden.isError && <p className="text-sm font-bold text-alerte">{(updateGarden.error as Error).message}</p>}
       </form>
-      <Link to="/alertes" className="flex min-h-14 items-center justify-between rounded-carte bg-white px-4 font-extrabold text-vert">Notifications<span aria-hidden>→</span></Link>
+      <Link to="/alertes" className="flex min-h-14 items-center justify-between rounded-carte bg-white px-4 font-extrabold text-vert"><span className="flex items-center gap-3"><Icon name="bell" size={32} />Notifications</span><span aria-hidden>→</span></Link>
       <Link to="/inviter" className="flex min-h-14 items-center justify-between rounded-carte bg-white px-4 font-extrabold text-vert">Inviter un proche<span aria-hidden>→</span></Link>
       {gardens.length > 1 && (
         <label className="flex flex-col gap-1.5 text-sm font-extrabold">Changer de potager

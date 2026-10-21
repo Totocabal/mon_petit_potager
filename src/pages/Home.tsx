@@ -69,7 +69,7 @@ export default function Home() {
           <p className="font-bold text-gris">{garden.name}</p>
         </div>
         <Link to="/alertes" aria-label={groups.thirsty.length ? `Alertes d’arrosage : ${groups.thirsty.length} à arroser` : 'Alertes d’arrosage'} className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-white text-vert shadow-[0_4px_12px_rgba(46,107,63,0.12)]">
-          <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z" /><path d="M10 21h4" /></svg>
+          <Icon name="bell" size={32} />
           {groups.thirsty.length > 0 && <span className="absolute right-2.5 top-2.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-[#E2553F]" />}
         </Link>
       </div>
@@ -156,7 +156,7 @@ function TodayCard({ thirsty, harvest, tasks, zoneName, onWater, onHarvest, onTa
         {tasks.length > MAX_TASKS && <Link to="/taches" className="flex min-h-11 items-center justify-center font-extrabold text-vert">+ {tasks.length - MAX_TASKS} autre{tasks.length - MAX_TASKS > 1 ? 's' : ''} tâche{tasks.length - MAX_TASKS > 1 ? 's' : ''}</Link>}
       </div>
       <div className="flex items-center justify-between gap-2">
-        <button type="button" onClick={onAdd} className="squish min-h-11 rounded-2xl bg-vert-doux px-4 font-extrabold text-vert">+ Tâche</button>
+        <button type="button" onClick={onAdd} className="squish flex min-h-11 items-center gap-1.5 rounded-2xl bg-vert-doux px-3 font-extrabold text-vert"><Icon name="plus" size={22} />Tâche</button>
         <Link to="/mon-calendrier" className="flex min-h-11 items-center font-extrabold text-vert">Tout le calendrier →</Link>
       </div>
     </section>

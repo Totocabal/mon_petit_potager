@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useApp } from '../lib/app';
 import { useDeleteTask, useTasks, useToggleTask } from '../lib/data';
-import { BackHeader, Btn, Page, useToast } from '../components/ui';
+import { BackHeader, Btn, Icon, Page, useToast } from '../components/ui';
 import { TaskSheet } from '../components/TaskSheet';
 import { diffDays, parse, today, whenText } from '../lib/dates';
 
@@ -27,7 +27,7 @@ export default function Tasks() {
   return (
     <Page>
       <BackHeader title="Tâches" kicker={garden.name} />
-      <Btn onClick={() => setOpen(true)}>+ Ajouter une tâche</Btn>
+      <Btn onClick={() => setOpen(true)}><Icon name="plus" size={24} />Ajouter une tâche</Btn>
       <section className="rounded-carte bg-white px-4 py-1">
         {todo.length === 0 && <p className="py-4 text-gris">Aucune tâche prévue.</p>}
         {todo.map(t => {
@@ -49,7 +49,7 @@ export default function Tasks() {
           {done.map(t => (
             <div key={t.id} className="flex min-h-11 items-center gap-1">
               <button onClick={() => toggle.mutate({ id: t.id, done: false })} aria-label={`Rouvrir : ${t.title}`} className="flex min-h-11 min-w-0 flex-1 items-center gap-3 text-left text-gris">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-vert text-xs text-white">✓</span><span className="truncate line-through">{t.title}</span>
+                <Icon name="check" size={24} /><span className="truncate line-through">{t.title}</span>
               </button>
               <button aria-label={`Supprimer : ${t.title}`} onClick={() => del.mutate(t.id)} disabled={del.isPending} className="flex h-11 w-11 shrink-0 items-center justify-center text-xl text-gris">×</button>
             </div>
