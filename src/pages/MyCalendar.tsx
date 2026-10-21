@@ -55,10 +55,7 @@ export default function MyCalendar() {
       {tasks.isError && <p role="alert" className="text-sm text-alerte">Impossible de charger les tâches. <Link to="/taches" className="underline">Réessayer depuis la page des tâches</Link>.</p>}
       {groups.length ? <CalendarTimeline groups={groups} zones={zones} varieties={varietyById} now={now} pending={pending} onComplete={complete} /> : !tasks.isPending && <p className="rounded-carte bg-white p-4 text-sm text-gris">Aucun geste prévu pour ce mois-ci.</p>}
       <p className="text-xs text-gris">Les récoltes sont estimées selon la saison et le délai de la variété : vérifiez la maturité sur place.</p>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Link to="/taches" className="flex min-h-11 items-center font-extrabold text-vert">Gérer mes tâches →</Link>
-        <Link to="/almanach" className="flex min-h-11 items-center font-extrabold text-vert">Plantes du mois →</Link>
-      </div>
+      <Link to="/taches" className="flex min-h-11 items-center self-start font-extrabold text-vert">Gérer mes tâches →</Link>
       <BottomNav />
     </Page>
   );
