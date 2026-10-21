@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useApp } from '../lib/app';
-import { BackHeader, Btn, Fold, Page, Sheet, Tile } from '../components/ui';
+import { BackHeader, Btn, Fold, Icon, Page, Sheet, Tile } from '../components/ui';
 import { VarietyDetails } from '../components/VarietyPicker';
 import { categoryLabel, DIFFICULTY_LABEL } from '../lib/glossary';
 import { firstFreeCell, footprintText, isMulti, isSol, lc, occupancy, rel } from '../lib/garden';
@@ -70,7 +70,7 @@ export default function SpeciesSheet() {
 
       <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         {facts.filter(([k]) => KEY_FACTS.includes(k)).map(([k, v]) => (
-          <div key={k} className="flex flex-col gap-0.5 rounded-[20px] bg-white p-3"><span className="text-xs font-bold text-gris">{k}</span><b className="font-titre text-[15px] font-semibold leading-snug">{v}</b></div>
+          <div key={k} className="flex flex-col gap-0.5 rounded-[20px] bg-white p-3"><span className="flex items-center gap-1.5 text-xs font-bold text-gris"><Icon name={k === 'Exposition' ? (s.exposure === 'soleil' ? 'sun' : 'weather') : k === 'Arrosage' ? 'drop' : k === 'Jusqu’à la récolte' ? 'basket' : 'garden'} size={24} />{k}</span><b className="font-titre text-[15px] font-semibold leading-snug">{v}</b></div>
         ))}
       </div>
 
@@ -107,7 +107,7 @@ export default function SpeciesSheet() {
       </div>
       <Link to="/almanach?vue=toutes" className="self-center py-2 font-extrabold text-vert">← Toutes les plantes</Link>
       <div className="fixed bottom-[calc(14px+env(safe-area-inset-bottom))] left-1/2 z-20 w-[min(408px,calc(100%-24px))] -translate-x-1/2 lg:left-[calc(50%+142px)]">
-        <Btn onClick={() => setChoosing(true)} className="shadow-[0_10px_22px_rgba(46,107,63,0.35)]">Planter dans mon potager</Btn>
+        <Btn onClick={() => setChoosing(true)} className="shadow-[0_10px_22px_rgba(46,107,63,0.35)]"><Icon name="sprout" />Planter dans mon potager</Btn>
       </div>
       {choosing && (
         <Sheet title={`Où planter ${lc(s.name)} ?`} onClose={() => setChoosing(false)} reserveSpace={false}>
@@ -263,7 +263,7 @@ export function Pests({ pests, treatment }: { pests: string | null; treatment: s
   return (
     <>
       <section className="flex flex-col gap-2.5 rounded-carte bg-white p-4">
-        <h2 className="font-titre text-lg font-semibold">Ravageurs et maladies</h2>
+        <h2 className="flex items-center gap-2 font-titre text-lg font-semibold"><Icon name="pest" size={30} /><span>Ravageurs et maladies</span><Icon name="disease" size={30} /></h2>
         <div className="flex flex-wrap gap-1.5">
           {labeled.map(t => (
             <span key={t.index} className="rounded-full bg-vert-doux px-2.5 py-0.5 text-xs font-extrabold text-vert">
