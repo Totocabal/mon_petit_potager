@@ -138,3 +138,12 @@ Sur le site web, le bouton « Continuer avec Google » passe par Supabase. Régl
 3. Supabase (*Authentication → URL Configuration*) : ajouter l'adresse du site dans les *Redirect URLs*.
 
 Dans l'app Android et iOS, le bouton ouvre Google dans le navigateur du téléphone, puis le lien de retour `fr.monpetitpotager.app://` rouvre l'app : il faut donc `fr.monpetitpotager.app://**` dans les *Redirect URLs* de Supabase. Aucun identifiant Android ou iOS n'est nécessaire.
+
+
+### Conseils et rappels météo
+
+Gel (minimum ≤ 0 °C), neige (codes WMO 71/73/75/77/85/86), forte chaleur (maximum ≥ 30 °C) et orage (95/96/99) ont chacun un picto et une préférence de notification. Plusieurs risques peuvent se cumuler. Ce sont des conseils pour le potager, pas des vigilances officielles ni une détection de canicule.
+
+L’accueil montre les risques d’aujourd’hui et de demain ; les prévisions détaillent les 7 jours. Les rappels regroupent les risques d’aujourd’hui et de demain à l’heure choisie (8 h ou 19 h). Ils ignorent les sols, les plantations futures et les potagers vides ; le gel nécessite au moins une espèce sensible. Un abri non chauffé n’exclut pas le risque de gel.
+
+Dans l’app native, les notifications utilisent les dernières prévisions chargées et sont reprogrammées à l’ouverture : ouvrir régulièrement l’app garde les prévisions à jour. Sur le web, `send-reminders` charge les prévisions à chaque envoi. Pour activer les préférences partagées en production : appliquer `0017_20261021_alertes_meteo.sql`, puis redéployer `send-reminders`, avant de publier le nouveau client.

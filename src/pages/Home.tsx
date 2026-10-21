@@ -8,6 +8,7 @@ import { DropBadge } from '../components/garden';
 import { ageDays, isReady, isThirsty, needsWater, nf, plantCount } from '../lib/garden';
 import { addDays, fmt, longDate, today, iso, parse, diffDays, whenText } from '../lib/dates';
 import { RAIN_MM, rainOn, SKY_LABEL, skyOf, type Weather } from '../lib/weather';
+import { WeatherAlerts } from '../components/WeatherAlerts';
 import { WeatherIcon } from '../components/WeatherIcon';
 import { WeatherBackdrop } from '../components/WeatherBackdrop';
 import type { Planting, Task } from '../lib/types';
@@ -77,6 +78,8 @@ export default function Home() {
       <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] lg:items-start lg:gap-6">
       <div className="flex flex-col gap-4 lg:gap-5">
       {weather ? <WeatherCard weather={weather} thirsty={groups.thirsty.length} /> : !profile?.lat && <Link to="/profil" className="rounded-carte bg-white p-4 font-bold text-vert">Ajoutez votre ville pour voir la météo et éviter d’arroser sous la pluie →</Link>}
+
+      {weather && <WeatherAlerts weather={weather} />}
 
       <TodayCard
         thirsty={groups.thirsty} harvest={groups.harvest} tasks={dueTasks} zoneName={zoneName}

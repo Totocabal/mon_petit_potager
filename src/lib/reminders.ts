@@ -1,4 +1,5 @@
 import { notificationEnabled, taskNotificationEnabled, type NotificationPreferences } from '../../supabase/functions/_shared/notification-types';
+import { weatherReminderParts } from '../../supabase/functions/_shared/weather-alerts';
 import { addDays, iso, parse, today } from './dates';
 import { everyDays, isPlanned, isReady } from './garden';
 import { RAIN_MM, type Weather } from './weather';
@@ -27,7 +28,7 @@ export function planReminders(o: {
 
   for (let i = 0; i < (o.days ?? 7); i++) {
     const day = addDays(start, i), key = iso(day);
-    const parts: string[] = [];
+    const parts = weatherReminderParts({ days: o.weather?.days ?? [], date: key, tomorrow: iso(addDays(day, 1)), preferences: o.preferences, crops: o.crops, byId: o.byId });
 
     // la pluie compte comme un arrosage pour les zones à l'air libre ; une zone sous abri est à arroser même s'il pleut
     const water = new Set<string>();
