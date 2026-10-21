@@ -44,7 +44,7 @@ async function fetchWeather(lat: number, lon: number): Promise<Weather> {
   const j = await r.json();
   const d = j.daily, c = j.current;
   return {
-    days: d.time.map((t: string, i: number) => ({ date: t, rain: d.precipitation_sum[i] ?? 0, tmax: Math.round(d.temperature_2m_max[i]), tmin: Math.round(d.temperature_2m_min[i]), code: d.weather_code[i], chance: d.precipitation_probability_max?.[i] ?? null })),
+    days: d.time.map((t: string, i: number) => ({ date: t, rain: d.precipitation_sum[i] ?? 0, tmax: d.temperature_2m_max[i], tmin: d.temperature_2m_min[i], code: d.weather_code[i], chance: d.precipitation_probability_max?.[i] ?? null })),
     current: c ? { temp: Math.round(c.temperature_2m), code: c.weather_code } : undefined
   };
 }

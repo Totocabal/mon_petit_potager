@@ -8,7 +8,7 @@ const ILLUSTRATED_ICONS = {
   home: 'accueil', garden: 'potager', calendar: 'calendrier', book: 'plantes', profile: 'profil', bell: 'notifications',
   drop: 'arroser', indoor: 'semis-abri', outdoor: 'semis-place', sprout: 'planter', basket: 'recolter', sparkles: 'entretenir',
   personal: 'tache-personnelle', weather: 'meteo', sun: 'soleil', rain: 'pluie', pest: 'ravageurs', disease: 'maladies',
-  plus: 'ajouter', pencil: 'modifier', check: 'valider', search: 'rechercher', filter: 'filtrer', settings: 'reglages'
+  plus: 'ajouter', pencil: 'modifier', check: 'valider', search: 'rechercher', filter: 'filtrer', settings: 'reglages', frost: 'gel', snow: 'neige', heat: 'chaleur', storm: 'orage'
 } as const;
 
 /** Les actions absentes de la planche gardent leur symbole habituel. */
@@ -18,7 +18,7 @@ const LINE_ICONS = {
   trash: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6'
 } as const;
 export type IconName = keyof typeof ILLUSTRATED_ICONS | keyof typeof LINE_ICONS;
-export const NOTIFICATION_ICONS = { water: 'drop', sow_indoor: 'indoor', sow_outdoor: 'outdoor', plant: 'sprout', harvest: 'basket', care: 'sparkles', personal: 'personal' } as const;
+export const NOTIFICATION_ICONS = { water: 'drop', sow_indoor: 'indoor', sow_outdoor: 'outdoor', plant: 'sprout', harvest: 'basket', care: 'sparkles', personal: 'personal', frost: 'frost', snow: 'snow', heat: 'heat', storm: 'storm' } as const;
 
 export function Icon({ name, size = 28, className = '' }: { name: IconName; size?: number; className?: string }) {
   if (name in ILLUSTRATED_ICONS) {

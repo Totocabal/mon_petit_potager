@@ -1,4 +1,4 @@
-import { NOTIFICATION_TYPES, notificationEnabled, type NotificationType } from '../../supabase/functions/_shared/notification-types';
+import { NOTIFICATION_TYPES, TASK_REMINDER_TYPES, WEATHER_NOTIFICATION_TYPES, notificationEnabled, type NotificationType } from '../../supabase/functions/_shared/notification-types';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../lib/app';
@@ -20,7 +20,7 @@ function Switch({ on, onChange, label, disabled }: { on: boolean; onChange: () =
 }
 
 export default function Alerts() {
-  const { session, garden, crops, byId, rainFor } = useApp();
+  const { session, garden, crops, byId, rainFor, profile } = useApp();
   const settings = useAlertSettings(session.user.id);
   const save = useSaveAlertSettings(session.user.id);
   const setSpecies = useSetSpeciesAlerts(garden.id);
@@ -111,7 +111,7 @@ export default function Alerts() {
         <h2 id="notification-types-title" className="font-titre text-lg font-semibold">Quels rappels recevoir ?</h2>
         <p className="text-sm text-gris">Choisissez chaque type indépendamment. Ces préférences sont partagées entre vos appareils.</p>
         <div className="rounded-carte bg-white px-4">
-          {NOTIFICATION_TYPES.map(type => (
+          {TASK_REMINDER_TYPES.map(type => (
             <div key={type.key} className="flex min-h-[72px] items-center gap-3 border-b border-dashed border-trait py-2 last:border-0">
               <Icon name={NOTIFICATION_ICONS[type.key]} size={32} /><span className="flex min-w-0 flex-1 flex-col"><b className="text-[15px] font-extrabold">{type.label}</b><span className="text-[13px] text-gris">{type.detail}</span></span>
               <Switch on={notificationEnabled(st, type.key)} label={`Notifications : ${type.label}`} onChange={() => { void toggleType(type.key); }} disabled={!st || save.isPending || busy} />
@@ -119,6 +119,19 @@ export default function Alerts() {
           ))}
         </div>
         {!enabledTypes.length && <Note tone="neutre">Tous les types sont en pause. Activez au moins un type pour recevoir des rappels.</Note>}
+      </section>
+
+      <section className="flex flex-col gap-2" aria-labelledby="weather-types-title">
+        <h2 id="weather-types-title" className="font-titre text-lg font-semibold">Risques météo</h2>
+        <p className="text-sm text-gris">Les risques d’aujourd’hui et de demain accompagnent votre rappel, à l’heure choisie, selon les plantes de votre potager. Les préférences sont partagées entre vos appareils.</p>
+        {(profile?.lat == null || profile?.lon == null) && <Note tone="neutre"><Link to="/profil" className="font-extrabold underline">Ajoutez votre ville</Link> pour recevoir les conseils météo.</Note>}
+        <div className="rounded-carte bg-white px-4">
+          {WEATHER_NOTIFICATION_TYPES.map(type => <div key={type.key} className="flex min-h-[72px] items-center gap-3 border-b border-dashed border-trait py-2 last:border-0">
+            <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${type.key === 'frost' || type.key === 'snow' ? 'bg-ciel' : 'bg-soleil-doux'}`}><Icon name={NOTIFICATION_ICONS[type.key]} size={40} /></span><span className="flex min-w-0 flex-1 flex-col"><b className="text-[15px] font-extrabold">{type.label}</b><span className="text-[13px] text-gris">{type.detail}</span></span>
+            <Switch on={notificationEnabled(st, type.key)} label={`Notifications : ${type.label}`} onChange={() => { void toggleType(type.key); }} disabled={!st || save.isPending || busy} />
+          </div>)}
+        </div>
+        <p className="text-xs text-gris">Conseils pour le potager, pas des vigilances officielles. Dans l’app, les prévisions utilisées pour les rappels sont renouvelées à chaque ouverture.</p>
       </section>
 
       <div className="flex flex-col gap-2">

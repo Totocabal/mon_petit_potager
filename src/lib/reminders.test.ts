@@ -138,3 +138,20 @@ describe('choix des types de rappels', () => {
     expect(plan({ preferences, tasks: [task('1', 0)] })).toEqual([]);
   });
 });
+
+
+describe('rappels météo anticipés', () => {
+  it('joint le gel et la neige de demain au rappel d’aujourd’hui', () => {
+    const weather = { days: [{ ...wday(1, 8), tmin: -1, code: 73 }] };
+    const rs = plan({ weather, byId: byId(species({ id: 't', name: 'Tomate', frost_sensitive: true, water_every_days: 99 })), days: 1 });
+    expect(rs).toHaveLength(1);
+    expect(rs[0].body).toContain('Gel possible demain');
+    expect(rs[0].body).toContain('Neige prévue demain');
+    expect(iso(rs[0].at)).toBe(d(0));
+  });
+  it('les préférences météo ne coupent pas les rappels de tâches', () => {
+    const weather = { days: [{ ...wday(1, 8), tmin: -1, code: 73 }] };
+    const rs = plan({ weather, crops: [], tasks: [task('1', 0)], preferences: { notify_frost: false, notify_snow: false }, days: 1 });
+    expect(rs[0].body).toBe('Tâche : Pailler');
+  });
+});

@@ -1,18 +1,11 @@
+import { weatherAlerts } from '../../supabase/functions/_shared/weather-alerts';
+import { WeatherAlertAdvice } from '../components/WeatherAlerts';
 import { Link } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { BackHeader, Icon, Page } from '../components/ui';
 import { WeatherIcon } from '../components/WeatherIcon';
 import { RAIN_MM, SKY_LABEL, skyOf, type WeatherDay } from '../lib/weather';
 import { cap, iso, parse, today, addDays } from '../lib/dates';
-
-/** Conseil de jardinier pour une journée, d'après la pluie et les températures. */
-function tip(d: WeatherDay): { text: string; tone: 'eau' | 'froid' | 'chaud' } | null {
-  if (d.tmin <= 0) return { text: 'Gel possible : protégez les plants sensibles', tone: 'froid' };
-  if (d.rain >= RAIN_MM) return { text: 'Pas d’arrosage : la pluie suffit', tone: 'eau' };
-  if (d.tmax >= 30) return { text: 'Forte chaleur : arrosez le soir', tone: 'chaud' };
-  return null;
-}
-const TONE = { eau: 'bg-[#D3EAEE] text-[#1F4D5A]', froid: 'bg-[#E3E9F6] text-[#2A3A6B]', chaud: 'bg-soleil-doux text-soleil-encre' };
 
 const shortDate = (date: string) => parse(date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 function dayName(date: string, t: string, tomorrow: string) {
@@ -98,7 +91,7 @@ export default function WeatherPage() {
         <h2 id="h-prev" className="sr-only">Les 7 prochains jours</h2>
         <ul>
           {week.map(d => {
-            const a = tip(d);
+            const alerts = weatherAlerts(d);
             return (
               <li key={d.date} className="grid grid-cols-[72px_minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2.5 border-b border-dashed border-trait py-3.5 last:border-0">
                 <SkyTile sky={skyOf(d.code)} />
@@ -111,7 +104,8 @@ export default function WeatherPage() {
                   <span className="font-titre text-2xl font-semibold">{d.tmax}°</span>
                   <span className="text-sm font-bold text-gris">{d.tmin}°</span>
                 </div>
-                {a && <p className={`col-span-2 col-start-2 justify-self-start rounded-full px-3 py-1 text-[13px] font-extrabold ${TONE[a.tone]}`}>{a.text}</p>}
+                {alerts.length > 0 && <div className="col-span-3 flex flex-col gap-2">{alerts.map(alert => <WeatherAlertAdvice key={alert.kind} alert={alert} />)}</div>}
+                {d.rain >= RAIN_MM && <p className="col-span-3 rounded-2xl bg-ciel px-3 py-2 text-sm font-bold text-ciel-encre">La pluie compte pour l’arrosage des zones à l’air libre.</p>}
               </li>
             );
           })}
@@ -134,7 +128,7 @@ export default function WeatherPage() {
           </ul>
         </section>
       )}
-      <p className="text-center text-xs text-gris">Données Open-Meteo, mises à jour toutes les 30 minutes.</p>
+      <p className="text-center text-xs text-gris">Conseils pour le potager d’après les prévisions Open-Meteo, actualisées toutes les 30 minutes à l’ouverture de l’app. Ils ne remplacent pas les vigilances officielles.</p>
     </Page>
   );
 }
