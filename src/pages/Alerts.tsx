@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { useAlertSettings, useSaveAlertSettings, useSetSpeciesAlerts } from '../lib/data';
-import { BackHeader, Btn, Note, Page, Tile, useToast } from '../components/ui';
+import { BackHeader, Btn, Icon, NOTIFICATION_ICONS, Note, Page, Tile, useToast } from '../components/ui';
 import { isNative } from '../lib/native';
 import { cancelReminders, remindersEnabled, remindersPermission, requestRemindersPermission, setRemindersEnabled, testReminder } from '../lib/localReminders';
 import { currentSubscription, disablePush, enablePush, needsInstall, pushSupported, sendTestPush, VAPID_PUBLIC } from '../lib/push';
@@ -96,12 +96,12 @@ export default function Alerts() {
 
       <div className="rounded-[24px] bg-white px-[18px] py-1">
         <div className="flex min-h-[58px] items-center gap-3 border-b border-dashed border-trait">
-          <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-vert-doux text-vert"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z" /><path d="M10 21h4" /></svg></span>
+          <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-vert-doux text-vert"><Icon name="bell" size={28} /></span>
           <span className="flex flex-1 flex-col"><b className="font-extrabold">Activer les alertes</b><span className="text-[13px] text-gris">Sur cet appareil</span></span>
           <Switch on={active} label="Activer les alertes" onChange={toggleAll} disabled={busy || save.isPending || (!isNative && (install || !supported || !VAPID_PUBLIC || device === null))} />
         </div>
         <div className="flex min-h-16 items-center gap-3">
-          <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#D3EAEE] text-[#2C5A66]"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 15h10a4 4 0 0 0 0-8 6 6 0 0 0-11 2 3 3 0 0 0 1 6z" /><path d="M9 18l-1 2M13 18l-1 2M17 18l-1 2" /></svg></span>
+          <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#D3EAEE] text-[#2C5A66]"><Icon name="rain" size={28} /></span>
           <span className="flex flex-1 flex-col"><b className="font-extrabold">Pas d’alerte s’il pleut</b><span className="text-[13px] text-gris">La nature s’occupe de l’arrosage</span></span>
           <Switch on={st?.skip_if_rain ?? true} label="Pas d’alerte s’il pleut" onChange={() => save.mutate({ skip_if_rain: !(st?.skip_if_rain ?? true) })} disabled={!st || save.isPending || !waterEnabled} />
         </div>
@@ -113,7 +113,7 @@ export default function Alerts() {
         <div className="rounded-carte bg-white px-4">
           {NOTIFICATION_TYPES.map(type => (
             <div key={type.key} className="flex min-h-[72px] items-center gap-3 border-b border-dashed border-trait py-2 last:border-0">
-              <span className="flex min-w-0 flex-1 flex-col"><b className="text-[15px] font-extrabold">{type.label}</b><span className="text-[13px] text-gris">{type.detail}</span></span>
+              <Icon name={NOTIFICATION_ICONS[type.key]} size={32} /><span className="flex min-w-0 flex-1 flex-col"><b className="text-[15px] font-extrabold">{type.label}</b><span className="text-[13px] text-gris">{type.detail}</span></span>
               <Switch on={notificationEnabled(st, type.key)} label={`Notifications : ${type.label}`} onChange={() => { void toggleType(type.key); }} disabled={!st || save.isPending || busy} />
             </div>
           ))}
@@ -152,7 +152,7 @@ export default function Alerts() {
       <div className="flex flex-col gap-1.5">
         <p className="ml-2 text-xs font-extrabold uppercase tracking-wider text-gris">Aperçu de l’alerte</p>
         <div className="flex items-center gap-3 rounded-[22px] bg-white/90 px-3.5 py-3 shadow-[0_10px_28px_rgba(35,64,43,0.18)]">
-          <span aria-hidden className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl bg-vert text-white"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20v-8" /><path d="M12 12c0-4-3-6-7-6 0 4 3 6 7 6z" /><path d="M12 10c0-3 2-5 6-5 0 3-2 5-6 5z" /></svg></span>
+          <span aria-hidden className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl bg-vert-doux"><Icon name="garden" size={34} /></span>
           <span className="flex min-w-0 flex-1 flex-col gap-px">
             <span className="flex justify-between text-xs font-bold text-gris"><span>Mon petit potager</span><span>{hour === 8 ? '08:00' : '19:00'}</span></span>
             <span className="text-[15px] font-extrabold">{preview}</span>

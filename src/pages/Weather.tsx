@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useApp } from '../lib/app';
-import { BackHeader, Page } from '../components/ui';
+import { BackHeader, Icon, Page } from '../components/ui';
 import { WeatherIcon } from '../components/WeatherIcon';
 import { RAIN_MM, SKY_LABEL, skyOf, type WeatherDay } from '../lib/weather';
 import { cap, iso, parse, today, addDays } from '../lib/dates';
@@ -74,7 +74,7 @@ export default function WeatherPage() {
 
   return (
     <Page>
-      <BackHeader kicker={profile?.city ?? undefined} title="Prévisions météo" />
+      <BackHeader kicker={profile?.city ?? undefined} title="Prévisions météo" right={<Icon name="weather" size={40} />} />
 
       <section aria-label="Maintenant" className="flex flex-col gap-4 rounded-[28px] bg-[#D3EAEE] p-5">
         <div className="flex items-center gap-5">

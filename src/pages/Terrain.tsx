@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../lib/app';
 import { useUpdateZone } from '../lib/data';
-import { BottomNav, Loading, Page, Picto, useToast } from '../components/ui';
+import { BottomNav, Icon, Loading, Page, Picto, useToast } from '../components/ui';
 import { DropBadge, WaterButton } from '../components/garden';
 import { buzz } from '../lib/native';
 import { CELL_CM, isReady, isSol, isThirsty, meters, nf, plantCount, SPCOLOR, zoneFits, zoneGround, zoneSize } from '../lib/garden';
@@ -183,7 +183,7 @@ export default function Terrain() {
           );
         })}
         <Link to="/potager/nouvelle-zone" className="flex min-h-[56px] items-center gap-3 font-extrabold text-vert">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-vert-doux">+</span>Nouvelle zone
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-vert-doux"><Icon name="plus" /></span>Nouvelle zone
         </Link>
       </div>
       {!editing && <WaterButton plantings={crops} label="tout le potager" />}
